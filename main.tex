@@ -1,0 +1,60 @@
+\documentclass[preprint]{sigplanconf}
+
+\begin{document}
+
+\setlength{\pdfpageheight}{\paperheight}
+\setlength{\pdfpagewidth}{\paperwidth}
+
+\conferenceinfo{ICFP'16}{September 18--24, 2016, Nara, Japan}
+\copyrightyear{2016}
+%\copyrightdata{978-1-nnnn-nnnn-n/yy/mm}
+%\copyrightdoi{nnnnnnn.nnnnnnn}
+% Uncomment the publication rights you want to use.
+%\publicationrights{transferred}
+%\publicationrights{licensed}     % this is the default
+%\publicationrights{author-pays}
+%\titlebanner{banner above paper title}        % These are ignored unless
+%\preprintfooter{short description of paper}   % 'preprint' option specified.
+
+\title{Build Systems at Scale}
+%\subtitle{Subtitle Text, if any}
+
+\authorinfo{Authors}
+           {Affiliations}
+           {Emails}
+%\authorinfo{Name2}
+%          {Affiliation2}
+%          {Email2}
+
+\maketitle
+
+\begin{abstract}
+The paper discusses common challenges of build systems at scale and proposes a
+number of techniques that help overcome them. The techniques have been
+implemented in Haskell and thoroughly tested through a complete redesign of an
+existing build system of the Glasgow Haskell Compiler.
+\end{abstract}
+
+%\category{CR-number}{subcategory}{third-level}
+\keywords
+build systems
+
+\input{introduction.tex}
+
+\input{challenges.tex}
+
+%\acks
+
+%\bibliographystyle{abbrvnat}
+
+% The bibliography should be embedded for final submission.
+
+\begin{thebibliography}{}
+\softraggedright
+
+\bibitem{shake-paper}{
+Neil Mitchell. "Shake before building: replacing make with Haskell."
+ACM SIGPLAN Notices. Vol. 47. No. 9. ACM, 2012.}
+
+\end{thebibliography}
+\end{document}

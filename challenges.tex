@@ -1,0 +1,48 @@
+\section{Challenges of large-scale build systems}
+
+\subsection{Abstracting over patterns of dependencies}
+
+Weak abstractions of \textsc{Make}:
+\begin{itemize}
+  \item Pattern rules: do not work in general
+  \item Macros: untyped, Utterly Impenetrable 
+\end{itemize}
+
+By embedding the build system in Haskell we get access to its abstraction
+facilities. Examples:
+\begin{itemize}
+  \item Use predicates instead of patterns
+  \item Compute build arguments from target filename
+  \item Build rules with multiple outputs
+\end{itemize}
+
+\subsection{Programming model}
+
+\textsc{Make}'s programming model: single global space of string variables. Also
+see: ``Recursive Make Considered Harmful'' by Peter Miller, 1997.
+
+\noindent Review datatypes we use: \texttt{Builder}, \texttt{Package},
+\texttt{Target}, etc. Some builders are built by the build system, e.g.
+\texttt{genprimopcode}, \texttt{ghc-cabal}, stage1 GHC. This is handled in a
+transparent way.
+
+\subsection{Dynamic dependencies}
+
+\textsc{Make} has no support for dynamic dependencies. \emph{Build phases}: do
+not work in general.
+
+We handle dynamic dependencies using \textsc{Shake}'s oracles. Example: import
+and include dependencies.
+
+\subsection{Fine-grain dependencies}
+
+\textsc{Make} provides only file dependencies, one cannot depend on
+configuration flags. Keeping flags in different files is impractical.
+
+We have the following fine-grain dependencies:
+\begin{itemize}
+  \item Depend on individual configuration flags provided in `system.config'
+  file. When a flag is changed only the affected rules are rerun.
+  \item Compute build arguments from target filename.
+  \item Build rules with multiple outputs.
+\end{itemize}

@@ -1,0 +1,6 @@
+*.log
+*.aux
+*.synctex.gz
+/tmp/
+.project
+/main.pdf
