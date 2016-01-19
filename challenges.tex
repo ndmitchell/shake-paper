@@ -1,5 +1,12 @@
 \section{Challenges of large-scale build systems}
 
+Summary of this section: \emph{What problem are we trying to solve?} We show several
+common challenges for existing build languages, such as \textsc{Make},
+\textsc{cmake}, \textsc{Ninja} and others (the list to be updated). Each
+challenge is described in a separate section, with specific examples coming from
+the GHC. We briefly outline the solutions and refer the reader for more details
+coming in Sections~\ref{section-abstractions} and~\ref{section-dependencies}.
+
 \subsection{Abstracting over patterns of dependencies}
 
 Weak abstractions of \textsc{Make}:
@@ -8,41 +15,28 @@ Weak abstractions of \textsc{Make}:
   \item Macros: untyped, Utterly Impenetrable 
 \end{itemize}
 
-By embedding the build system in Haskell we get access to its abstraction
-facilities. Examples:
-\begin{itemize}
-  \item Use predicates instead of patterns
-  \item Compute build arguments from target filename
-  \item Build rules with multiple outputs
-\end{itemize}
+By embedding the build system in Haskell we get access to its rich abstraction
+facilities. See Section~\ref{section-abstractions} for more details.
 
 \subsection{Programming model}
 
-\textsc{Make}'s programming model: single global space of string variables. Also
-see: ``Recursive Make Considered Harmful'' by Peter Miller, 1997.
-
-\noindent Review datatypes we use: \texttt{Builder}, \texttt{Package},
-\texttt{Target}, etc. Some builders are built by the build system, e.g.
-\texttt{genprimopcode}, \texttt{ghc-cabal}, stage1 GHC. This is handled in a
-transparent way.
+\textsc{Make}'s programming model: single global space of string variables. The
+only way to control build parallelism is by introducing fake \emph{concurrency
+reduction} dependencies. Also see: ``Recursive Make Considered Harmful'' by
+Peter Miller, 1997. See Section~\ref{section-abstractions} for more details.
 
 \subsection{Dynamic dependencies}
 
 \textsc{Make} has no support for dynamic dependencies. \emph{Build phases}: do
-not work in general.
+not work in general. 
 
-We handle dynamic dependencies using \textsc{Shake}'s oracles. Example: import
-and include dependencies.
+We handle dynamic dependencies using \textsc{Shake}'s oracles. See
+Section~\ref{section-dependencies} for more details.
 
 \subsection{Fine-grain dependencies}
 
-\textsc{Make} provides only file dependencies, one cannot depend on
-configuration flags. Keeping flags in different files is impractical.
+\textsc{Make} supports only file dependencies, so it is impossible to depend
+on anything finer, e.g. a single flag in a configuration file. Keeping flags
+separately in different files is impractical. 
 
-We have the following fine-grain dependencies:
-\begin{itemize}
-  \item Depend on individual configuration flags provided in `system.config'
-  file. When a flag is changed only the affected rules are rerun.
-  \item Compute build arguments from target filename.
-  \item Build rules with multiple outputs.
-\end{itemize}
+See Section~\ref{section-dependencies} for more details.

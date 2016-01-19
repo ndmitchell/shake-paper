@@ -1,0 +1,23 @@
+\section{Dynamic and fine-grain dependencies\label{section-dependencies}}
+Or, perhaps more generally: \emph{Accurate dependencies}. Why accurate
+dependencies are important? 1) Performance. 2) Correctness. Anything else?
+
+The core of the challenge: the dependency graph is not static and it is not
+known in advance.
+
+Two specific instances of the accurate dependencies challenge are: \emph{dynamic
+dependencies} and \emph{fine-grain dependencies}.
+
+\subsection{Dynamic dependencies}
+
+We handle dynamic dependencies using \textsc{Shake}'s oracles. Examples: import
+and include dependencies.
+
+\subsection{Fine-grain dependencies}
+
+We have the following fine-grain dependencies:
+\begin{itemize}
+  \item Depend on individual configuration flags provided in `system.config'
+  file. When a flag is changed only the affected rules are rerun.
+  \item Compute build arguments from target filename.
+\end{itemize}

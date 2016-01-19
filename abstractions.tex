@@ -1,0 +1,34 @@
+\section{Useful abstractions\label{section-abstractions}}
+
+\subsection{Abstracting over patterns of dependencies}
+
+By embedding the build system in Haskell we get access to its rich abstraction
+facilities. Examples:
+\begin{itemize}
+  \item Use predicates instead of file patterns (a special case: OR-rules)
+  \item Build rules with multiple outputs (AND-rules)
+  \item Compute build arguments from target filename
+\end{itemize}
+
+\subsection{Programming model}
+
+Review of the datatypes we use: \texttt{Builder}, \texttt{Package},
+\texttt{Target}, \texttt{Expression}. 
+
+~\\
+\noindent The \texttt{build} function takes care of building a single
+\texttt{Target}:
+\begin{itemize}
+  \item It computes the complete command line to build the target from the
+  \texttt{Args} expression.
+  \item If the command line has changed since the last invocation of the build
+  system, the target is rebuilt even if all its dependencies are up-to-date.
+  This tracks changes both in the environment and in the build system itself.
+  \item It makes sure the required builder is up-to-date. Some builders are
+  built by the build system, e.g. \texttt{genprimopcode}, \texttt{ghc-cabal},
+  stage1 GHC, so it is important to rebuild them if need be.
+  \item Finally, it runs the builder to build the target, printing diagnostic
+  information if need be.
+\end{itemize}
+
+
