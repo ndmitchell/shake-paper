@@ -1,0 +1,104 @@
+\usepackage{comment}
+\usepackage{datetime}
+\usepackage{graphicx}
+\usepackage{makecmds}
+\usepackage{url}
+\usepackage{multirow}
+
+%include paper.fmt
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% GENERAL FORMATTING AND LAYOUT
+
+% for tex2hs
+\newcommand{\ignore}{}
+\newcommand{\hsdef}[1]{}
+\newcommand{\h}[1]{}
+
+
+% temporary command to keep reusing
+\newcommand{\f}{}
+
+
+% from the ICFP website
+\ifdefined\bibpunct\bibpunct();A{},\fi
+\ifdefined\citep\let\cite=\citep\fi
+
+
+% bibliography
+\let\oldbibliography\bibliography
+\renewcommand{\bibliography}{\oldbibliography{paper}}
+
+
+% custom spacing
+\newcommand{\negsmallskip}{\vspace{-\smallskipamount}}
+\newcommand{\negbigskip}{\vspace{-\bigskipamount}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% LHS2TEX
+
+% \setlength\blanklineskip{3mm}
+% \setlength\mathindent{0mm}
+% 
+% 
+% \renewcommand{\Varid}[1]{\mathsf{#1}}
+% \renewcommand{\Conid}[1]{\mathsf{#1}}
+% \renewcommand{\Varid}[1]{\mathsf{#1}}
+% \newcommand{\Keyword}[1]{\text{\textbf{\textsf{#1}}}}
+% 
+% \newcommand{\backtick}[1]{\;\mathsf{\text{\textit{\`{}}}#1\!\text{\textit{\`{}}}}\;}
+% 
+% \newcommand{\perc}{\%
+%     }
+% 
+% % to counteract the setspace package
+% \ifdefined\setstretch\renewcommand\hscodestyle{\setstretch{1}}\fi
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% CUSTOM COMMANDS
+
+% \todo - write out a todo reminder, easy to grep for
+\newcommand{\todo}[1]{\textbf{\textsc{Todo:} #1}}
+
+\newenvironment{onepage}
+	{\noindent\begin{minipage}{\linewidth}}
+	{\end{minipage}}
+
+\renewcommand{\ll}{[\![}
+\newcommand{\rr}{]\!]}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% EXAMPLES
+
+\newcounter{exmp}
+\setcounter{exmp}{0}
+
+\newcommand{\noexample}{\hfill$\Box$}
+
+% generic example (can be anything)
+\newenvironment{exampleany}[1]
+    {\subsubsection*{Example #1}}
+    {\noexample}
+
+% standard example
+\provideenvironment{example}
+    {\refstepcounter{exmp}
+     \begin{exampleany}{\arabic{exmp}}}
+    {\end{exampleany}}
+
+% naming an example
+\provideenvironment{examplename}[1]
+    {\refstepcounter{exmp}
+     \begin{exampleany}{\arabic{exmp} (#1)}}
+    {\end{exampleany}}
+
+% revisiting a previous example
+\newenvironment{examplerevisit}[1]
+    {\begin{exampleany}{#1 (revisited)}}
+    {\end{exampleany}}
+
+% \end{code} followed by \end{example}
+\newcommand{\codeexample}{\vspace{-9mm}\par}

@@ -1,5 +1,14 @@
 \documentclass[preprint]{sigplanconf}
 
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{natbib}
+\usepackage{multirow}
+\usepackage{setspace}
+\usepackage{balance}
+\usepackage[all]{xy}
+\include{paper}
+
 \begin{document}
 
 \setlength{\pdfpageheight}{\paperheight}
@@ -47,18 +56,16 @@ build systems
 \input{review.tex}
 \input{conclusions.tex}
 
-%\acks
+\acks
 
-%\bibliographystyle{abbrvnat}
+Thanks to Standard Chartered, where Shake was initially developed.
 
-% The bibliography should be embedded for final submission.
+\vspace{2mm}
+\noindent
+\footnotesize{Neil Mitchell is employed by Standard Chartered Bank. This paper has been created in a personal capacity and Standard Chartered Bank does not accept liability for its content. Views expressed in this paper do not necessarily represent the views of Standard Chartered Bank.}
 
-\begin{thebibliography}{}
-\softraggedright
+\bibliographystyle{plainnat}
+\balance
+\bibliography
 
-\bibitem{shake-paper}{
-Neil Mitchell. "Shake before building: replacing make with Haskell."
-ACM SIGPLAN Notices. Vol. 47. No. 9. ACM, 2012.}
-
-\end{thebibliography}
 \end{document}
