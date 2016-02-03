@@ -15,20 +15,107 @@ Weak abstractions of \textsc{Make}:
   \item Macros: untyped, Utterly Impenetrable 
 \end{itemize}
 
+\noindent Consider the following pattern rule:
+
+\begin{verbatim}
+%.o : %.hs
+    ghc HC_OPTS $<
+\end{verbatim}
+
+\noindent It tells \textsc{Make} that object files \texttt{*.o} can be produced
+from Haskell source files \texttt{*.hs} by compiling them with \texttt{ghc}
+command invoked with \texttt{HC\_OPTS} arguments. The notation is terse and
+works well for this simple case, but as soon as one goes beyond \textit{one rule
+fits all} the following limitations are encountered:
+\begin{itemize}
+  \item What if we want the rule to match \texttt{foo.o} and \texttt{bar.o}, but
+  not \texttt{baz.o}? It is impossible to do any non-trivial computation and
+  we have to rely on patterns whose expressive power is limited.
+  \item What if \texttt{HC\_OPTS} depends on the file and/or something else?
+  \item GHC actually produces two files: \texttt{*.o} and \texttt{*.hi}. How do
+  we express this?
+\end{itemize}
+
+The standard approach to overcome some of \textsc{Make}'s limitations is to use
+\emph{macros}. They provide more flexibility but tend to become Utterly
+Impenetrable as demonstrated by the following \emph{significantly simplified}
+snippet from the GHC build system:
+
+\begin{verbatim}
+$1/$2/build/%.o : $1/$4/%.hs $$$$($1_$2_HC)
+    $1_$2_HC $$($1_$2_$3_HC_OPTS) -c $$< -o $$@
+\end{verbatim}
+
+\noindent As before, the rule is responsible for compiling a Haskell source
+file into an object file. Arguments of the macro (\texttt{\$1-\$4}) provide
+additional information about the current build target so that we could pick the
+right Haskell compiler \texttt{\$1\_\$2\_HC} and run it with appropriate command
+line arguments \texttt{\$1\_\$2\_\$3\_HC\_OPTS}.
+
 By embedding the build system in Haskell we get access to its rich abstraction
 facilities. See Section~\ref{section-abstractions} for more details.
 
 \subsection{Programming model}
 
-\textsc{Make}'s programming model: single global space of string variables. The
-only way to control build parallelism is by introducing fake \emph{concurrency
-reduction} dependencies. Also see: ``Recursive Make Considered Harmful'' by
-Peter Miller, 1997. See Section~\ref{section-abstractions} for more details.
+\textsc{Make}'s programming model: single global space of string variables. Also
+see: ``Recursive Make Considered Harmful'' by Peter Miller, 1997. Specific problems:
+\begin{itemize}
+  \item A string variable, such as \texttt{\$1\_\$2\_\$3\_HC\_OPTS}, can be
+  manipulated in many different files and it is very difficult to track the
+  provenance of a specific command line argument that is eventually passed to
+  \texttt{ghc}.
+  \item Lack of encapsulation, implementation hiding, namespaces make it
+  impossible to write maintainable code.
+  \item If a file's path contains `:' character, which often happens on Windows,
+  \textsc{Make} interprets it as a pattern rule separator and gets confused.
+  Special care needs to be taken to overcome this issue.
+\end{itemize}
+
+See Section~\ref{section-abstractions} discussing our approach to solving
+these problems.
+
+\subsection{Controlling concurrency}
+The only way to control build concurrency in \textsc{Make} is by introducing
+fake \emph{concurrency reduction} dependencies. 
+
+\textbf{Example:} Some GHC packages need to be registered by invoking
+\texttt{ghc-pkg} utility. The utility mutates the global state (package
+database) and hence at most one package can be registered at a time. In order to
+enforce sequential package registration in the old build system it is necessary
+to manually introduce fake dependencies between packages. Not only this is an
+an error prone and mundane task, the resulting performance is suboptimal: only
+one predefined registration sequence is allowed and packages are required to
+wait for their turn even if no registration is currently taking place.
+\textsc{Shake} provides fine-grain mechanisms for controlling concurrency, as
+discussed in Section~\ref{section-abstractions}. 
 
 \subsection{Dynamic dependencies}
 
-\textsc{Make} has no support for dynamic dependencies. \emph{Build phases}: do
-not work in general. 
+\textsc{Make} has no support for \emph{dynamic dependencies}. Build
+phases do not work in general. Below is a representative dependency chain:
+
+\begin{itemize}
+  \item File \texttt{compiler/prelude/primops.txt.pp} describes GHC’s primitive
+  operations and types. It uses C preprocessor directives like
+  \texttt{\#include} and \texttt{\#if} and therefore needs to be preprocessed.
+  The result goes into \texttt{compiler/stage1/build/primops.txt}. If one of the
+  included files changes the result must be rebuilt. Note: we do not know in
+  advance which files are included, so we cannot depend on them statically,
+  that is why such dependencies are called dynamic.
+  \item File \texttt{primops.txt} is processed by \texttt{genprimopcode} utility
+  to generate \texttt{primop-out-of-line.hs-incl}. \texttt{genprimopcode} itself
+  needs to be built. It is a Haskell program, so it may contain \texttt{import}
+  directives, which also give rise to dynamic dependencies.
+  \item A dozen of \texttt{*.hs-incl} files are included (by a C preprocessor)
+  into \texttt{compiler/prelude/PrimOp.hs} and also need to be tracked
+  dynamically.
+  \item \texttt{compiler/prelude/PrimOp.hs} is imported in many other source
+  files, and participates in the rest of the build process in a more or less
+  standard way.
+\end{itemize}
+
+\noindent Creating a separate build phase for each step in the above chain is
+impractical and leads to poor performance results.
 
 We handle dynamic dependencies using \textsc{Shake}'s oracles. See
 Section~\ref{section-dependencies} for more details.
