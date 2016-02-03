@@ -6,8 +6,13 @@
 \usepackage{multirow}
 \usepackage{setspace}
 \usepackage{balance}
+\usepackage{verbatim}
 \usepackage[all]{xy}
 \include{paper}
+
+\newcommand\prog\textsc
+\newcommand{\make}{\prog{Make}}
+\newcommand{\cabal}{\prog{Cabal}}
 
 \begin{document}
 
@@ -51,18 +56,16 @@ build systems
 \input{introduction.tex}
 \input{challenges.tex}
 \input{abstractions.tex}
-\input{dependencies.tex}
 \input{GHC.tex}
 \input{review.tex}
 \input{conclusions.tex}
 
-\acks
+% \acks
+% Thanks to Standard Chartered, where Shake was initially developed.
 
-Thanks to Standard Chartered, where Shake was initially developed.
-
-\vspace{2mm}
-\noindent
-\footnotesize{Neil Mitchell is employed by Standard Chartered Bank. This paper has been created in a personal capacity and Standard Chartered Bank does not accept liability for its content. Views expressed in this paper do not necessarily represent the views of Standard Chartered Bank.}
+% \vspace{2mm}
+% \noindent
+% \footnotesize{Neil Mitchell is employed by Standard Chartered Bank. This paper has been created in a personal capacity and Standard Chartered Bank does not accept liability for its content. Views expressed in this paper do not necessarily represent the views of Standard Chartered Bank.}
 
 \bibliographystyle{plainnat}
 \balance

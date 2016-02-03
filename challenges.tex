@@ -1,4 +1,17 @@
-\section{Challenges of large-scale build systems}
+% NEIL: Seems like a good pattern. What we want. How we fake it. How we do it better.
+% Abstraction, Composition, Concurrency limiting, Dynamic dependencies, Fine grained dependencies.
+
+\section{Incidental challenges of large-scale build systems}
+
+The GHC build system stumbles into a number of nasty corners of \make. In this section we reflect on the challenges, and how they can be solved generically in our new system. We very much consider these \textit{unnecessary} complexities -- they are not consequences of our problem domain, merely weaknesses of \make on large projects. In general the problems can be divided into those due to the \make language (macros, variables etc.) and those due to the \make dependency features (lack of expressive dependencies). Consequently, we tackle these problems using functional programming for hte language level, and Shake for the dependency level. After tackling these unnecessary complexities, we move on to fundamental complexities in the next section.
+
+The main lessons we have learnt are:
+
+\begin{itemize}
+\item Abstraction is a powerful and necessary tool. Lack of good abstraction mechanisms is a significant cause of the complexity of previous attempts in \make. Functional programming provides good abstractions which in turn allow reducing the complexity at each level, while still obtaining a more powerful result. Marrying build systems and functional programming works well.
+\item Use a build system that can express the necessary dependencies. We make use of \textit{monadic dependencies} \S?, \textit{non-file dependencies} \S?, \textit{resources} \S?. While some of these features are only used in a few places (e.g. resources), their absence would require pervasive workarounds, and a significant increase in overall complexity.
+\end{itemize}
+
 
 Summary of this section: \emph{What problem are we trying to solve?} We show several
 common challenges for existing build languages, such as \textsc{Make},
@@ -6,6 +19,25 @@ common challenges for existing build languages, such as \textsc{Make},
 challenge is described in a separate section, with specific examples coming from
 the GHC. We briefly outline the solutions and refer the reader for more details
 coming in Sections~\ref{section-abstractions} and~\ref{section-dependencies}.
+
+\subsection{Programming model}
+
+\textsc{Make}'s programming model: single global space of string variables. Also
+see: ``Recursive Make Considered Harmful'' by Peter Miller, 1997. Specific problems:
+\begin{itemize}
+  \item A string variable, such as \texttt{\$1\_\$2\_\$3\_HC\_OPTS}, can be
+  manipulated in many different files and it is very difficult to track the
+  provenance of a specific command line argument that is eventually passed to
+  \texttt{ghc}.
+  \item Lack of encapsulation, implementation hiding, namespaces make it
+  impossible to write maintainable code.
+  \item Excessive freedom, implementing \texttt{\$\$\$foo} to do multiple lookups. Such code is much like \texttt{eval} in a scripting language, but it is unlikely any scripting language author would encourage such indirection.
+  \item If a file's path contains `:' character, which often happens on Windows,
+  \textsc{Make} interprets it as a pattern rule separator and gets confused.
+  Special care needs to be taken to overcome this issue.
+\end{itemize}
+
+The question of provenance is particularly important in large multi-author build systems, but generally not something that is addressed anywhere - one of our key inovations in \S?. The encapsulation is provided by Haskell modules. The lack of freedom is provided by strong name binding. The problems related to `:' go away by manipulating values rather program text.
 
 \subsection{Abstracting over patterns of dependencies}
 
@@ -32,8 +64,6 @@ fits all} the following limitations are encountered:
   not \texttt{baz.o}? It is impossible to do any non-trivial computation and
   we have to rely on patterns whose expressive power is limited.
   \item What if \texttt{HC\_OPTS} depends on the file and/or something else?
-  \item GHC actually produces two files: \texttt{*.o} and \texttt{*.hi}. How do
-  we express this?
 \end{itemize}
 
 The standard approach to overcome some of \textsc{Make}'s limitations is to use
@@ -55,24 +85,21 @@ line arguments \texttt{\$1\_\$2\_\$3\_HC\_OPTS}.
 By embedding the build system in Haskell we get access to its rich abstraction
 facilities. See Section~\ref{section-abstractions} for more details.
 
-\subsection{Programming model}
+We solve this using Haskell functions. In Shake there is \verb"%>", which itself is defined in terms of \verb"?>", as:
 
-\textsc{Make}'s programming model: single global space of string variables. Also
-see: ``Recursive Make Considered Harmful'' by Peter Miller, 1997. Specific problems:
-\begin{itemize}
-  \item A string variable, such as \texttt{\$1\_\$2\_\$3\_HC\_OPTS}, can be
-  manipulated in many different files and it is very difficult to track the
-  provenance of a specific command line argument that is eventually passed to
-  \texttt{ghc}.
-  \item Lack of encapsulation, implementation hiding, namespaces make it
-  impossible to write maintainable code.
-  \item If a file's path contains `:' character, which often happens on Windows,
-  \textsc{Make} interprets it as a pattern rule separator and gets confused.
-  Special care needs to be taken to overcome this issue.
-\end{itemize}
+\begin{verbatim}
+pat %> act = (pat ?==) ?> act
+\end{verbatim}
 
-See Section~\ref{section-abstractions} discussing our approach to solving
-these problems.
+Namely the wildcard pattern matching is just a special case, so we can revert to more precise control mechanisms where it makes sense.
+
+\subsection{Multiple outputs}
+
+In the rule above, GHC actually produces two files: \texttt{*.o} and \texttt{*.hi}. How do we express this?
+
+Mostly by pretending the .hi file depends on the .o file, which is (mostly) true. But only really because we always touch the .o file.
+
+Using Shake we can express this pattern directly (it actually turns out to be a consequence of the more powerful dependency model).
 
 \subsection{Controlling concurrency}
 The only way to control build concurrency in \textsc{Make} is by introducing
@@ -89,10 +116,31 @@ wait for their turn even if no registration is currently taking place.
 \textsc{Shake} provides fine-grain mechanisms for controlling concurrency, as
 discussed in Section~\ref{section-abstractions}. 
 
+We solve this using Shake resources. A Shake resource limits parallelism by declaring that a certain task requires some quantity of resource. For example:
+
+\begin{verbatim}
+r <- newResource 1
+withResource r 1 $ ...
+\end{verbatim}
+
 \subsection{Dynamic dependencies}
+
+Or, perhaps more generally: \emph{Accurate dependencies}. Why accurate
+dependencies are important? 1) Performance. 2) Correctness. Anything else?
+
+The core of the challenge: the dependency graph is not static and it is not
+known in advance.
+
+Two specific instances of the accurate dependencies challenge are: \emph{dynamic
+dependencies} and \emph{fine-grain dependencies}.
+
+We handle dynamic dependencies using \textsc{Shake}'s oracles. Examples: import
+and include dependencies.
 
 \textsc{Make} has no support for \emph{dynamic dependencies}. Build
 phases do not work in general. Below is a representative dependency chain:
+
+
 
 \begin{itemize}
   \item File \texttt{compiler/prelude/primops.txt.pp} describes GHC’s primitive
@@ -117,13 +165,43 @@ phases do not work in general. Below is a representative dependency chain:
 \noindent Creating a separate build phase for each step in the above chain is
 impractical and leads to poor performance results.
 
-We handle dynamic dependencies using \textsc{Shake}'s oracles. See
-Section~\ref{section-dependencies} for more details.
+We handle dynamic dependencies using \textsc{Shake}'s monadic dependencies.
 
 \subsection{Fine-grain dependencies}
 
+We have the following fine-grain dependencies:
+\begin{itemize}
+  \item Depend on individual configuration flags provided in `system.config'
+  file. When a flag is changed only the affected rules are rerun.
+  \item Compute build arguments from target filename.
+\end{itemize}
+
 \textsc{Make} supports only file dependencies, so it is impossible to depend
 on anything finer, e.g. a single flag in a configuration file. Keeping flags
-separately in different files is impractical. 
+separately in different files is impractical.
+
+We can't use a single file with Make because a key point is that the whole file may change,
+but the inner piece may not change. Shake solves this with unchanging files.
 
 See Section~\ref{section-dependencies} for more details.
+
+In addition, to avoid storing many small files on disk, we use oracles which let us store these directoy in shakes database. That's not necessary, but avoids many small files.
+
+\subsubsection{Real code}
+
+Much of a build system is calling out to programs that execute real code, e.g. compilers. But there is some stuff that requires custom code, for example splitting command line arguments that exceed a certain size. In the existing build system we use xargs, which alas doesn't work consistently between different OS versions, and does both more than we want and less than we want. Fortunately, with Haskell at our disposal, we can write:
+
+\begin{verbatim}
+-- | @chunksOfSize size strings@ splits a given list of strings into chunks not
+--   exceeding @size@ characters. If that is impossible, it uses singleton chunks.
+chunksOfSize :: Int -> [String] -> [[String]]
+chunksOfSize n = repeatedly $ \xs ->
+    let i = length $ takeWhile (<= n) $ scanl1 (+) $ map length xs
+    in splitAt (max 1 i) xs
+\end{verbatim}
+
+Writing a small function is easy in Haskell, and even easier to test (we test this function using QuickCheck). Writing it in bash would be infeasible. Reducing the specific behaviours required from external tools leads to significantly less cross-platform concerns.
+
+\subsection{The consequence of unnecessary complexities}
+
+These unnecessary complexities have a big consequence in terms of complexity and performance. They obscure the underlying real stuff in the build system. Simply removing these already gets us to a much better state.

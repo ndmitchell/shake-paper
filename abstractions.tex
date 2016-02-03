@@ -1,6 +1,26 @@
 \section{Useful abstractions\label{section-abstractions}}
 
+In the previous section we covered how we neatly sidestep the unnecessary complexities inherent in a large scale build system. In this section we focus on the remaining complexities, how to engineer a successful build system. Before starting, it is useful to explain our goals. We want the resulting system to be maintainable, in addition to being fast and correct. For maintainability on such a large system there are really several aspects:
+
+\begin{itemize}
+\item The code should be simple and direct, talking about concepts familiar to developers. In particular that means files that are produced, configuration settings and tools that are used to produce them. These concepts need first-class representation, not merely strings.
+\item The code should permit debugging. There are lots of obscure configuration operations inherent in any large system, and the build system is the place where such knowledge should live. As an example, when running the Alex program over one particular file we need to pass the \texttt{--latin1} flag. We want users to be able to determine what flags were used and where specifically that decision was made.
+\item The code should permit configuration. Many GHC users work with GHC in different modes. Turning on/off documentation, different packages of optimisation flags etc.
+\end{itemize}
+
+The solution was not obvious to us at first, but we ended up building a DSL for expressions, and an interpreter that evaluates it to run the build. Where the DSL would be unnecessarily complex we opt for a direct implementation. The configuration language is tracked (if it changes the necessary bits rebuild), has provenance (using the new Location feature in GHC) and permits easy configuration. As an example of the configuration:
+
+\begin{verbatim}
+when (builder Alex && package base) $ addFlag "--latin1"
+\end{verbatim}
+
+
+
+
+
 \subsection{Abstracting over patterns of dependencies}
+
+
 
 By embedding the build system in Haskell we get access to its rich abstraction
 facilities. Examples:
@@ -30,5 +50,3 @@ Review of the datatypes we use: \texttt{Builder}, \texttt{Package},
   \item Finally, it runs the builder to build the target, printing diagnostic
   information if need be.
 \end{itemize}
-
-

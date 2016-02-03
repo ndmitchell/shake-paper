@@ -1,16 +1,39 @@
 \section{Introduction}
 
-A build system is a critical component of any software project.
-It is responsible for collecting all source code written in various languages,
-compiling it, linking with standard libraries, running automated tests, and
-producing executable artefacts -- end software products. Build systems of large
-software projects, such as the Glasgow Haskell Compiler~(GHC), are complex
-engineering artefacts. Their complexity stems from several factors: they evolve everyday as
-new features are continuously being added by engineers spread across multiple
-continents, they must support a variety of target hardware configurations, and
-last but not least they operate under extreme correctness and performance
-requirements because they stand on the critical path between the development of
-a new feature and its deployment into production. 
+A build system is a critical component of any software project. It's the coal-face at which developers spend their days, so must be fast to run, produce the outputs correctly, and provide all the features needed. Despite the importance of writing good build systems, such endeavours remain a black art. The build system for the Glasgow Haskell Compiler~(GHC) \cite{ghc} has been rewritten three times using \make{} \cite{make}, but while lessons have been learnt each time, the end result remains frustratingly complex. In this paper we show how to apply the latest inovations in build systems (notably \citet{shake}) to the problem of large build systems, in the process writing a new GHC build system, and also discussing the particular challenges and how they can be overcome.
+
+The primary motivation for (yet another) GHC build system rewrite is that the existing build system has become unmaintainable. As an example, the current system contains the snippet:
+
+\begin{verbatim}
+$$$$$$$(foo)
+\end{verbatim}
+
+This fragment looks up \texttt{foo} in the global namespace, resolving it to a string. It then looks up that result in the same global namespace, repeating the process once per \verb"$". The end result is almost impossible to predict. The provenance of any individual symbol is hard to track down. Many are defined, redefined and conditionally defined.
+
+Build systems need to evolve quickly with the projects they support. While it is \textit{possible} to develop large scale systems in \make, it is not \textit{pleasant} -- resulting in heroic efforts where straight-forward simplicity should be preferred.
+
+The GHC build system is a complex multi-language build system. The system is a bootstrapping compiler, where the GHC compiler is built using a system compiler, then recompiled using built compiler and recompiled system libraries. This pattern naturally contains repeated patterns, but capturing them in \make is hard.
+
+We focus on the GHC build system for two reasons. Firstly, it is the coal-face at which many of us work, so improvements to it will bring real improvements to our daily development. Secondly, the GHC build system has many complex features that test the limits of existing features:
+
+\begin{itemize}
+\item GHC is cross-language, including large amounts of both C and Haskell code. It also generates user manuals from docbook, which can be viewed as another language with unique build/dependency patterns.
+\item GHC is a bootstrapping compiler with stages. It first builds a compiler using the system compiler, then uses that new compiler 
+\item The GHC build system necessarily integrates with other build systems, including \make (for building libgmp) and \cabal (for building/registering Haskell libraries).
+\item It generates files, for example the \todo{give an example where we generate a file}.
+\item It is cross-platform, working on Windows, Linux, Mac, iOS, Android, Solaris, BSD flavours etc.
+\item The system is in constant flux as new features are added to the system.
+\end{itemize}
+
+Writing such a build system remains a challenging engineering undertaking, but one we now hope not to have to repeat. 
+This paper presents:
+
+\begin{itemize}
+\item Identifies some of the incidental challenges when writing a large build system \S?. Most of these challenges are addressed by using the powerful abstraction features of Haskell, or the powerful dependency features of Shake.
+\item Identifies some useful abstractions for writing large scale systems \S?, capturing ways to abstract over build tool, phases/stages and setting configuration. These abstractions were not obvious to us, and took several iterations to arrive at.
+\item How these features successfully applied to the GHC build system \S?, and how the result performed.
+\end{itemize}
+
 
 ~\\
 \textbf{TODO}:

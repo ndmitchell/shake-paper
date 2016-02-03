@@ -4,3 +4,63 @@ Comparison with \textsc{Make}, \textsc{cmake}, \textsc{Ninja},
 \textsc{Fabricate}, \textsc{Tup}.
 
 Also discuss \textsc{Bazel} and \textsc{Buck}.
+
+Starting from the Shake related work...
+
+Build tools can be divided into two categories -- those which target single-language projects with fixed rules (e.g. \prog{ocamlbuild}, \prog{ghc --make}, Visual Studio projects), and those which allow user specified rules (e.g. \make{} and Shake). Focusing on the second category, the defacto standard is \make{}, but there are many \make{} competitors (notably Ant, CMake, Jam, Scons and Waf). Most of these tools read a list of rules, generate a dependency graph, then execute commands while traversing that graph.
+
+Since the number of build tools is vast, we focus on four build tools which take different approaches (Redo, Ninja, Tup and Fabricate). Interestingly, one thing all four systems have in common is that they require a database of build data, in addition to the rules and the file system. Unlike Shake, all these build systems are limited to files.
+
+\subsection{Redo}
+
+% https://github.com/apenwarr/redo
+
+The Redo build system \cite{redo} has a similar dependency theory to Shake. Rules are run starting at the target. A rule may call \textsf{redo-ifchange} (similar to |need|) to ensure that this rule is repeated if any of the file arguments change. A rule can build either a specific named file, or a set of files ending with a particular extension.
+
+While Redo has similarities to Shake, the practical implementation is significantly different. Instead of a single rule store, Redo stores each rule in a separate file, and the script language is simply shell script (allowing \verb"#!" to change the interpreter). The advantage of separate files is that Redo is able to depend on the actual rule used to build a result, meaning that build system changes are properly tracked. However, separating build rules makes it harder to reason about the build system, and eliminates many potential uses of abstraction \cite{jonge:build_components}. Redo does not work on Windows, and has no support for unchanging files or multiple outputs.
+
+\subsection{Ninja}
+
+% http://martine.github.com/ninja/manual.html
+
+The Ninja build system \cite{ninja} is designed as a two-stage build system -- users specify their build rules in a high-level manner, which is then translated to a set of Ninja build rules. As a result, the Ninja build system is not designed to be general purpose and configuration choices are expected to be resolved by the first level. The Ninja target language supports three dependency features beyond \make{}. Firstly, a rule can depend on the list of files contained in another file, allowing additional dependencies at build time. Secondly, the command line for each rule is tracked, resulting in a rebuild if the rule itself changes. Thirdly, a rule can generate multiple outputs, which are properly tracked.
+
+\subsection{Tup}
+
+% http://gittup.org/tup/build_system_rules_and_algorithms.pdf
+
+The Tup build system \cite{tup} is designed as an incremental build system. Tup has a similar dependency structure to \make{}, but a significantly different implementation. Instead of scanning all dependencies, it expects the operating system to supply a list of changed files, avoiding the overhead of checking which files have changed. For large build systems the result can be a significant speed improvement when rebuilding only a few files. We believe a similar implementation strategy could be applied to Shake.
+
+Another difference from \make{} is the treatment of dead build results. If a rule to build \texttt{foo} is deleted from the rule list, then Tup automatically deletes the file \texttt{foo}. The problem of dead build results is serious, resulting in builds succeeding that should have failed, and that will fail as soon as a clean build is performed (to reduce this risk, we suggest an overnight build which starts from scratch). However, it is often useful to have build modes which generate skeleton files which are then modified by the user -- deleting these files would be most unwelcome. It would be easy to add support for deleting dead build results to Shake, but we choose not to.
+
+\subsection{Fabricate}
+
+% http://code.google.com/p/fabricate/
+
+The key innovation in the Fabricate build system \cite{fabricate} is that dependencies do not need to be stated explicitly. A build system is a Python program, which primarily executes system commands in order. While executing the commands, Fabricate uses system tracing (strace on Linux) to record which files are accessed. In future runs, if the same system command is reached but none of the files it used have changed, the command is skipped. The resulting build systems are simple, and avoid the difficulties of correctly specifying dependencies.
+
+There are two inherent difficulties for build systems without explicit dependencies. Firstly, the system tracing mechanisms on different platforms are varied, and on Windows are somewhat fragile (see \S\ref{sec:lint}). Secondly, parallelism cannot be inferred automatically -- Fabricate requires explicit grouping annotations to use parallelism.
+
+\subsection{Extending Make Dependencies}
+\label{sec:make_hacks}
+
+Specifying additional dependencies while building is critical for many projects. As a result, a number of techniques have been developed to specify additional dependencies in \make{}. Most of these techniques rely on \textit{generating} some portion of the \make{} rules file, either before \make{} starts, or invoking \make{} multiple times. Taking the example from \S\ref{sec:introduction}, we can write it with \make{} as:
+
+\begin{verbatim}
+result.tar : list.txt $(shell cat list.txt)
+    cat list.txt | xargs tar -cf result.tar
+\end{verbatim}
+
+Here \make{} is executing commands in two distinct phases -- the first phase generates the rules file, the second runs it. In many large projects, the first phase becomes expensive or complex, resulting in specific commands such as @make depends@ to update the dependencies (as required in \S\ref{sec:profiling_comparison} and \S\ref{sec:evaluation}). Another approach is for \make{} to restart itself partway through the build, after modifying the build rules. However, multiple phases have many problems:
+
+\begin{itemize}
+\item There is no limit to the number of build phases required, especially when files are generated by the build system. Shake was originally designed after determining a particular build system required seven phases.
+\item The introduction of phases breaks compositionality, requiring build system authors to globally separate rules by phase. The above rule for \texttt{result.tar} fails if \texttt{list.txt} is itself built by the build system, whereas the Shake rule in \S\ref{sec:introduction} works in all cases.
+\item These approaches require generating \make{} rules as text, which is then reinterpreted by \make{}. As a result, while the Shake rule from \S\ref{sec:introduction} can handle spaces in file names, the \make{} rule cannot.
+% Fortunately, many compilers already support generating well-formed \make{} rules for their dependencies.
+\item If all phases are run every time then there is overhead due to restarting \make{}, rechecking previously checked rules and reducing parallelism opportunities. If different phases are invoked manually then the user has to be aware what has changed.
+\end{itemize}
+
+\subsection{Haskell Build Libraries}
+
+There are a surprisingly large number of Haskell libraries implementing a dependency aware build system -- we know of ten in addition to Shake (Abba, Blueprint, Coadjute, Cake $\times$ 2, Hake, Hmk, Nemesis, OpenShake and Zoom). Of these, the two Cake libraries and OpenShake are based on an early presentation of the principles behind Shake, before the source code was available. The primary difference from the Cake libraries is that this paper allows multiple types of build rule, while the Cake libraries only allow file rules. Compared to OpenShake \cite{openshake}, we have opted to have |rule|/|apply| based on dynamic types, and then use sugared versions to regain static guarantees of type safety. In contrast, OpenShake uses type functions \cite{schrijvers:type_functions} to statically track the available rule types, making serialisation simpler (\S\ref{sec:dynamically_typed}), but complicating the rest of the library.
