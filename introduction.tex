@@ -1,38 +1,51 @@
 \section{Introduction}
 
-A build system is a critical component of any software project. It's the coal-face at which developers spend their days, so must be fast to run, produce the outputs correctly, and provide all the features needed. Despite the importance of writing good build systems, such endeavours remain a black art. The build system for the Glasgow Haskell Compiler~(GHC) \cite{ghc} has been rewritten three times using \make{} \cite{make}, but while lessons have been learnt each time, the end result remains frustratingly complex. In this paper we show how to apply the latest inovations in build systems (notably \citet{shake}) to the problem of large build systems, in the process writing a new GHC build system, and also discussing the particular challenges and how they can be overcome.
+A build system is a critical component of any software project. It's the coal-face at which developers spend their days, so must be fast to run, produce the outputs correctly, and provide all the features needed. Despite the importance of writing good build systems, such endeavours remain a black art. The build system for the Glasgow Haskell Compiler~(GHC) \cite{ghc} has been rewritten three times using \make{} \cite{make}, and while lessons have been learnt each time, the end result remains frustratingly complex. As an example:
 
-The primary motivation for (yet another) GHC build system rewrite is that the existing build system has become unmaintainable. As an example, the current system contains the snippet:
+\todo{is there a better example?}
 
-\begin{verbatim}
-$$$$$$$(foo)
-\end{verbatim}
+\begin{lstlisting}
+$$(foreach dep,$$($1_$2_DEP_COMPONENT_IDS),\
+    $$$$($$(dep)_dist-$(if $(filter 0,$3),boot,install)\
+        _PROGRAM_DEP_LIB))
+\end{lstlisting}
 
-This fragment looks up \texttt{foo} in the global namespace, resolving it to a string. It then looks up that result in the same global namespace, repeating the process once per \verb"$". The end result is almost impossible to predict. The provenance of any individual symbol is hard to track down. Many are defined, redefined and conditionally defined.
+Taking a look at \lst"$$($1_$2_DEP_COMPONENT_IDS)" - this constructs a variable name using the variables \lst"$1" and \lst"$2" (themselves macro arguments), then resolves this variable. It then takes the value of that variable and resolves it. The end result is almost impossible to predict. The definition site of any individual symbol is hard to track down. Many are defined, redefined and conditionally defined. While the first line is confusing, the second is significantly more so, with 4 indirections of a computed variable.
+
+Were this the only example in the build system, we might be able to solve it with lots of documentation. But alas, this snippet is the rule, not the exception.
+
+In this paper we show a better approach to designing large build systems. Our approach is two pronged:
+
+\begin{itemize}
+\item  We use the latest innovations in build systems (specifically Shake, \cite{shake}), combined with the abstraction power of functional programming (in our case, Haskell \cite{haskell}), to remove much of the \textit{accidental complexity} from the build system. By using sensible primitives that compose nicely we are able to remove much of the heroism required from build system maintenance.
+\item We identify suitable abstractions for writing large build systems \S\ref{sec:abstractions}. In particular we describe an embedded domain-specific language (EDSL) for capturing much of the configuration of the build system (which optimisation flags are required to which tools in which modes), cleanly separating this configuration from the rest of the build system.
+\end{itemize}
+
+We have used our approach to write a new GHC build system \S\ref{sec:ghc}. The new build system is about half the length of the previous one (5,824 lines as opposed to 10,952). \todo{The new system has reasonable chunks of the old system as comments. Should check non-comment and non-blank lines.} More satisfyingly, the new build system remains intelligible, and hopefully will not require further rewrites.
+
+\subsection{The GHC build system}
+
+\todo{Not a good place for it here, but the stuff after makes little sense until we describe a few aspects of the GHC build system.}
 
 Build systems need to evolve quickly with the projects they support. While it is \textit{possible} to develop large scale systems in \make, it is not \textit{pleasant} -- resulting in heroic efforts where straight-forward simplicity should be preferred.
 
-The GHC build system is a complex multi-language build system. The system is a bootstrapping compiler, where the GHC compiler is built using a system compiler, then recompiled using built compiler and recompiled system libraries. This pattern naturally contains repeated patterns, but capturing them in \make is hard.
+The GHC build system is a complex multi-language build system. The system is a bootstrapping compiler, where the GHC compiler is built using a system compiler, then recompiled using built compiler and recompiled system libraries. This pattern naturally contains repeated patterns, but capturing them in \make{} is hard.
 
 We focus on the GHC build system for two reasons. Firstly, it is the coal-face at which many of us work, so improvements to it will bring real improvements to our daily development. Secondly, the GHC build system has many complex features that test the limits of existing features:
 
 \begin{itemize}
 \item GHC is cross-language, including large amounts of both C and Haskell code. It also generates user manuals from docbook, which can be viewed as another language with unique build/dependency patterns.
-\item GHC is a bootstrapping compiler with stages. It first builds a compiler using the system compiler, then uses that new compiler 
-\item The GHC build system necessarily integrates with other build systems, including \make (for building libgmp) and \cabal (for building/registering Haskell libraries).
+\item GHC is a bootstrapping compiler with stages. It first builds a compiler using the system compiler, then uses that new compiler
+\item The GHC build system necessarily integrates with other build systems, including \make{} (for building libgmp) and \cabal{} (for building/registering Haskell libraries).
 \item It generates files, for example the \todo{give an example where we generate a file}.
 \item It is cross-platform, working on Windows, Linux, Mac, iOS, Android, Solaris, BSD flavours etc.
 \item The system is in constant flux as new features are added to the system.
 \end{itemize}
 
-Writing such a build system remains a challenging engineering undertaking, but one we now hope not to have to repeat. 
+Writing such a build system remains a challenging engineering undertaking, but one we now hope not to have to repeat.
 This paper presents:
 
-\begin{itemize}
-\item Identifies some of the incidental challenges when writing a large build system \S?. Most of these challenges are addressed by using the powerful abstraction features of Haskell, or the powerful dependency features of Shake.
-\item Identifies some useful abstractions for writing large scale systems \S?, capturing ways to abstract over build tool, phases/stages and setting configuration. These abstractions were not obvious to us, and took several iterations to arrive at.
-\item How these features successfully applied to the GHC build system \S?, and how the result performed.
-\end{itemize}
+
 
 
 ~\\

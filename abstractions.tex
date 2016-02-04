@@ -1,4 +1,4 @@
-\section{Useful abstractions\label{section-abstractions}}
+\section{Useful abstractions\label{sec:abstractions}}
 
 In the previous section we covered how we neatly sidestep the unnecessary complexities inherent in a large scale build system. In this section we focus on the remaining complexities, how to engineer a successful build system. Before starting, it is useful to explain our goals. We want the resulting system to be maintainable, in addition to being fast and correct. For maintainability on such a large system there are really several aspects:
 
@@ -11,10 +11,9 @@ In the previous section we covered how we neatly sidestep the unnecessary comple
 The solution was not obvious to us at first, but we ended up building a DSL for expressions, and an interpreter that evaluates it to run the build. Where the DSL would be unnecessarily complex we opt for a direct implementation. The configuration language is tracked (if it changes the necessary bits rebuild), has provenance (using the new Location feature in GHC) and permits easy configuration. As an example of the configuration:
 
 \begin{verbatim}
-when (builder Alex && package base) $ addFlag "--latin1"
+package compiler ?
+    builder Alex ? arg "--latin1"
 \end{verbatim}
-
-
 
 
 
@@ -33,7 +32,7 @@ facilities. Examples:
 \subsection{Programming model}
 
 Review of the datatypes we use: \texttt{Builder}, \texttt{Package},
-\texttt{Target}, \texttt{Expression}. 
+\texttt{Target}, \texttt{Expression}.
 
 ~\\
 \noindent The \texttt{build} function takes care of building a single

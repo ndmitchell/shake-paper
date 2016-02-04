@@ -10,6 +10,9 @@
 \usepackage[all]{xy}
 \include{paper}
 
+\lstset{basicstyle=\sffamily,columns=fullflexible,keepspaces=true}
+\newcommand\lst\lstinline
+
 \newcommand\prog\textsc
 \newcommand{\make}{\prog{Make}}
 \newcommand{\cabal}{\prog{Cabal}}
@@ -20,7 +23,7 @@
 \setlength{\pdfpagewidth}{\paperwidth}
 
 \conferenceinfo{ICFP'16}{September 18--24, 2016, Nara, Japan}
-\copyrightyear{2016} 
+\copyrightyear{2016}
 %\copyrightdata{978-1-nnnn-nnnn-n/yy/mm}
 %\copyrightdoi{nnnnnnn.nnnnnnn}
 % Uncomment the publication rights you want to use.
