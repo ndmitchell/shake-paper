@@ -37,7 +37,9 @@ We focus on the GHC build system for two reasons. Firstly, it is the coal-face a
 \item GHC is cross-language, including large amounts of both C and Haskell code. It also generates user manuals from docbook, which can be viewed as another language with unique build/dependency patterns.
 \item GHC is a bootstrapping compiler with stages. It first builds a compiler using the system compiler, then uses that new compiler
 \item The GHC build system necessarily integrates with other build systems, including \make{} (for building libgmp) and \cabal{} (for building/registering Haskell libraries).
-\item It generates files, for example the \todo{give an example where we generate a file}.
+\item It generates files, e.g. \texttt{compiler/stage1/ghc\_boot\_platform.h}
+that \texttt{\#define}'s various platform-specific constants used throughout the
+build system.
 \item It is cross-platform, working on Windows, Linux, Mac, iOS, Android, Solaris, BSD flavours etc.
 \item The system is in constant flux as new features are added to the system.
 \end{itemize}

@@ -41,12 +41,26 @@ fits all} the following limitations are encountered:
   \item What if \texttt{HC\_OPTS} depends on the file and/or something else?
 \end{itemize}
 
+\newsavebox{\exampleCode}
+\begin{lrbox}{\exampleCode}
+\begin{minipage}[t]{\columnwidth}
+Here is the code in full glory. We cannot go into details due to lack of
+space, but would like to point out that there are \$57 in three lines!
+\begin{lstlisting}[basicstyle=\footnotesize\sffamily,escapeinside={(*}{*)}]
+$1/$2/build/%.$$($3_osuf) : $1/$4/%.hs $$(LAX_DEPS_FOLLOW) \
+    $$$$($1_$2_HC_DEP) $$($1_$2_PKGDATA_DEP)
+  $$(call cmd,$1_$2_HC) $$($1_$2_$3_ALL_HC_OPTS) -c $$< -o \
+    $$@ $$(if $$(findstring YES,$$($1_$2_DYNAMIC_TOO)),-dyno \
+    $$(addsuffix .$$(dyn_osuf),$$(basename $$@)))
+  $$(call ohi(*-*)sanity(*-*)check,$1,$2,$3,$1/$2/build/$$*)
+\end{lstlisting}
+\end{minipage}
+\end{lrbox}
+
 The standard approach to overcome some of \textsc{Make}'s limitations is to use
 \emph{macros}. They provide more flexibility but tend to become Utterly
 Impenetrable as demonstrated by the following \emph{significantly simplified}
-snippet from the GHC build system:
-
-\todo{Why are we simplifying? Can we not give the full rule as well?}
+snippet\footnote{\usebox{\exampleCode}} from the GHC build system:
 
 \begin{lstlisting}
 $1/$2/build/%.o : $1/$4/%.hs $$$$($1_$2_HC)
@@ -122,7 +136,7 @@ phases do not work in general. Below is a representative dependency chain:
 
 
 \begin{itemize}
-  \item File \texttt{compiler/prelude/primops.txt.pp} describes GHC’s primitive
+  \item File \texttt{compiler/prelude/primops.txt.pp} describes GHC's primitive
   operations and types. It uses C preprocessor directives like
   \texttt{\#include} and \texttt{\#if} and therefore needs to be preprocessed.
   The result goes into \texttt{compiler/stage1/build/primops.txt}. If one of the
@@ -159,12 +173,15 @@ We have the following fine-grain dependencies:
 on anything finer, e.g. a single flag in a configuration file. Keeping flags
 separately in different files is impractical.
 
-We can't use a single file with Make because a key point is that the whole file may change,
-but the inner piece may not change. Shake solves this with unchanging files.
+We can't use a single file with \make{} because a key point is that the whole file
+may change, but the inner piece may not change. \textsc{Shake} solves this with
+unchanging files.
 
 See Section~\ref{section-dependencies} for more details.
 
-In addition, to avoid storing many small files on disk, we use oracles which let us store these directoy in shakes database. That's not necessary, but avoids many small files.
+In addition, to avoid storing many small files on disk, we use oracles which let
+us store these directly in \textsc{Shake}'s database. That's not necessary, but
+avoids many small files.
 
 \subsection{Everything is a file}
 
