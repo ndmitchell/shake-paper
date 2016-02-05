@@ -5,6 +5,8 @@ Comparison with \textsc{Make}, \textsc{cmake}, \textsc{Ninja},
 
 Also discuss \textsc{Bazel} and \textsc{Buck}.
 
+New ones since the Shake paper. Jenga (Shake clone) and Pluto (Shake clone + other stuff)
+
 Starting from the Shake related work...
 
 Build tools can be divided into two categories -- those which target single-language projects with fixed rules (e.g. \prog{ocamlbuild}, \prog{ghc --make}, Visual Studio projects), and those which allow user specified rules (e.g. \make{} and Shake). Focusing on the second category, the defacto standard is \make{}, but there are many \make{} competitors (notably Ant, CMake, Jam, Scons and Waf). Most of these tools read a list of rules, generate a dependency graph, then execute commands while traversing that graph.
