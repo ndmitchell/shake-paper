@@ -101,24 +101,49 @@ Using Shake we can express this pattern directly (it actually turns out to be a 
 
 \subsection{Reducing concurrency}
 
-Usually we want the build system to run as many steps as possible in parallel at any point. However, for some actions, executing multiple steps in parallel can cause problems. As one example, in GHC packages need to be registered by invoking the \prog{ghc-pkg} utility. This utility mutates the global state (package database) and hence at most one package can be registered at a time, or the database is corrupted. As another example, when using Microsoft Excel via the scripting API a hidden Excel process is spawned and used for communication. Running two programs against the scripting API can result in actions applying to the wrong instance.
+Usually we want the build system to run as many steps as possible in parallel at
+any point. However, for some actions, executing multiple steps in parallel can
+cause problems. As one example, in GHC packages need to be registered by
+invoking the \prog{ghc-pkg} utility. This utility mutates the global state
+(package database) and hence at most one package can be registered at a time, or
+the database is corrupted. As another example, when using Microsoft Excel via
+the scripting API a hidden Excel process is spawned and used for communication.
+Running two programs against the scripting API can result in actions applying to
+the wrong instance.
 
-In \make{}, the way to reduce concurrency is to introduce fake \emph{concurrency reduction} dependencies. In the GHC build system there are 14 packages that require registration, and they depend on each other in a chain, to ensure one completes before the next starts. This pattern works, but is inelegant.
+In \make{}, the way to reduce concurrency is to introduce fake \emph{concurrency
+reduction} dependencies. In the GHC build system there are 25 packages that
+require registration, and they depend on each other in a chain, to ensure one
+completes before the next starts. This pattern works, but is inelegant.
 
-There are really three problems. By over-sequentialising things we limit other parallelism that may be available in the system. We cannot say that all pieces should be run single-threaded, we must over-constrain to give a precise order in which they can build. If one of the later pieces is available to build, we may stop it by waiting for another. Finally, it's easy to miss such dependencies as they are not centralised. By accidentally turning the distributed line into a tree we can end up with surprising failures.
+There are really three problems. By over-sequentialising things we limit other
+parallelism that may be available in the system. We cannot say that all pieces
+should be run single-threaded, we must over-constrain to give a precise order in
+which they can build. If one of the later pieces is available to build, we may
+stop it by waiting for another. Finally, it's easy to miss such dependencies as
+they are not centralised. By accidentally turning the distributed line into a
+tree we can end up with surprising failures.
 
 The solution is Shake is to use the \emph{resources} feature. This feature limits parallelism by declaring that a certain task requires some quantity of a global resource. For example:
 
-\begin{verbatim}
-ghc_pkg <- newResource "ghc-pkg" 1
-action $ withResource ghc_pkg 1 $ cmd "ghc-pkg" ...
-\end{verbatim}
+\begin{lstlisting}[basicstyle=\ttfamily]
+packageDb <- newResource "package-db" 1
+action $ withResource packageDb 1 $ cmd "ghc-pkg" ...
+\end{lstlisting}
 
-This snippet declares a global resource named \lst"ghc_pkg" with quantity 1, then calls \lst"withResource" asking for a single quantity before running the program \prog{ghc-pkg}. Provided all \prog{ghc-pkg} calls are suitably wrapped, we will never run two instances in parallel. Furthermore, thanks to the availability of functions, we can abstract a function that executes \prog{ghc-pkg} and applies the resource automatically, see \S\ref{sec:abstraction} for how we do that.
+This snippet declares a global resource named \lst"packageDb" with quantity 1,
+then calls \lst"withResource" asking for a single quantity before running the
+program \prog{ghc-pkg}. Provided all \prog{ghc-pkg} calls are suitably wrapped,
+we will never run two instances in parallel. Furthermore, thanks to the
+availability of functions, we can abstract a function that executes
+\prog{ghc-pkg} and applies the resource automatically, see
+\S\ref{sec:abstraction} for how we do that.
 
-Note that build systems already schedule tasks to satisfy the implicit thread resource, so having user defined resources is an obvious generalisation.
+Note that build systems already schedule tasks to satisfy the implicit thread
+resource, so having user defined resources is an obvious generalisation.
 
-The only other build system we are aware of that contains resources is Ninja, which calls them pools.
+The only other build system we are aware of that contains resources is
+\prog{Ninja}, which calls them pools.
 
 \subsection{Dynamic dependencies}
 
@@ -184,7 +209,8 @@ The results of such a change can be dramatic -- on certain real build systems we
 Once fine grained dependencies are available, they can quickly become pervasive. Using a build system based on filenames as keys and files as values we effectively reach the global store problem we criticised in \S? (particularly if we consider dyanmic dependencies from \S? to be \lst"$" dereferencing!). While not critical, Shake supports an Oracle feature, to allow us to make the keys and values arbitrary Haskell types, and store them in the main Shake database. Thanks to such a technique we can have an oracle per rule we create to track changing information, without necessarily doubling the number of files present in the build system. As an example:
 
 \begin{lstlisting}
-newtype ConfigKey = ConfigKey String deriving (Show,Typeable,Eq,Hashable,Binary,NFData)
+newtype ConfigKey = ConfigKey String
+    deriving (Show,Typeable,Eq,Hashable,Binary,NFData)
 rules = do
     addOracle $ \(ConfigKey x) -> do
         src <- readFile' "system.config"
@@ -200,8 +226,9 @@ Here we define our own rule of type \lst"ConfigKey" which reads from the configu
 Much of a build system is calling out to programs that execute real code, e.g. compilers. But there is some stuff that requires custom code, for example splitting command line arguments that exceed a certain size. In the existing build system we use xargs, which alas doesn't work consistently between different OS versions, and does both more than we want and less than we want. Fortunately, with Haskell at our disposal, we can write:
 
 \begin{lstlisting}
--- | @chunksOfSize size strings@ splits a given list of strings into chunks not
---   exceeding @size@ characters. If that is impossible, it uses singleton chunks.
+-- | @chunksOfSize size strings@ splits a given list of strings
+-- into chunks not exceeding @size@ characters. If that is
+-- impossible, it uses singleton chunks.
 chunksOfSize :: Int -> [String] -> [[String]]
 chunksOfSize n = repeatedly $ \xs ->
     let i = length $ takeWhile (<= n) $ scanl1 (+) $ map length xs

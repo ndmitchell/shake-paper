@@ -2,8 +2,6 @@
 
 A build system is a critical component of any software project. It's the coal-face at which developers spend their days, so must be fast to run, produce the outputs correctly, and provide all the features needed. Despite the importance of writing good build systems, such endeavours remain a black art. The build system for the Glasgow Haskell Compiler~(GHC) \cite{ghc} has been rewritten three times using \make{} \cite{make}, and while lessons have been learnt each time, the end result remains frustratingly complex. As an example:
 
-\todo{is there a better example?}
-
 \begin{lstlisting}
 $$(foreach dep,$$($1_$2_DEP_COMPONENT_IDS),\
     $$$$($$(dep)_dist-$(if $(filter 0,$3),boot,install)\
@@ -46,9 +44,6 @@ build system.
 
 Writing such a build system remains a challenging engineering undertaking, but one we now hope not to have to repeat.
 This paper presents:
-
-
-
 
 ~\\
 \textbf{TODO}:
