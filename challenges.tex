@@ -1,5 +1,56 @@
+\section{Challenges of large-scale build systems\label{sec:challenges}}
 
-\section{Incidental complexities\label{sec:challenges}}
+\todo{Shorten the problem descriptions, using the footnote as an overall 
+  motivating example. Unfootnote it.}
+
+\todo{Describe the history of previous attempts, each better than before: SDM}
+\begin{enumerate}
+  \item jmake - cpp + make clone of X11 imake
+  \item GNU make - drop cpp, recursive make, manual stages
+  \item GNU make - no manual stages, cabal integration, first
+   use of macros
+   \item GNU make - current iteration, non recursive, cite Recursive
+     Make Considered Harmful here, extensive use of macros,
+     building abstractions in make
+\end{enumerate}
+
+\subsection{The GHC build system}
+
+Build systems need to evolve quickly with the projects they support. While it is
+\textit{possible} to develop large scale systems in \make, it is not
+\textit{pleasant} -- resulting in heroic efforts where straight-forward
+simplicity should be preferred.
+
+The GHC build system is a complex multi-language build system. The system is a
+bootstrapping compiler, where the GHC compiler is built using a system compiler,
+then recompiled using built compiler and recompiled system libraries. This
+pattern naturally contains repeated patterns, but capturing them in \make{} is
+hard.
+
+We focus on the GHC build system for two reasons. Firstly, it is the coal-face
+at which many of us work, so improvements to it will bring real improvements to
+our daily development. Secondly, the GHC build system has many complex features
+that test the limits of existing features:
+
+\begin{itemize}
+\item GHC is cross-language, including large amounts of both C and Haskell code.
+It also generates user manuals from docbook, which can be viewed as another
+language with unique build/dependency patterns.
+\item GHC is a bootstrapping compiler with stages. It first builds a compiler
+using the system compiler, then uses that new compiler
+\item The GHC build system necessarily integrates with other build systems,
+including \make{} (for building libgmp) and \cabal{} (for building/registering
+Haskell libraries).
+\item It generates files, e.g. \texttt{compiler/stage1/ghc\_boot\_platform.h}
+that \texttt{\#define}'s various platform-specific constants used throughout the
+build system.
+\item It is cross-platform, working on Windows, Linux, Mac, iOS, Android,
+Solaris, BSD flavours etc.
+\item The system is in constant flux as new features are added to the system.
+\end{itemize}
+
+Writing such a build system remains a challenging engineering undertaking, but
+one we now hope not to have to repeat.
 
 The GHC build system stumbles into a number of nasty corners of \make{}. In this section we reflect on the challenges, and how they can be solved generically in our new system. We very much consider these \textit{unnecessary} complexities -- they are not consequences of our problem domain, merely weaknesses of \make{} on large projects. In general the problems can be divided into those due to the \make{} language (macros, variables etc.) and those due to the \make{} dependency features (lack of expressive dependencies). Consequently, we tackle these problems using functional programming for the language level, and Shake for the dependency level. After tackling these unnecessary complexities, we show how to construct a large build system \S\ref{sec:abstractions}.
 

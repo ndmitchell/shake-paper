@@ -1,6 +1,21 @@
 \section{Useful abstractions\label{sec:abstractions}}
 
-In the previous section we covered how we neatly sidestep the unnecessary complexities inherent in a large scale build system. In this section we focus on the remaining complexities, how to engineer a successful build system. Before starting, it is useful to explain our goals. We want the resulting system to be maintainable, in addition to being fast and correct. For maintainability on such a large system there are really several aspects:
+\todo{Factor out \texttt{Context} from \texttt{Target}}
+
+\todo{Figure with all abstractions and type signatures}
+
+\todo{Micro build system example}
+\begin{itemize}
+  \item Example shared with Background to Shake section
+  \item top-level, starting with main = buildPackage etc.
+\end{itemize}
+
+In the previous section we covered how we neatly sidestep the unnecessary
+complexities inherent in a large scale build system. In this section we focus on
+the remaining complexities, how to engineer a successful build system. Before
+starting, it is useful to explain our goals. We want the resulting system to be
+maintainable, in addition to being fast and correct. For maintainability on such
+a large system there are really several aspects:
 
 \begin{itemize}
 \item The code should be simple and direct, talking about concepts familiar to developers. In particular that means files that are produced, configuration settings and tools that are used to produce them. These concepts need first-class representation, not merely strings.
