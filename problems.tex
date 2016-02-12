@@ -1,6 +1,6 @@
 \section{Challenges of large-scale build systems\label{sec:challenges}}
 
-It's taken 4 iterations to get to:
+Writing a large build system using make is challenging. The GHC build system has been reweritten 4 times, and even after that we've ended up with:
 
 \begin{lstlisting}[basicstyle=\footnotesize\sffamily,escapeinside={(*}{*)}]
 $1/$2/build/%.$$($3_osuf) : $1/$4/%.hs $$(LAX_DEPS_FOLLOW) \
@@ -11,20 +11,13 @@ $1/$2/build/%.$$($3_osuf) : $1/$4/%.hs $$(LAX_DEPS_FOLLOW) \
   $$(call ohi(*-*)sanity(*-*)check,$1,$2,$3,$1/$2/build/$$*)
 \end{lstlisting}
 
-This shows lots of the problems.
+This code shows some of the problems of a large-scale build system:
 
-
-\todo{Shorten the problem descriptions, using the footnote as an overall 
-  motivating example. Unfootnote it.}
+\todo{list all the problems, mostly from the solutions section}
 
 \begin{enumerate}
-  \item jmake - cpp + make clone of X11 imake
-  \item GNU make - drop cpp, recursive make, manual stages
-  \item GNU make - no manual stages, cabal integration, first
-   use of macros
-   \item GNU make - current iteration, non recursive, cite Recursive
-     Make Considered Harmful here, extensive use of macros,
-     building abstractions in make
+\item The programming language is complex. This macro expands through multiple levels, so \lst"$$$$($1_$2_HC_DEP)" looks up in the environment two stages later.
+\item The dependency on \lst"$1_$2_PKGDATA_DEP" is only to reduce parallelism, to ensure too many commands do not run in parallel.
 \end{enumerate}
 
 \subsection{The GHC build system}
@@ -63,6 +56,14 @@ Solaris, BSD flavours etc.
 \end{itemize}
 
 Writing such a build system remains a challenging engineering undertaking, but
-one we now hope not to have to repeat.
+one we now hope not to have to repeat. This is the fifth version, and interestingly, perhaps the most user friendly. Applying all the guidelines in Recursive Make Considered Harmful we have gone through the following stages.
 
-The GHC build system stumbles into a number of nasty corners of \make{}. In this section we reflect on the challenges, and how they can be solved generically in our new system. We very much consider these \textit{unnecessary} complexities -- they are not consequences of our problem domain, merely weaknesses of \make{} on large projects. In general the problems can be divided into those due to the \make{} language (macros, variables etc.) and those due to the \make{} dependency features (lack of expressive dependencies). Consequently, we tackle these problems using functional programming for the language level, and Shake for the dependency level. After tackling these unnecessary complexities, we show how to construct a large build system \S\ref{sec:abstractions}.
+\begin{enumerate}
+  \item jmake - cpp + make clone of X11 imake
+  \item GNU make - drop cpp, recursive make, manual stages
+  \item GNU make - no manual stages, cabal integration, first
+   use of macros
+   \item GNU make - current iteration, non recursive, cite Recursive
+     Make Considered Harmful here, extensive use of macros,
+     building abstractions in make
+\end{enumerate}

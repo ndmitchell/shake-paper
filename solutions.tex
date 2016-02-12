@@ -1,5 +1,6 @@
 \section{Solutions\label{sec:challenges}}
 
+The GHC build system stumbles into a number of nasty corners of \make{}. In this section we reflect on the challenges, and how they can be solved generically in our new system. We very much consider these \textit{unnecessary} complexities -- they are not consequences of our problem domain, merely weaknesses of \make{} on large projects. In general the problems can be divided into those due to the \make{} language (macros, variables etc.) and those due to the \make{} dependency features (lack of expressive dependencies). Consequently, we tackle these problems using functional programming for the language level, and Shake for the dependency level. After tackling these unnecessary complexities, we show how to construct a large build system \S\ref{sec:abstractions}.
 
 \subsection{Programming model}
 
