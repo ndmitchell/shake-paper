@@ -1,5 +1,7 @@
 *.log
 *.aux
+*.bbl
+*.blg
 *.synctex.gz
 /tmp/
 .project
