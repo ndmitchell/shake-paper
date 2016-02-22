@@ -41,7 +41,7 @@ The two key types in Shake are \lst"Rules" and \lst"Action". The \lst"Rules" rep
     neededMakefileDepends mk
 \end{lstlisting}
 
-There the whole block is a \lst"Rules", while the 5 indented lines are the \lst"Action". The action says what to match
+There the whole block is a \lst"Rules", while the 5 indented lines are the \lst"Action". The action says what to match, namely all files with a \lst".o" extension - object files. The action gets run with \lst"out" bound to the output name, e.g. \lst"Foo.o". It then computes \lst"src" (e.g. \lst"Foo.c") and \lst"mk" (e.g. \lst"Foo.m"). It requires the \lst".c" file to exist and builds it if it is missing, then compiles, and finally introduces a dependency on all the files listed in the \lst".m" file.
 
 \subsection{Efficient implementation}
 
@@ -61,7 +61,9 @@ We can construct a \lst"ContT" value which gets passed a term \lst"a -> m r" -- 
 The only complication is that in Haskell threads are inevitably bound to exception handlers, and a \lst"ContT" value may run on many threads over its lifetime. This can be addressed by:
 
 \begin{lstlisting}
-type M a = ReaderT (IORef (SomeException -> IO ()) (ContT () IO a)
+type M = ReaderT
+    (IORef (SomeException -> IO ())
+    (ContT () IO)
 \end{lstlisting}
 
 Here we have sadly restricted ourselves to an underlying IO monad - but not a particular problem for Shake. We have augmented our monad with a ReaderT IORef containing the exception handler (for the moment we ignore \cite{extensible exceptions}, but they can easily be integrated).
@@ -73,10 +75,12 @@ Using this formulation we can define a catch operation which catches all excepti
 Shake has polymorphic dependencies -- any key can produce any value by defining custom type classes. However, it turns out that one use of this mechanism is sufficiently common that it can be given a wrapping. We define an \textit{Oracle} to be a key/value mapping like a rule with the restrictions that 1) there is only one action associated with all members of the type; 2) the oracles are rerun in every execution and are never cached. While restrictive, this pattern captures a number of invariants, e.g. checking external program version numbers have not changed. As an example, we can define:
 
 \begin{lstlisting}
-newtype GccVersion = GccVersion () deriving (Show,Typeable,Eq,Hashable,Binary,NFData)
+newtype GccVersion = GccVersion ()
+    deriving (Show,Typeable,Eq,Hashable,Binary,NFData)
 
 rules = do
-    addOracle $ \GccVersion{} -> fromStdout <$> cmd "gcc --version" :: Action String
+    addOracle $ \GccVersion{} ->
+        fromStdout <$> cmd "gcc --version" :: Action String
     ... ?> \out -> do
         askOracle $ GccVersion () :: String
 \end{lstlisting}
@@ -91,32 +95,84 @@ newtype OracleQ question = OracleQ question
 newtype OracleA answer = OracleA {fromOracleA :: answer}
     deriving (Show,Typeable,Eq,Hashable,Binary,NFData)
 
-instance (ShakeValue q, ShakeValue a) => Rule (OracleQ q) (OracleA a) where
-    storedValue _ _ = return Nothing
+instance (ShakeValue q, ShakeValue a) =>
+    Rule (OracleQ q) (OracleA a) where
+        storedValue _ _ = return Nothing
 
-addOracle :: (ShakeValue q, ShakeValue a) => (q -> Action a) -> Rules ()
-addOracle act = void $ rule $ \(OracleQ q) -> Just $ OracleA <$> act q
+addOracle :: (ShakeValue q, ShakeValue a)
+          => (q -> Action a) -> Rules ()
+addOracle act = void $ rule $
+    \(OracleQ q) -> Just $ OracleA <$> act q
 
-askOracle :: (ShakeValue q, ShakeValue a) => q -> Action a
-askOracle question = fmap fromOracleA $ apply1 $ OracleQ question
+askOracle :: (ShakeValue q, ShakeValue a)
+          => q -> Action a
+askOracle question =
+    fmap fromOracleA $ apply1 $ OracleQ question
 \end{lstlisting}
 
 \subsection{Unchanging files}
 
 Of course, oracles rerun in each section. One feature of Shake that turns out to be key to making oracles work is the fact that if oracles rerun and return an equal value they do not make anything that depended on them dirty. While observed as useful for generated files in the original paper, it turns out to be key for pervasive tracking of the detials that in many build systems go missed.
 
+\subsection{Order-only dependencies}
+
+One dependency feature missing from the original Shake paper was order-only dependencies. An order-only dependency is one that must be built before continuing, but if the order-only dependency changes this rule does not need to rerun. A legitimate use of such a dependency is that an action might read any one of two files, and after the fact, can report which files it actually depended upon. Usually then a subset of these files will be added as explicit dependencies afterwards.
+
+This pattern can be modelled in Shake using a rule whose key type is \lst"()" -- one that always compares equal, and the user defining a tag for the closure required, so it can be stored in the database. While workable, the pattern is not particularly reusable, so we instead provide a function that directly resets the dependency state.
+
 \subsection{Resources}
 
-Shake has resources which can be used to limit parallelism. In effect, threads are the standard resource. But other things have resources, for example you cannot run two copies of Excel simultaneously.
+When you run -j10 (shakeThreads=10) you are asking the build system to limit computation so it uses no more than ten CPU resources at a time. The CPU is certainly a precious resource, but there are other resource limitations a build system may need to obey:
 
-The key to resources it that tasks that do not require the resource can still run simultaneously.
+\begin{enumerate}
+\item Some APIs are global in nature, if you run two programs that access the Excel API at the same time things start to fail.
+\item Many people have large numbers of CPUs, but only one slow rotating hard drive. If you run ten hard-drive thrashing linkers simultaneously the computer is likely to grind to a halt.
+\item Some proprietary software requires licenses, a fixed number of which can be purchased and managed using a license manager. As an example, the Kansas Lava team only have access to 48 licenses for modelsim.
+\end{enumerate}
+
+I know of three approaches used by other build systems to obey resource constraints:
+
+\begin{enumerate}
+\item Limit the number of CPUs to hit your target - for example, the Lava build system could cap the number of CPUs to the number of licenses. People with 24 CPUs might ask the build system to use only 8, so the linkers do not make their machines unusable (and even then, a link heavy rebuild may still harm interactive performance). This solution wastes CPU resources, leaving CPUs that could be building your code idling.
+\item Add locks to suspend jobs that are competing for the shared resource. For example any rule using Excel could take the Excel lock, either a mutex/MVar in some build systems, or creating a file to serve as the lock in make based build systems. Locking can be made to work, but is tricky if you have to fake locks using the file system, and still squanders CPU resources - instead of blocking the CPU should be running another rule.
+\item Use dependencies in sequence to ensure that the items running in parallel are serialised.
+\end{enumerate}
+
+In Shake the Resource type represents a finite resource, which multiple build rules can use. Resource values are created with newResource and used with withResource. As an example, only one set of calls to the Excel API can occur at one time, therefore Excel is a finite resource of quantity 1. You can write:
+
+\begin{lstlisting}
+shake shakeOptions{shakeThreads=2} $ do
+    want ["a.xls","b.xls"]
+    excel <- newResource "Excel" 1
+    "*.xls" *> \out ->
+        withResource excel 1 $
+            system' "excel" [out,...]
+\end{lstlisting}
+
+Now we will never run two copies of excel simultaneously. Moreover, it will never block waiting for excel if there are other rules that could be run.
 
 \subsection{Modification tracking}
 
-The original Shake notes that modification time is used as a proxy for file contents, and notes that a hash of the file contents would provide an alternative proxy. Alas, the problem with using file hashes is that in the rebuild where nothing happens it is necessary for all the files that were processed to be scanned, causing a significant amount of disk IO. We can view the hash function as a bijection to the contents, and the hash as a injective function (check). If the modtime check fails and the hash matches we record the new modtime so that the next execution will do the fast modtime check.
+Build systems run actions on files, skipping the actions if the files have not changed. An important part of that process involves determining if a file has changed. The Make build system uses modification times to impose an ordering on files, but more modern build systems tend to use the modification time as a proxy for the file contents, where any change indicates the contents have changed (e.g. Shake, Ninja). The alternative approach is to compute a hash/digest of the file contents (e.g. SCons, Redo). As of version 0.13, Shake supports both methods, along with three combinations of them - in this post I'll go through the alternatives, and their advantages/disadvantages.
 
-Shake can also do this trick for only input files. The logic being that input files are typically human written, and thus small. The git version control system also modifies files at regular intervals and thus if you are switching branches such a change can be a massive win.
+Modification times rely on the file-system updating a timestamp whenever the file contents are written. Modification time is cheap to query. Saving a file afresh will cause the modification time to change, even if the contents do not - as a result touch causes rebuilds. Unfortunately, working with git branches sometimes modifies a file but leaves it with the same contents, which can result in unnecessary rebuilds. We can view the modification time as a surjective function from modification time to file contents.
+
+File digests are computed from the file contents, and accurately reflect if the file contents have changed. There is a remote risk that the file will change without its digest changing, but unless your build system users are actively hostile attackers, that is unlikely. The disadvantage of digests is that they are expensive to compute, requiring a full scan of the file. In particular, after every rule finishes it must scan the file it just built, and on startup the build system must scan all the files. Scanning all the files can cause empty rebuilds to take minutes.
+
+To get the best of both worlds Shake can store the modification time, file size and hash of the contents. After producing a file all information is stored. When checking, first the modification time is checked, and if it matches, the contents have not changed. If the modification time has changed, and the size has changed, then the contents does not match. Only in the case where the modification time has changed but the size has not do we have to compute the actual hash. If after doing that the contents are equal we store a new modification time, so that future checks will be fast. If the contents have changed then the file will likely be rebuilt, and thus will be written afresh with the new hash and modification time.
+
+While a signficant optimisation over always checking file hashes, for certain large files the computation of a hash can still be quite expensive (although almost always cheaper than producing the file). To reduce that problem, Shake has a mode that only digests for source files that are not written by the build system. Generated files (e.g. compiled binaries) tend to be large (expensive to compute digests) and not edited (rarely end up the same), so a poor candidate for digests. The file size check means this restriction is unlikely to make a difference when checking all files, but may have some limited impact when building.
 
 \subsection{Lint checks}
 
-needed
+\S? of \cite{shake} postulates a number of invariants, and using the \prog{FSATrace} program these can now be checked at runtime. Shake has a \texttt{--lint} flag which also checks the current working directory does not change (a common mistake in a global build system, as the current working directory is a shared resource). It also checks that files do not change after they have been depended upon, that running a fresh build after a build completes will have no further effect, and that.
+
+We also have a function \lst"needed", rather than \lst"need" that asserts that the result of performing \lst"need" does not cause the file to change. This is typically required to depend on files that have already been used, e.g. the header files have already been scanned, so if they were to build afresh that would be an error.
+
+\subsection{Design pattern: DSL + escape hatch}
+
+\todo{Probably belongs elsewhere, but don't want to conflict}
+
+As we develop more Shake-based build systems, patterns have started to emerge. Typically 90\% of a build system can be captured in some simple DSL, taking advantage of conventions, and 10\% cannot. As an example, a large build system might build 100 C++ libraries, each with similar flags and file layout, but taking the source files from different directories. It may also minify a Javascript file, and build an installer -- both one-off tasks. Using a fully-powerful system such as Shake, it is possible to engineer robust abstractions, and then define the majority of the build system using only these abstractions. The end result is that most edits to the build system involve only the DSL, and can be performed by a large number of individuals.
+
+After dealing with the DSL, there are usually a few pieces left over, and these can be implemented in Shake, as normal. Thanks to the power of Shake you can interpret the DSL and combine it with the custom pieces. In our experience by providing an \textit{escape hatch} where fully-powerful code an be expressed it removes the temptation to shoehorn more advanced features in the DSL, and thus avoids turning it into an ad-hoc scripting language. Instead, should enough pieces be required in the escape hatch, they can be abstracted in the traditional ways - perhaps even combining two DSLs in one build system.
