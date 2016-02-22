@@ -1,5 +1,122 @@
 \section{Background about Shake\label{sec:shake}}
 
-\todo{Figure with type signatures}
+The Shake build system was introduced by \citet{shake}. In this section we briefly recap the key ideas of Shake from that paper. Next we discuss some of the inovations in Shake since that time. All are generally useful and were in wide use before we started investigating the GHC build system. Much of this section can be considered the bits needed to take us from the theory to the practice.
 
-\todo{Micro build system example to illustrate Rule and Action}
+\begin{figure}
+\begin{lstlisting}
+newtype Rule a = ... deriving (Monoid, Functor, Applicative, Monad)
+newtype Action a = ... deriving (Functor, Applicative, Monad, MonadIO)
+
+shake :: ShakeOptions -> Rules () -> IO ()
+action :: Action a -> Rules ()
+
+type ShakeValue a = (Show a, Typeable a, Eq a, Hashable a, Binary a, NFData a)
+data EqualCost = EqualCheap | EqualExpensive | NotEqual
+
+class (ShakeValue key, ShakeValue value) => Rule key
+    storedValue :: Rule key value => ShakeOptions -> key -> IO (Maybe value)
+    equalValue :: Rule key value => ShakeOptions -> key -> value -> value -> EqualCost
+
+rule :: Rule key value => (key -> Maybe (Action value)) -> Rules ()
+apply :: Rule key value => [key] -> Action [value]
+
+(?>) :: (FilePath -> Bool) -> (FilePath -> Action ()) -> Rules ()
+want :: [FilePath] -> Rules ()
+need :: [FilePath] -> Action ()
+needed :: [FilePath] -> Action ()
+\end{lstlisting}
+\caption{Shake type signatures}
+\end{figure}
+
+\subsection{Introduction}
+
+The two key types in Shake are \lst"Rules" and \lst"Action". The \lst"Rules" represents the list of things Shake knows how to build, and each rule has an associated \lst"Action" which is the list of actions to build. The \lst"Rules" is a monoid, allowing two sets of rules to be joined to form a new set of rules. The action is a \lst"MonadIO" allowing actual actions to be run. As an example:
+
+\begin{lstlisting}
+(\x -> takeExtension x == ".o") ?> \out -> do
+    let src = replaceExtension x ".c"
+    let mk = replaceExtension x ".m"
+    need [src]
+    cmd "gcc -o" out "-M" mk "-c" src
+    neededMakefileDepends mk
+\end{lstlisting}
+
+There the whole block is a \lst"Rules", while the 5 indented lines are the \lst"Action". The action says what to match
+
+\subsection{Efficient implementation}
+
+Perhaps one of the key innovations since the last time has been one of scale. In the example build system the call to \lst"need" must go and invoke the action. Since this is a list of requests, and we want to fail as soon as any single request fails, the obvious implementation is to block the thread executing the need and continue with the others, unblocking as necessary. Such a technique necessarily uses one thread per blocked rule.
+
+In a huge build system, there can be many blocked threads. In GHC a thread is exceptionally cheap, with the initial stack size taking up 1Kb. With the GHC thread description, if the thread ever crosses the 1Kb barrier then it grabs another stack fragment taking up 32Kb, in addition to the original 1Kb \cite{ghc_threads}. Unfortunately, with the Shake design, most threads typically sit around 2Kb - meaning that a large nuber of blocked threads is very memory hungry. While possible to adjust the thread settings to reduce thread memory by 15x, such flags are global, and require the ultimate user of Shake to set them, negating some of the benefits of a composable library.
+
+Haskell has a solution, namely the continuation monad \cite{cont_paper}. With the continuation monad it is possible to take a monadic action and capture it:
+
+\begin{lstlisting}
+newtype ContT r m a where
+    ContT :: ((a -> m r) -> m r) -> ContT r m a
+\end{lstlisting}
+
+We can construct a \lst"ContT" value which gets passed a term \lst"a -> m r" -- effectively a function to execute all the remainder of the continuation. Doing so we ``block'' the continuation by simply capturing it and electing not to run it immediately. Effectively the stack is made explicit and threaded through the heap, taking only the minimum amount of space required. To actually provide a stack on which to run the continuations we use a thread pool.
+
+The only complication is that in Haskell threads are inevitably bound to exception handlers, and a \lst"ContT" value may run on many threads over its lifetime. This can be addressed by:
+
+\begin{lstlisting}
+type M a = ReaderT (IORef (SomeException -> IO ()) (ContT () IO a)
+\end{lstlisting}
+
+Here we have sadly restricted ourselves to an underlying IO monad - but not a particular problem for Shake. We have augmented our monad with a ReaderT IORef containing the exception handler (for the moment we ignore \cite{extensible exceptions}, but they can easily be integrated).
+
+Using this formulation we can define a catch operation which catches all exceptions, which is important since users may chose to throw exceptions at any point.
+
+\subsection{Oracles}
+
+Shake has polymorphic dependencies -- any key can produce any value by defining custom type classes. However, it turns out that one use of this mechanism is sufficiently common that it can be given a wrapping. We define an \textit{Oracle} to be a key/value mapping like a rule with the restrictions that 1) there is only one action associated with all members of the type; 2) the oracles are rerun in every execution and are never cached. While restrictive, this pattern captures a number of invariants, e.g. checking external program version numbers have not changed. As an example, we can define:
+
+\begin{lstlisting}
+newtype GccVersion = GccVersion () deriving (Show,Typeable,Eq,Hashable,Binary,NFData)
+
+rules = do
+    addOracle $ \GccVersion{} -> fromStdout <$> cmd "gcc --version" :: Action String
+    ... ?> \out -> do
+        askOracle $ GccVersion () :: String
+\end{lstlisting}
+
+Here we have tracked the GccVersion we are relying on, so if the version of gcc changes anything will rerun.
+
+While offering no real power, by simplifying the common case they provide easy usage. The implementation of Oracles is simple:
+
+\begin{lstlisting}
+newtype OracleQ question = OracleQ question
+    deriving (Show,Typeable,Eq,Hashable,Binary,NFData)
+newtype OracleA answer = OracleA {fromOracleA :: answer}
+    deriving (Show,Typeable,Eq,Hashable,Binary,NFData)
+
+instance (ShakeValue q, ShakeValue a) => Rule (OracleQ q) (OracleA a) where
+    storedValue _ _ = return Nothing
+
+addOracle :: (ShakeValue q, ShakeValue a) => (q -> Action a) -> Rules ()
+addOracle act = void $ rule $ \(OracleQ q) -> Just $ OracleA <$> act q
+
+askOracle :: (ShakeValue q, ShakeValue a) => q -> Action a
+askOracle question = fmap fromOracleA $ apply1 $ OracleQ question
+\end{lstlisting}
+
+\subsection{Unchanging files}
+
+Of course, oracles rerun in each section. One feature of Shake that turns out to be key to making oracles work is the fact that if oracles rerun and return an equal value they do not make anything that depended on them dirty. While observed as useful for generated files in the original paper, it turns out to be key for pervasive tracking of the detials that in many build systems go missed.
+
+\subsection{Resources}
+
+Shake has resources which can be used to limit parallelism. In effect, threads are the standard resource. But other things have resources, for example you cannot run two copies of Excel simultaneously.
+
+The key to resources it that tasks that do not require the resource can still run simultaneously.
+
+\subsection{Modification tracking}
+
+The original Shake notes that modification time is used as a proxy for file contents, and notes that a hash of the file contents would provide an alternative proxy. Alas, the problem with using file hashes is that in the rebuild where nothing happens it is necessary for all the files that were processed to be scanned, causing a significant amount of disk IO. We can view the hash function as a bijection to the contents, and the hash as a injective function (check). If the modtime check fails and the hash matches we record the new modtime so that the next execution will do the fast modtime check.
+
+Shake can also do this trick for only input files. The logic being that input files are typically human written, and thus small. The git version control system also modifies files at regular intervals and thus if you are switching branches such a change can be a massive win.
+
+\subsection{Lint checks}
+
+needed
