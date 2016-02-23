@@ -1,10 +1,5 @@
 \section{Useful abstractions\label{sec:abstractions}}
 
-\todo{Factor out \texttt{Context} from \texttt{Target}}
-
-\todo{Figure with all abstractions and type signatures}
-
-\todo{Micro build system example}
 \begin{itemize}
   \item Example shared with Background to Shake section
   \item top-level, starting with main = buildPackage etc.
@@ -30,8 +25,6 @@ package compiler ?
     builder Alex ? arg "--latin1"
 \end{verbatim}
 
-
-
 \subsection{Abstracting over patterns of dependencies}
 
 \todo{Shall we move this to the previous section?}
@@ -53,33 +46,59 @@ facilities. Examples:
   \item Compute build arguments from target filename
 \end{itemize}
 
-\subsection{Programming model}
-
-Review of the datatypes we use: \texttt{Stage}, \texttt{Builder}, 
-\texttt{Package}, \texttt{Target}, \texttt{Expression}.
-
-\todo{It is important to emphasise that the following abstractions are common
-for build systems.}
-
-Source code is typically split into logical units, or \emph{packages},
-and GHC is no exception. We model packages with the \texttt{Package}
-type:
-
+\begin{figure}
 \begin{lstlisting}[basicstyle=\ttfamily]
+data PackageType = Program | Library
+
 data Package = Package
     { pkgName :: PackageName
     , pkgPath :: FilePath
     , pkgType :: PackageType }
-\end{lstlisting}
 
-A package is identified by a unique \texttt{PackageName} and a
-\texttt{FilePath} pointing to its location in the source tree. A GHC package can
-be a program (e.g., \texttt{genprimopcode}) or a library (e.g., \texttt{array}), which is
-captured by \texttt{PackageType}:
+newtype Way = ... deriving Eq
 
-\begin{lstlisting}[basicstyle=\ttfamily]
-data PackageType = Program | Library
+data Stage = Stage0 | Stage1 | Stage2 | Stage3
+    deriving Enum
+   
+data Context = Context
+    { stage   :: Stage
+    , package :: Package
+    , way     :: Way }
+
+data Builder = Alex
+             | Ar
+             | GenPrimopCode
+             | Ghc Stage
+             | Haddock
+             ... (22 more builders)
+
+data Target = Target
+    { context :: Context
+    , builder :: Builder
+    , inputs  :: [FilePath]
+    , outputs :: [FilePath] }
+
+type Expr a = ReaderT Target Action a
+
+newtype Diff a = Diff { fromDiff :: a -> a }
+
+type DiffExpr a = Expr (Diff a)
+
+type Args     = DiffExpr [String]
+type Packages = DiffExpr [Package]
+type Ways     = DiffExpr [Way]
 \end{lstlisting}
+\caption{GHC build system abstractions\label{fig:abstractions}}
+\end{figure}
+
+\subsection{Programming model}
+
+Source code is typically split into logical units, or \emph{packages},
+and GHC is no exception. We model packages with the \texttt{Package}
+type, see Fig.~\ref{fig:abstractions}. A package is identified by a unique
+\texttt{PackageName} and a \texttt{FilePath} pointing to its location in the
+source tree. A GHC package can be a program (e.g., \texttt{genprimopcode}) or a
+library (e.g., \texttt{array}), which is captured by \texttt{PackageType}.
 
 A package can be built multiple \emph{ways}, for example, to produce a library
 with or without profiling information. This is captured by an opaque
@@ -93,12 +112,7 @@ impossible to achieve in \make{}, where no information hiding is
 possible.
  
 In addition to different build ways, each package can be built by several
-versions of GHC, which leads to the notion of \emph{stages}:
-
-\begin{lstlisting}[basicstyle=\ttfamily]
-data Stage = Stage0 | Stage1 | Stage2 | Stage3
-    deriving Enum
-\end{lstlisting}
+versions of GHC, which leads to the notion of \emph{stages}.
 
 In \texttt{Stage0} we use the \emph{bootstrap} GHC, i.e. the one that is
 installed in the system. During this stage we build \texttt{Stage1} GHC, an
@@ -108,55 +122,47 @@ primary goal of the build system. We sometimes also build \texttt{Stage3} GHC as
 a self-test: the object code of \texttt{Stage2} and \texttt{Stage3} compilers
 should be the same.
 
+\texttt{Stage}, \texttt{Package}, and \texttt{Way} form a GHC-specific
+\emph{build context} represented by type \texttt{Context}. A typical GHC build
+rule, such as \texttt{compilePackage}, depends on the context as follows: it
+uses an appropriate compiler version (e.g., the bootstrap compiler in
+\texttt{Stage0}), produces object files with different extensions (e.g.,
+vanilla \texttt{"*.o"} or profiled \texttt{"*.p\_o"} object files), puts build
+artefacts into an appropriate directory (e.g.,
+\texttt{"stage1/libraries/base"}), etc.
+
 A typical build system invokes several build tools, or \emph{builders}, such as
 compilers, linkers, archivers, etc., some of which may also be built by the
-build system itself. The builders are captured by the \texttt{Builder} type
-(only 5 out of all 27 constructors are shown):
-
-\begin{lstlisting}[basicstyle=\ttfamily]
-data Builder = Alex
-             | Ar
-             | GenPrimopCode
-             | Ghc Stage
-             | Haddock
-             ...
-\end{lstlisting}
-
-It is useful to distinguish \emph{internal} and \emph{external} builders, i.e.
+build system itself. The builders are captured by the \texttt{Builder} type. It
+is useful to distinguish \emph{internal} and \emph{external} builders, i.e.
 those that are build by the build system and those which are installed in the
 system, respectively. Function \texttt{builderProvenance} returns the stage
-during which an internal builder is built and the package containing the
-sources; \texttt{Nothing} is known about the provenance of external builders.
+during which an internal builder is built, the way it is built, and the package
+containing the sources (all captured by a \texttt{Context}); \texttt{Nothing} is
+known about the provenance of external builders.
 
 \begin{lstlisting}[basicstyle=\ttfamily]
-builderProvenance :: Builder -> Maybe (Stage, Package)
+builderProvenance :: Builder -> Maybe Context
 builderProvenance = \case
-    GenPrimopCode -> Just (Stage0, genprimopcode)
-    Ghc stage     -> if stage == Stage0
-                     then Nothing
-                     else Just (pred stage, ghc)
-    Haddock       -> Just (Stage2, haddock)
+    GenPrimopCode -> Just $
+        Context Stage0 genprimopcode vanilla
+    Ghc stage ->
+        if stage == Stage0 then Nothing
+        else Just $ Context (pred stage) ghc vanilla
+    Haddock -> Just $
+        Context $ Stage2 haddock vanilla
     ...
-    _             -> Nothing
+    _ -> Nothing
 \end{lstlisting}
 
 In particular, one can see that \texttt{Ghc Stage0} is an external builder,
 \texttt{Ghc Stage1} is an internal one built from package \texttt{ghc}
 during \texttt{Stage0}, etc.
 
-Each invocation of a builder is fully described by a \texttt{Target}:
-
-\begin{lstlisting}[basicstyle=\ttfamily]
-data Target = Target
-    { stage   :: Stage
-    , package :: Package
-    , builder :: Builder
-    , way     :: Way
-    , inputs  :: [FilePath]
-    , outputs :: [FilePath] }
-\end{lstlisting}
-
-\noindent For example, consider the following invocation of \texttt{Alex}:
+Each invocation of a builder is fully described by a \texttt{Target}, which
+comprises a build \texttt{Context}, a \texttt{Builder}, a list of input and
+a list of output files. For example, consider the following invocation of
+builder \texttt{Alex}:
 
 \begin{verbatim}
 alex -g --latin1 compiler/parser/Lexer.x
@@ -167,10 +173,8 @@ alex -g --latin1 compiler/parser/Lexer.x
 
 \begin{lstlisting}[basicstyle=\ttfamily]
 lexerTarget = Target
-    { stage   = Stage1
-    , package = compiler
+    { context = Context Stage1 compiler vanilla
     , builder = Alex
-    , way     = vanilla
     , inputs  = ["compiler/parser/Lexer.x"]
     , outputs = ["compiler/stage1/build/Lexer.hs"] }
 \end{lstlisting}
@@ -197,44 +201,36 @@ describe them. After experimenting with several abstractions, we converged on
 \subsection{Expressions}
 
 An expression \texttt{Expr a} is a computation that produces a value of type
-\texttt{Action a} and can read the current build \texttt{Target}:
+\texttt{Action a} and can read the current build \texttt{Target}. For example,
+the following expression computes command line arguments for invoking
+\texttt{Alex}:
 
 \begin{lstlisting}[basicstyle=\ttfamily]
-type Expr a = ReaderT Target Action a
-\end{lstlisting}
-
-For example, the following expression computes the full command line for
-invoking \texttt{Alex}:
-
-\begin{lstlisting}[basicstyle=\ttfamily]
-alexCmdLine :: Expr [String]
-alexCmdLine = do
-    bld <- asks Target.builder
+alexArgs :: Expr [String]
+alexArgs = do
     pkg <- asks Target.package
     src <- asks Target.inputs
     out <- asks Target.outputs
-    cmd <- lift $ builderPath bld
-    return $ [ cmd ]
-        ++ [ "-g" ]
-        ++ [ "--latin1" | pkg == compiler ]
-        ++ [ head src ]
-        ++ [ "-o", head out ]
+    return $ [ "-g" ]
+          ++ [ "--latin1" | pkg == compiler ]
+          ++ [ head src ]
+          ++ [ "-o", head out ]
 \end{lstlisting}
 
-\noindent Here \texttt{builderPath :: Builder -> Action FilePath} determines the
-path to a builder depending on its provenance and the contents of
-\texttt{system.config} file.
+% \noindent Here \texttt{builderPath :: Builder -> Action FilePath} determines the
+% path to a builder depending on its provenance and the contents of
+% \texttt{system.config} file.
 
-There is a room for improvement of the \texttt{alexCmdLine} expression. For
+There is a room for improvement of the \texttt{alexArgs} expression. For
 example, conditional flags like \texttt{--latin1} are very common in build
 systems and a better way to express them is clearly desirable. We use Boolean
 \emph{predicates} to achieve this:
 
 \begin{lstlisting}[basicstyle=\ttfamily]
-type Predicate = Expr Bool
-
 package :: Package -> Predicate
-package p = (p ==) <$> asks Target.package
+package p = do
+    context <- asks Target.context
+    return $ p == Context.package context
 
 (?) :: Monoid a => Predicate -> Expr a -> Expr a
 predicate ? expr = do
@@ -282,22 +278,21 @@ termination and no observable effects? }
 All expressions need to be modifiable by users of the build system. We therefore
 need to provide a way not only to add new flags to an expression, but also to
 modify and remove them. A simple way to achieve this is to switch to difference
-list expressions:
+list expressions, represented by type \texttt{DiffExpr a}, which is used to
+construct values of type \texttt{Diff a} with the following monoid instance:
 
 \begin{lstlisting}[basicstyle=\ttfamily]
-newtype Diff a = Diff { fromDiff :: a -> a }
-
-type DiffExpr a = Expr (Diff a)
-
 instance Monoid (Diff a) where
     mempty = Diff id
     Diff x `mappend` Diff y = Diff $ y . x
 \end{lstlisting}
 
 The reverse order of function composition \texttt{y . x} ensures that when two
-\texttt{DiffExpr} computations are combined \texttt{c1 <> c2}, then \texttt{c1}
-is applied first and \texttt{c2} is applied second. The following functions
-can be used to append and remove items to/from a difference list:
+\texttt{DiffExpr a} computations are combined \texttt{c1 <> c2}, then
+\texttt{c1} is applied first and \texttt{c2} is applied second.
+
+The following functions can be used to append and remove items to/from a
+difference list:
 
 \begin{lstlisting}[basicstyle=\ttfamily]
 append :: Monoid a => a -> DiffExpr a
@@ -307,13 +302,12 @@ remove :: Eq a => [a] -> DiffExpr [a]
 remove xs = return $ Diff $ filter (`notElem` xs)
 \end{lstlisting}
 
-We are now ready to define \texttt{Args}, a type of expressions for constructing
-command line arguments in the build system, and function \texttt{arg} for
-injecting simple \texttt{String} arguments into \texttt{Args}:
+We are now ready to introduce \texttt{Args}, a type of expressions for
+constructing command line arguments in the build system. In addition to the
+above generic functions, it is equipped with function \texttt{arg} for injecting
+simple \texttt{String} arguments into \texttt{Args}:
 
 \begin{lstlisting}[basicstyle=\ttfamily]
-type Args = DiffExpr [String]
-
 arg :: String -> Args
 arg = append . return
 \end{lstlisting}
@@ -337,7 +331,6 @@ The resulting \texttt{alexArgs} expression is terse and readable. All
 distracting plumbing details have been abstracted away so that the
 designers and users of the build system could focus on what matters.
 
-
 \noindent ----\\
 \noindent The \texttt{build} function takes care of building a single
 \texttt{Target}:
@@ -353,3 +346,75 @@ designers and users of the build system could focus on what matters.
   \item Finally, it runs the builder to build the target, printing diagnostic
   information if need be.
 \end{itemize}
+
+\noindent ----\\
+\noindent Example of a micro build system.
+
+\begin{figure}
+\begin{lstlisting}[basicstyle=\ttfamily]
+
+rules :: Rules ()
+rules = do
+    for_ [Stage0, Stage1] $ \stage ->
+        for_ [array, base] $ \pkg ->
+            for_ [vanilla, profiling] $ \way -> do
+                let context = Context stage pkg way
+                compilePackage context
+                buildPackageLibrary context
+
+osuf :: Way -> String
+osuf vanilla   = ".o"
+osuf profiling = ".p_o"
+
+asuf :: Way -> String
+asuf vanilla   = ".a"
+asuf profiling = "_p.a"
+
+compilePackage :: Context -> Rules ()
+compilePackage context @ Context {..} = do
+    let path = show stage </> pkgName package
+
+    path </> "*" ++ osuf way %> \obj -> do
+        let src = obj -<.> "hs"
+        deps <- lookupDependencies context obj
+        need $ src : deps
+        build $ Target context (Ghc stage) [src] [obj]
+
+buildPackageLibrary :: Context -> Rules ()
+buildPackageLibrary context @ Context {..} = do
+    let path    = show stage </> pkgName package
+        obj src = path </> src -<.> osuf way
+
+    path </> "*" ++ asuf way %> \a -> do
+        srcs <- lookupSources context
+        let objs = map obj srcs
+        need objs
+        build $ Target context Ar objs [a]
+                
+ghcArgs :: Args
+ghcArgs = builder Ghc ? mconcat
+    [ arg "-O2"
+    , way profiling ? arg "-prof"
+    , arg "-c", arg =<< getInput
+    , arg "-o", arg =<< getOutput ]
+    
+arArgs :: Args
+arArgs = builder Ar ? mconcat
+    [ arg "q"
+    , arg =<< getOutput
+    , append =<< getInputs ]
+
+userArgs :: Args
+userArgs = builder Ghc ? arg "-Wall"
+
+allArgs :: Args
+allArgs = ghcArgs <> arArgs <> userArgs
+
+build :: Target -> Action ()
+build target @ Target {..} = do
+    path <- builderPath context
+    args <- runReaderT allArgs target
+    cmd [path] args
+\end{lstlisting}
+\caption{Example of a build system\label{fig:example-abstractions}}
+\end{figure}
