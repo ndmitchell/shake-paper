@@ -13,24 +13,32 @@ action :: Action a -> Rules ()
 type ShakeValue a = (Show a, Typeable a, Eq a, Hashable a, Binary a, NFData a)
 data EqualCost = EqualCheap | EqualExpensive | NotEqual
 
-class (ShakeValue key, ShakeValue value) => Rule key
+class (ShakeValue key, ShakeValue value) => Rule key value where
     storedValue :: Rule key value => ShakeOptions -> key -> IO (Maybe value)
     equalValue :: Rule key value => ShakeOptions -> key -> value -> value -> EqualCost
 
 rule :: Rule key value => (key -> Maybe (Action value)) -> Rules ()
 apply :: Rule key value => [key] -> Action [value]
+\end{lstlisting}
+\todo{Include everything we use in the paper}
+\caption{Shake generic API}
+\end{figure}
 
+\begin{figure}
+\begin{lstlisting}
 (?>) :: (FilePath -> Bool) -> (FilePath -> Action ()) -> Rules ()
 want :: [FilePath] -> Rules ()
 need :: [FilePath] -> Action ()
 needed :: [FilePath] -> Action ()
 \end{lstlisting}
-\caption{Shake type signatures}
+\caption{Shake file-specific API}
 \end{figure}
 
 \subsection{Introduction}
 
 The two key types in Shake are \lst"Rules" and \lst"Action". The \lst"Rules" represents the list of things Shake knows how to build, and each rule has an associated \lst"Action" which is the list of actions to build. The \lst"Rules" is a monoid, allowing two sets of rules to be joined to form a new set of rules. The action is a \lst"MonadIO" allowing actual actions to be run. As an example:
+
+\todo{start with main, complete build system}
 
 \begin{lstlisting}
 (\x -> takeExtension x == ".o") ?> \out -> do
@@ -43,36 +51,13 @@ The two key types in Shake are \lst"Rules" and \lst"Action". The \lst"Rules" rep
 
 There the whole block is a \lst"Rules", while the 5 indented lines are the \lst"Action". The action says what to match, namely all files with a \lst".o" extension - object files. The action gets run with \lst"out" bound to the output name, e.g. \lst"Foo.o". It then computes \lst"src" (e.g. \lst"Foo.c") and \lst"mk" (e.g. \lst"Foo.m"). It requires the \lst".c" file to exist and builds it if it is missing, then compiles, and finally introduces a dependency on all the files listed in the \lst".m" file.
 
-\subsection{Efficient implementation}
+There is a database which tracks this stuff. More on monadic dependencies. When will this example rerun. If the output file changes it will rerun.
 
-Perhaps one of the key innovations since the last time has been one of scale. In the example build system the call to \lst"need" must go and invoke the action. Since this is a list of requests, and we want to fail as soon as any single request fails, the obvious implementation is to block the thread executing the need and continue with the others, unblocking as necessary. Such a technique necessarily uses one thread per blocked rule.
-
-In a huge build system, there can be many blocked threads. In GHC a thread is exceptionally cheap, with the initial stack size taking up 1Kb. With the GHC thread description, if the thread ever crosses the 1Kb barrier then it grabs another stack fragment taking up 32Kb, in addition to the original 1Kb \cite{ghc_threads}. Unfortunately, with the Shake design, most threads typically sit around 2Kb - meaning that a large nuber of blocked threads is very memory hungry. While possible to adjust the thread settings to reduce thread memory by 15x, such flags are global, and require the ultimate user of Shake to set them, negating some of the benefits of a composable library.
-
-Haskell has a solution, namely the continuation monad \cite{cont_paper}. With the continuation monad it is possible to take a monadic action and capture it:
-
-\begin{lstlisting}
-newtype ContT r m a where
-    ContT :: ((a -> m r) -> m r) -> ContT r m a
-\end{lstlisting}
-
-We can construct a \lst"ContT" value which gets passed a term \lst"a -> m r" -- effectively a function to execute all the remainder of the continuation. Doing so we ``block'' the continuation by simply capturing it and electing not to run it immediately. Effectively the stack is made explicit and threaded through the heap, taking only the minimum amount of space required. To actually provide a stack on which to run the continuations we use a thread pool.
-
-The only complication is that in Haskell threads are inevitably bound to exception handlers, and a \lst"ContT" value may run on many threads over its lifetime. This can be addressed by:
-
-\begin{lstlisting}
-type M = ReaderT
-    (IORef (SomeException -> IO ())
-    (ContT () IO)
-\end{lstlisting}
-
-Here we have sadly restricted ourselves to an underlying IO monad - but not a particular problem for Shake. We have augmented our monad with a ReaderT IORef containing the exception handler (for the moment we ignore \cite{extensible exceptions}, but they can easily be integrated).
-
-Using this formulation we can define a catch operation which catches all exceptions, which is important since users may chose to throw exceptions at any point.
-
-\subsection{Oracles}
+\subsection{Polymorphic dependencies}
 
 Shake has polymorphic dependencies -- any key can produce any value by defining custom type classes. However, it turns out that one use of this mechanism is sufficiently common that it can be given a wrapping. We define an \textit{Oracle} to be a key/value mapping like a rule with the restrictions that 1) there is only one action associated with all members of the type; 2) the oracles are rerun in every execution and are never cached. While restrictive, this pattern captures a number of invariants, e.g. checking external program version numbers have not changed. As an example, we can define:
+
+Do oracle example by hand, then do it sugared up with oracles. Forward reference to config files. Put the long example in a figure.
 
 \begin{lstlisting}
 newtype GccVersion = GccVersion ()
@@ -112,13 +97,23 @@ askOracle question =
 
 \subsection{Unchanging files}
 
+Add a dependency diagram.
+
+Dodgy - can make already do this? It can deal with not updating.
+
 Of course, oracles rerun in each section. One feature of Shake that turns out to be key to making oracles work is the fact that if oracles rerun and return an equal value they do not make anything that depended on them dirty. While observed as useful for generated files in the original paper, it turns out to be key for pervasive tracking of the detials that in many build systems go missed.
+
+\subsection{Shared cache}
+
+The abstraction.
 
 \subsection{Order-only dependencies}
 
 One dependency feature missing from the original Shake paper was order-only dependencies. An order-only dependency is one that must be built before continuing, but if the order-only dependency changes this rule does not need to rerun. A legitimate use of such a dependency is that an action might read any one of two files, and after the fact, can report which files it actually depended upon. Usually then a subset of these files will be added as explicit dependencies afterwards.
 
 This pattern can be modelled in Shake using a rule whose key type is \lst"()" -- one that always compares equal, and the user defining a tag for the closure required, so it can be stored in the database. While workable, the pattern is not particularly reusable, so we instead provide a function that directly resets the dependency state.
+
+Is this used? Add an example.
 
 \subsection{Resources}
 
@@ -151,6 +146,8 @@ shake shakeOptions{shakeThreads=2} $ do
 
 Now we will never run two copies of excel simultaneously. Moreover, it will never block waiting for excel if there are other rules that could be run.
 
+Fwd ref to ghc-pkg.
+
 \subsection{Modification tracking}
 
 Build systems run actions on files, skipping the actions if the files have not changed. An important part of that process involves determining if a file has changed. The Make build system uses modification times to impose an ordering on files, but more modern build systems tend to use the modification time as a proxy for the file contents, where any change indicates the contents have changed (e.g. Shake, Ninja). The alternative approach is to compute a hash/digest of the file contents (e.g. SCons, Redo). As of version 0.13, Shake supports both methods, along with three combinations of them - in this post I'll go through the alternatives, and their advantages/disadvantages.
@@ -163,11 +160,15 @@ To get the best of both worlds Shake can store the modification time, file size 
 
 While a signficant optimisation over always checking file hashes, for certain large files the computation of a hash can still be quite expensive (although almost always cheaper than producing the file). To reduce that problem, Shake has a mode that only digests for source files that are not written by the build system. Generated files (e.g. compiled binaries) tend to be large (expensive to compute digests) and not edited (rarely end up the same), so a poor candidate for digests. The file size check means this restriction is unlikely to make a difference when checking all files, but may have some limited impact when building.
 
+Describe the git pattern. Remove the description of configuration.
+
 \subsection{Lint checks}
 
 \S? of \cite{shake} postulates a number of invariants, and using the \prog{FSATrace} program these can now be checked at runtime. Shake has a \texttt{--lint} flag which also checks the current working directory does not change (a common mistake in a global build system, as the current working directory is a shared resource). It also checks that files do not change after they have been depended upon, that running a fresh build after a build completes will have no further effect, and that.
 
 We also have a function \lst"needed", rather than \lst"need" that asserts that the result of performing \lst"need" does not cause the file to change. This is typically required to depend on files that have already been used, e.g. the header files have already been scanned, so if they were to build afresh that would be an error.
+
+Most useful one is if two people whack the same output. Other thing is where doing all .hs files in a dir, and then you generate one. Should this go somewhere else? Perhaps in S5.
 
 \subsection{Design pattern: DSL + escape hatch}
 
