@@ -35,13 +35,13 @@ facilities. Examples:
   \item Use general predicates instead of file patterns. For example, several
   files are built by calling \texttt{genprimopcode}, which can be captured by a
   single build OR-rule:
-  
+
 \begin{lstlisting}[basicstyle=\ttfamily]
 [ "autogen/GHC/Prim.hs"
 , "GHC/PrimopWrappers.hs"
 , "*.hs-incl" ] |%> \file -> do ...
 \end{lstlisting}
-  
+
   \item Build rules with multiple outputs (AND-rules)
   \item Compute build arguments from target filename
 \end{itemize}
@@ -59,7 +59,7 @@ newtype Way = ... deriving Eq
 
 data Stage = Stage0 | Stage1 | Stage2 | Stage3
     deriving Enum
-   
+
 data Context = Context
     { stage   :: Stage
     , package :: Package
@@ -110,7 +110,7 @@ supported. By making \texttt{Way} opaque we make it easier to add new ways
 or change their internal representation, something that would be
 impossible to achieve in \make{}, where no information hiding is
 possible.
- 
+
 In addition to different build ways, each package can be built by several
 versions of GHC, which leads to the notion of \emph{stages}.
 
@@ -318,7 +318,7 @@ for \texttt{Alex} as follows:
 \begin{lstlisting}[basicstyle=\ttfamily]
 alexArgs :: Args
 alexArgs = mconcat [ arg "-g"
-                   , package compiler ? arg "--latin1" 
+                   , package compiler ? arg "--latin1"
                    , arg =<< getInput
                    , arg "-o", arg =<< getOutput ]
 \end{lstlisting}
@@ -390,14 +390,14 @@ buildPackageLibrary context @ Context {..} = do
         let objs = map obj srcs
         need objs
         build $ Target context Ar objs [a]
-                
+
 ghcArgs :: Args
 ghcArgs = builder Ghc ? mconcat
     [ arg "-O2"
     , way profiling ? arg "-prof"
     , arg "-c", arg =<< getInput
     , arg "-o", arg =<< getOutput ]
-    
+
 arArgs :: Args
 arArgs = builder Ar ? mconcat
     [ arg "q"
