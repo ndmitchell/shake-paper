@@ -1,10 +1,10 @@
 \section{Background about Shake\label{sec:shake}}
 
-Our solution to the issues raised in \S\ref{sec:challenges} starts with switching from \make{} to the Shake build system \cite{shake}. In this section we recap the key ideas behind Shake, and also describe some of the additional feature provided by Shake but not covered in the original paper. These features are of general use and all predate our efforts to replace the GHC build system.
+Our solution to the issues raised in \S\ref{sec:challenges} starts with switching from \make{} to the Shake build system \cite{shake}. In this section we recap the key ideas behind Shake, and also describe some of the additional features provided by Shake, but not covered in the original paper. These features are of general use and all predate our efforts to replace the GHC build system.
 
 \begin{figure}
 \begin{lstlisting}
-newtype Rule a = ...
+newtype Rules a = ...
     deriving (Monoid, Functor, Applicative, Monad)
 newtype Action a = ...
     deriving (Functor, Applicative, Monad, MonadIO)
@@ -52,9 +52,9 @@ orderOnly :: [FilePath] -> Action ()
 \caption{Shake file-specific API\label{fig:shake_file_api}}
 \end{figure}
 
-\subsection{Introduction}
+\subsection{Introduction\label{sec:shake_intro}}
 
-As an example of a small build system, let us compile a C file into an object file. We can write that in Shake with:
+As an example of a small Shake build system, let us compile a C file into an object file:
 
 \begin{lstlisting}[numbers=left,xleftmargin=2em,framexleftmargin=1.5em]
 module Main(main) where
@@ -79,17 +79,17 @@ Following the code from top to bottom:
 \item[Line 3] imports the \lst'System.FilePath' module, which in this example provides the \lst'replaceExtension' function.
 \item[Lines 6] declares the \lst'main' function, which calls \lst'shake'. The \lst'shake' function takes some options (parallelism settings etc), along with a set of \lst'Rules', and executes the necessary rules.
 \item[Line 7] calls \lst'want' to declare that after the build system has finished we would like the file \lst'foo.o' to be available and up-to-date.
-\item[Line 9] defines a rule to build \lst'*.o' files, namely those which end with the extension \lst'.o'. The \lst'%>' operator produces a singleton set of \lst'Rules' which takes a pattern on the left, and an \lst'Action' on the right. The variable \lst'out' will be bound to the actual file being produced, namely \lst'foo.o' in this example.
+\item[Line 9] defines a rule to build \lst'*.o' files, namely those files which end with the extension \lst'.o'. The \lst'%>' operator produces a rule of type \lst'Rules' which takes a pattern on the left, and an \lst'Action' on the right. The variable \lst'out' will be bound to the actual file being produced, namely \lst'foo.o' in this example.
 \item[Line 10] computes the name of the source file, in our case \lst'src' will be \lst'foo.c'.
 \item[Line 11] uses \lst'need' to ensure \lst'foo.c' has been built before continuing, and to introduce a dependency that if \lst'foo.c' changes then this rule will require rerunning.
 \item[Line 12] uses the variable-arity function \lst'cmd' to execute the system command \lst'gcc' with appropriate arguments to produce \lst'out' from \lst'src'. Since the \lst'Action' type has an instance of \lst'MonadIO' we can do any \lst'IO' operation at this point.
 \end{description}
 
-On the first execution, this example will start running the \lst'*.o' rule to produce \lst'foo.o'. When execution gets to \lst'need [src]' this rule will stop and the rule for \lst'foo.c' will be be run. Shake provides a default rule for files that do not match any rules, which simply checks the file already exists. After completing this simple rule, Shake will resume running the \lst'*.o' rule, executing \lst'gcc' to build \lst'foo.o'.
+On the first execution, this example will start running the \lst'*.o' rule to produce \lst'foo.o'. When execution gets to \lst'need [src]' this rule will stop and the rule for \lst'foo.c' will be be run. Shake provides a default rule for files that do not match any other rules, which simply checks the file already exists. After completing this simple rule, Shake will resume running the \lst'*.o' rule, executing \lst'gcc' to build \lst'foo.o'.
 
-If a similar build system was written in \make{}, \lst'gcc' would be rerun if either \lst'foo.o' did not exist, or if the modification time of \lst'foo.o' was earlier than that of \lst'foo.c'. In contrast, Shake will rerun \lst'gcc' if either file does not exist or changes modification time from when the rule was last run (or more generally, if either file changes contents, see \S\ref{sec:file-contents}). Shake achieves this result by storing the inputs and outputs after a rule completes in a per-project database, and rerunning a rule if anything has changed (and thus the result could be expected to change). Unlike \make{}, the Shake formulation of spotting differences is robust to changing the system time or extracting old files from backups.
+If a similar build system was written in \make{}, \lst'gcc' would be rerun if either \lst'foo.o' did not exist, or if the modification time of \lst'foo.o' was earlier than that of \lst'foo.c'. In contrast, Shake will rerun \lst'gcc' if either file does not exist or changes modification time from when the rule was last run (or more generally, if either file changes contents, see \S\ref{sec:file-contents}). Shake achieves this result by storing the inputs and outputs after a rule completes in a per-project database, and rerunning a rule if anything has changed (and thus the result could be expected to change). Unlike \make{}, the Shake approach to rebuilding of spotting differences is robust to changing the system time or extracting old files from backups.
 
-The major source of Shakes expressive power is that in Shake a \lst'need' can come at any point during a rules \lst'Action'. In particular, we can perform arbitrary computation including I/O, running system commands and examining the file produced by a previous \lst'need' before decided which future \lst'need' to perform. In contrast, in most build systems, all dependencies of a rule must be given before the rule starts executing. We make extensive use of this additional power throughout \S\ref{sec:abstractions}.
+The major source of Shakes expressive power is that in Shake a \lst'need' can come at any point during a rules \lst'Action'. In particular, we can perform arbitrary computation including I/O, running system commands and examining files produced by a previous \lst'need' before deciding which future \lst'need' to perform. In contrast, in most build systems, all dependencies of a rule must be given before the rule starts executing. We make extensive use of this additional power throughout \S\ref{sec:abstractions}.
 
 \subsection{Post-use dependencies}
 
@@ -102,15 +102,15 @@ need $ makefileDepends makefile
 
 \noindent We use \lst'Stdout' to capture the output of \lst'cmd', then \lst'makefileDepends' to parse the Makefile and return all dependencies \footnote{Using the \lst'parseMakefile' helper function in Shake we can define \lst'makefileDepends = concatMap snd . parseMakefile'.}. After obtaining the list of dependencies we \lst'need' them, ensuring that if a header changes, the object will be rebuilt.
 
-However, for this use case the \lst'need' function is actually a little \emph{too} powerful. The \lst'need' will cause Shake to pause the \lst'*.o' rule, build the dependencies, and then continue. But since the header files were \emph{already} used by \lst'gcc', if they change then the result will be inconsistent, with the object file reflecting the previous header contents.
+However, for this use case, the \lst'need' function is actually a little \emph{too} powerful. The \lst'need' will cause Shake to pause the \lst'*.o' rule, build the dependencies, and then continue. But since the header files were \emph{already} used by \lst'gcc', if they change then the result will be inconsistent, since the object file will reflect the previous header contents.
 
-We solve this problem by using \lst'needed' instead of \lst'need', which combines \lst'need' which an assertion that the file does not change as a result of building, and thus the result is consistent. In the common case of the header files being source files, the associated rule will be the default file rule, which does not modify the file, and the assertion will not fire.
+We solve this problem by using \lst'needed' instead of \lst'need', which combines \lst'need' which an assertion that the file does not change as a result of building, and thus the result is consistent. In the common case of the header files being source files, the associated rule will be the default file rule, which does not modify the file, and the assertion will not trigger.
 
 \subsection{Order-only dependencies}
 
-We have seen how \lst'needed' can be safely used for source files, but what about generated files? Imagine we have a rule to build \lst'config.h' from a configuration data file. With the existing formulation, \lst'needed' on \lst'config.h' will raise an error if \lst'config.h' is not up-to-date because the configuration data has changed. One solution is to \lst'need ["config.h"]' \emph{before} executing \lst'gcc'. This solution is safe -- the file \lst'config.h' will always be created before it is used and will not change when \lst'needed' (since it has already been built). Unfortunately this solution causes any object file that does \emph{not} include \lst'config.h' to rebuild unnecessarily if \lst'config.h' changes.
+We have seen how \lst'needed' can be safely used for source files, but what about generated files? Imagine we have a rule to build \lst'config.h' from a configuration data file. With the existing formulation, \lst'needed' on \lst'config.h' will raise an error if the configuration data has changed and \lst'config.h' is not up-to-date. One solution is to \lst'need ["config.h"]' \emph{before} executing \lst'gcc'. This solution is safe -- the file \lst'config.h' will always be created before it is used and will not change when \lst'needed' (since it has already been built). Unfortunately this solution causes any object file that does \emph{not} include \lst'config.h' to rebuild unnecessarily if \lst'config.h' changes.
 
-A better solution is to use order-only dependencies, with the expression \lst'orderOnly ["config.h"]'. This expression ensures that \lst'config.h' has been built and is up-to-date before continuing, but does not introduce a dependency on it. Afterwards, if the file turns out to really have been required, \lst'needed' can be used to express the dependency.
+A better solution is to use order-only dependencies, with the expression \lst'orderOnly ["config.h"]'. This expression ensures that \lst'config.h' has been built and is up-to-date before continuing, but does not introduce a dependency on \lst'config.h'. Afterwards, if the file turns out to have been required, \lst'needed' can be used to express the dependency.
 
 Combining \lst'orderOnly' (ensure a file has been built) and \lst'needed' (depend on a file) we obtain the equivalence:
 
@@ -122,7 +122,7 @@ While neither \lst'orderOnly' or \lst'needed' are in the original Shake paper, b
 
 \subsection{Polymorphic dependencies\label{sec:polymorphic}}
 
-While build-systems are typically focused around files, the core of Shake is fully polymorphic, operating on objects that are uniquely labelled by a key (e.g. filename) and have rules that produce a value (e.g. modification time). This polymorphic API is presented in Figure~\ref{fig:shake_generic_api}, and the file-based API in Figure~\ref{fig:shake_file_api} is built on top. Using this polymorphic API we can define new types of rule to track additional dependencies. Looking back at our initial example, the object file is also affected by the version of \lst'gcc' used to compile it. We can capture this dependency with:
+While build-systems are typically focused around files, the core of Shake is fully polymorphic, operating on objects that are uniquely labelled by a key (e.g. filename) and have rules that produce a value (e.g. modification time). This polymorphic API is presented in Figure~\ref{fig:shake_generic_api}, and the file-based API in Figure~\ref{fig:shake_file_api} is built on top. Using this polymorphic API we can define new types of rule to track additional dependencies. Looking at our initial example, the object file is also affected by the version of \lst'gcc' used to compile it. We can capture this dependency with:
 
 \begin{lstlisting}
 newtype GccVersion = GccVersion () deriving
@@ -142,9 +142,9 @@ main = shake shakeOptions $ do
         ...
 \end{lstlisting}
 
-This code defines a unique type \lst'GccVersion' to serve as the key for the rule. We define a \lst'Rule' instance so Shake rules can operate on \lst'GccVersion' keys, declaring the associated value to be \lst'String'. We are only required to implement the \lst'storedValue' method, where we declare that the rule generating the \lst'gcc' version should \emph{always} be rerun (using \lst'Nothing').
+This code defines a fresh type \lst'GccVersion' to serve as the key for the rule. We define a \lst'Rule' instance so Shake rules can operate on \lst'GccVersion' keys, declaring the associated value to be of type \lst'String'. We are only required to implement the \lst'storedValue' method, where we declare that the rule generating the \lst'gcc' version should \emph{always} be rerun (using \lst'Nothing').
 
-Next we use \lst'rule' to describe how to generate the value associated with \lst'GccVersion', and use 'apply' to force execution of the rule and introduce a dependency on the result. For files, \lst'%>' is implemented in terms of \lst'rule', and \lst'need' is implemented in terms of \lst'apply'. In every build \lst'gcc --version' will be executed, and if the output changes from last time, any rule which called \lst'apply [GccVersion ()]' will rerun. Our build system will now automatically recompile all C files if the compiler is changed.
+Next we use \lst'rule' to describe how to generate the value associated with \lst'GccVersion', and use \lst'apply' to force execution of the rule and introduce a dependency on the result. For files, \lst'%>' is implemented in terms of \lst'rule', and \lst'need' is implemented in terms of \lst'apply'. In every build \lst'gcc --version' will be executed, and if the output changes from last time, any rule which called \lst'apply [GccVersion ()]' will rerun. Our build system will now automatically recompile all C files if the compiler is changed.
 
 The use of non-file rule types is common in large build systems, occurring ten times in our implementation of GHC's build system in \S\ref{sec:ghc}. To simplify such uses we define an oracle abstraction, allowing us to write:
 
@@ -158,19 +158,19 @@ gccVersion <- addOracle $ \(GccVersion _) -> do
     ...
 \end{lstlisting}
 
-Using oracles we are freed from defining our own \lst'Rule' instance and can use a type-safe version of \lst'apply' tailored to our particular oracle. The definition of oracles is only a handful of lines long, but sharply decreases the number of Shake concepts that must be understood to define a non-file rules following the typical pattern. All non-file rules in GHC are implemented using oracles.
+Using oracles we are freed from defining our own \lst'Rule' instance and can use a type-safe version of \lst'apply' tailored to our particular oracle. The definition of oracles is only a handful of lines long, but sharply decreases the number of Shake concepts that must be understood to define non-file rules following the typical pattern. All non-file rules in GHC are implemented using oracles.
 
-We do not believe that polymorphic dependencies give any fundamental additional expressive power over file rules, but they do provide:
+Polymorphic dependencies do not give any fundamental additional expressive power over file rules, but they do provide:
 
 \begin{itemize}
-\item An easy way to get unique keys, by allowing use of a uniquely defined type. While two unrelated parts of the build system might both define \lst'gcc-version.txt' rules and clash, any two definitions of \lst'GccVersion' will either be distinct via their qualified name, or will result in a compile error.
+\item An easy way to get unique keys, by allowing use of a freshly defined type. While two unrelated parts of the build system might both define \lst'gcc-version.txt' rules and clash, any two definitions of \lst'GccVersion' will either be distinct via their qualified name, or will result in a compile error.
 \item Additional structure for keys and values, instead of hierarchical filenames and binary content files. In particular keys can contain full algebraic data types including lists, tuples and booleans.
 \item Greater granularity, by not forcing each rule to be backed by a separate file. For example, a configuration file might consist of thousands of keys. Making thousands of files is not always desirable, but thousands of non-file keys is no problem.
 \end{itemize}
  
 \subsection{Limiting Parallelism}
 
-Like most build systems, Shake can run multiple rules in parallel. However, running too many rules in parallel can cause the machine to become overloaded, spending much of its time switching between tasks instead of executing them. Most build systems take an argument to set the maximum number of rules that can be run simultaneously (Shake has \lst'shakeThreads'), and typically the number used is based on the number of available CPUs. However, there are other instances where certain rules should not run in parallel:
+Like most build systems, Shake can run multiple rules in parallel. However, running too many rules in parallel can cause a computer to become overloaded, spending much of its time switching between tasks instead of executing them. Most build systems take an argument to set the maximum number of rules that can be run simultaneously (Shake has \lst'shakeThreads'), and typically that number is based on the number of available CPUs. However, there are other instances where certain rules should not be run in parallel:
 
 \begin{enumerate}
 \item Some APIs are global in nature. If you run two programs that access the Excel API simultaneously things start to fail.
@@ -178,24 +178,24 @@ Like most build systems, Shake can run multiple rules in parallel. However, runn
 \item Some proprietary software has licenses which limit the number of concurrent processes, for example ModelSim.
 \end{enumerate}
 
-Build systems typically obey such constraints using one of the three following approaches:
+Build systems typically obey such constraints using one of the following approaches:
 
 \begin{enumerate}
-\item Limit the number of CPUs to hit your target. For example a user with 24 CPUs might limit the build system to 8 simultaneous rules so that linking is not unbearable. This solution wastes CPU resources, leaving CPUs idling.
-\item Add locks to suspend jobs that are competing for the shared resource. For example any rule using the Excel API could check for the existence of a lock file before continuing, and create a lock file while executing. This approach still wastes CPU resources, causing them to block instead of executing other rules.
-\item Use fake dependencies to serialise the rules into a known linear order, ensuring only one can run at a time. This approach reduces available parallelism and requires a global ordering on the build rules.
+\item Limit the maximum number of simultaneous rules. For example a user with 24 CPUs might limit the build system to 8 simultaneous rules so that linking is not problematic. This solution wastes CPU resources, leaving CPUs idling.
+\item Add locks to suspend jobs that are competing for a shared resource. For example any rule using the Excel API could check for the existence of a lock file before continuing, and keep a lock file while executing. This approach still wastes CPU resources, causing them to block instead of executing other rules.
+\item Use fake dependencies to serialise the rules into a linear order, ensuring only one rule using the resource can run at a time. This approach reduces available parallelism and requires a global ordering on the build rules.
 \end{enumerate}
 
-In Shake this problem can be solved directly using the \lst'Resource' type, which represents a finite resource that multiple build rules can use. Resource values are created with \lst'newResource' and used by \lst'withResource'. As an example, only one set of calls to the Excel API can occur at one time, therefore Excel is a finite resource of quantity 1. We can write:
+In Shake this problem can be solved directly using the \lst'Resource' type, which represents a finite resource that multiple build rules can use. Resource values are created with \lst'newResource' and used by \lst'withResource'. As an example, only one set of calls to the Excel API can occur at once, therefore Excel is a finite resource of quantity 1. We can write:
 
 \begin{lstlisting}
 want ["a.xls","b.xls"]
 excel <- newResource "Excel" 1
-"*.xls" *> \out ->
+"*.xls" %> \out ->
     withResource excel 1 $ cmd "excel" out ...
 \end{lstlisting}
 
-Now we will never run two copies of excel simultaneously, regardless of the \lst'shakeThreads' setting. Moreover, the build system will never block waiting for the resource if there are other rules that could be run. We use this approach to deal with the \lst'ghc-pkg' tool, which only permits one writer or multiple readers, see \S?.
+We create a new resource named \lst'excel' of quantity one, then when using Excel we call \lst'withResource excel 1', to indicate we use one Excel resource. Now we will never run two copies of Excel simultaneously, regardless of the \lst'shakeThreads' setting. Moreover, the build system will never block waiting for the resource if there are other rules that could be run. We use this approach to deal with the \lst'ghc-pkg' tool, which only permits one writer or multiple readers, see \S?.
 
 \subsection{Tracking File Contents\label{sec:file-contents}}
 
