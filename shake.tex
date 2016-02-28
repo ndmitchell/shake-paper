@@ -43,6 +43,7 @@ type FilePattern = String
 want :: [FilePath] -> Rules ()
 need :: [FilePath] -> Action ()
 needed :: [FilePath] -> Action ()
+orderOnly :: [FilePath] -> Action ()
 \end{lstlisting}
 \caption{Shake file-specific API\label{fig:shake_file_api}}
 \end{figure}
@@ -84,41 +85,38 @@ On the first execution, this example will start running the \lst'*.o' rule to pr
 
 If a similar build system was written in \make{}, \lst'gcc' would be rerun if either \lst'foo.o' did not exist, or if the modification time of \lst'foo.o' was earlier than that of \lst'foo.c'. In contrast, Shake will rerun \lst'gcc' if either file does not exist or changes modification time from when the rule was last run (or more generally, if either file changes contents, see \S\ref{sec:file-contents}). Shake achieves this result by storing the inputs and outputs after a rule completes in a per-project database, and rerunning a rule if anything has changed (and thus the result could be expected to change). Unlike \make{}, the Shake formulation of spotting differences is robust to changing the system time or extracting old files from backups.
 
+The major source of Shakes expressive power is that in Shake a \lst'need' can come at any point during a rules \lst'Action'. In particular, we can perform arbitrary computation including I/O, running system commands and examining the file produced by a previous \lst'need' before decided which future \lst'need' to perform. In contrast, in most build systems, all dependencies of a rule must be given before the rule starts executing. We make extensive use of this additional power throughout \S\ref{sec:abstractions}.
+
 \subsection{Post-use dependencies}
 
-\S? of \cite{shake} postulates a number of invariants, and using the \prog{FSATrace} program these can now be checked at runtime. Shake has a \texttt{--lint} flag which also checks the current working directory does not change (a common mistake in a global build system, as the current working directory is a shared resource). It also checks that files do not change after they have been depended upon, that running a fresh build after a build completes will have no further effect, and that.
-
-We also have a function \lst'needed', rather than \lst'need' that asserts that the result of performing \lst'need' does not cause the file to change. This is typically required to depend on files that have already been used, e.g. the header files have already been scanned, so if they were to build afresh that would be an error.
-
-Most useful one is if two people whack the same output. Other thing is where doing all .hs files in a dir, and then you generate one. Should this go somewhere else? Perhaps in S5.
-
-
-
-
-Looking at the body of the rule, we have tracked what happens if the .c file changes, but what if any headers that the .c file includes change? The program gcc takes a -M option that lets us save the dependencies to a file:
+Looking at our first example, the object gets recompiled if the C source file changes. But C files may \lst'#include' any number of header files, and changes to these headers will also affect the resulting object. While it is possible to write our own code to search for transitively included headers \cite[\S6.4]{shake}, a simpler alternative is to reuse the logic already present in \lst'gcc'. The \lst'gcc' command takes a flag \lst'-M' which prints out a Makefile listing all used headers. We can integrate this flag into our example by replacing the final line with:
 
 \begin{lstlisting}
-let src = x -<.> "c"
-need [src]
-Stdout mk <- cmd "gcc -o" out "-M" "-c" src
-need $ makefileDepends mk
+Stdout makefile <- cmd "gcc -M -o" out "-c" src
+need $ makefileDepends makefile
 \end{lstlisting}
 
-We rely on an auxiliary \lst'makefileDepends' which parses a Makefile and returns all the dependencies \footnote{Using the \lst'parseMakefile' function in Shake we can define \lst'makefileDepends = concatMap snd . parseMakefile'.}. After finding all the dependencies we \lst'need' them, thus ensuring that if a header changes it will be rebuilt.
+\noindent We use \lst'Stdout' to capture the output of \lst'cmd', then \lst'makefileDepends' to parse the Makefile and return all dependencies \footnote{Using the \lst'parseMakefile' helper function in Shake we can define \lst'makefileDepends = concatMap snd . parseMakefile'.}. After obtaining the list of dependencies we \lst'need' them, ensuring that if a header changes, the object will be rebuilt.
 
-In fact, since Shake is a monadic build system, the \lst'need' will actually build them - a very useful feature and one that sets Shake apart. However, in this case if the header files are built after the execution of \lst'gcc' then the object file will be incorrect, so instead we can switch the final \lst'need' for \lst'needed'. This combines a \lst'need' which an assertion that the file does not change as a result of building.
+However, for this use case the \lst'need' function is actually a little \emph{too} powerful. The \lst'need' will cause Shake to pause the \lst'*.o' rule, build the dependencies, and then continue. But since the header files were \emph{already} used by \lst'gcc', if they change then the result will be inconsistent, with the object file reflecting the previous header contents.
 
+We solve this problem by using \lst'needed' instead of \lst'need', which combines \lst'need' which an assertion that the file does not change as a result of building, and thus the result is consistent. In the common case of the header files being source files, the associated rule will be the default file rule, which does not modify the file, and the assertion will not fire.
 
 \subsection{Order-only dependencies}
 
-One dependency feature missing from the original Shake paper was order-only dependencies. An order-only dependency is one that must be built before continuing, but if the order-only dependency changes this rule does not need to rerun. A legitimate use of such a dependency is that an action might read any one of two files, and after the fact, can report which files it actually depended upon. Usually then a subset of these files will be added as explicit dependencies afterwards.
+We have seen how \lst'needed' can be safely used for source files, but what about generated files? Imagine we have a rule to build \lst'config.h' from a configuration data file. With the existing formulation, \lst'needed' on \lst'config.h' will raise an error if \lst'config.h' is not up-to-date because the configuration data has changed. One solution is to \lst'need ["config.h"]' \emph{before} executing \lst'gcc'. This solution is safe -- the file \lst'config.h' will always be created before it is used and will not change when \lst'needed' (since it has already been built). Unfortunately this solution causes any object file that does \emph{not} include \lst'config.h' to rebuild unnecessarily if \lst'config.h' changes.
 
-This pattern can be modelled in Shake using a rule whose key type is \lst'()' -- one that always compares equal, and the user defining a tag for the closure required, so it can be stored in the database. While workable, the pattern is not particularly reusable, so we instead provide a function that directly resets the dependency state.
+A better solution is to use order-only dependencies, with the expression \lst'orderOnly ["config.h"]'. This expression ensures that \lst'config.h' has been built and is up-to-date before continuing, but does not introduce a dependency on it. Afterwards, if the file turns out to really have been required, \lst'needed' can be used to express the dependency.
 
-Is this used? Add an example.
+Combining \lst'orderOnly' (ensure a file has been built) and \lst'needed' (depend on a file) we obtain the equivalence:
 
+\begin{lstlisting}
+need xs === (orderOnly xs >> needed xs)
+\end{lstlisting}
 
-\subsection{Polymorphic dependencies}
+While neither \lst'orderOnly' or \lst'needed' are in the original Shake paper, both can be added on top of Shake without adjusting the underlying build algorithm. Specifically, \lst'needed' can be implemented as checks around \lst'need', and \lst'orderOnly' can be implemented via an intermediate rule which calls \lst'need' and produces an empty file whose value never changes, thus causing things depending on it to not  rebuild (in fact, the intermediate file can be avoided, as we shall see in \S\ref{sec:polymorphic}).
+
+\subsection{Polymorphic dependencies\label{sec:polymorphic}}
 
 While Shake can depend on files, it can also depend on other things, specifically Fig 1 is all about the core of Shake, while Fig 2 is about a wrapping for files. For example, we can define a rule that produces the version of gcc, allowing wrapping it easily.
 
@@ -203,11 +201,3 @@ To get the best of both worlds Shake can store the modification time, file size 
 While a signficant optimisation over always checking file hashes, for certain large files the computation of a hash can still be quite expensive (although almost always cheaper than producing the file). To reduce that problem, Shake has a mode that only digests for source files that are not written by the build system. Generated files (e.g. compiled binaries) tend to be large (expensive to compute digests) and not edited (rarely end up the same), so a poor candidate for digests. The file size check means this restriction is unlikely to make a difference when checking all files, but may have some limited impact when building.
 
 Describe the git pattern. Remove the description of configuration.
-
-\subsection{Design pattern: DSL + escape hatch}
-
-\todo{Probably belongs elsewhere, but don't want to conflict}
-
-As we develop more Shake-based build systems, patterns have started to emerge. Typically 90\% of a build system can be captured in some simple DSL, taking advantage of conventions, and 10\% cannot. As an example, a large build system might build 100 C++ libraries, each with similar flags and file layout, but taking the source files from different directories. It may also minify a Javascript file, and build an installer -- both one-off tasks. Using a fully-powerful system such as Shake, it is possible to engineer robust abstractions, and then define the majority of the build system using only these abstractions. The end result is that most edits to the build system involve only the DSL, and can be performed by a large number of individuals.
-
-After dealing with the DSL, there are usually a few pieces left over, and these can be implemented in Shake, as normal. Thanks to the power of Shake you can interpret the DSL and combine it with the custom pieces. In our experience by providing an \textit{escape hatch} where fully-powerful code an be expressed it removes the temptation to shoehorn more advanced features in the DSL, and thus avoids turning it into an ad-hoc scripting language. Instead, should enough pieces be required in the escape hatch, they can be abstracted in the traditional ways - perhaps even combining two DSLs in one build system.
