@@ -10,7 +10,12 @@
 \usepackage[all]{xy}
 \include{paper}
 
-\lstset{basicstyle=\sffamily,columns=fullflexible,keepspaces=true}
+\lstset{
+    basicstyle=\sffamily,
+    columns=fullflexible,
+    keepspaces=true,
+    literate={->}{{$\rightarrow$}}1 {=>}{{$\Rightarrow$}}1
+}
 \newcommand\lst\lstinline
 
 \newcommand\prog\textsc
