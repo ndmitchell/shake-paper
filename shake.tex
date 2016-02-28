@@ -9,7 +9,7 @@ newtype Rule a = ...
 newtype Action a = ...
     deriving (Functor, Applicative, Monad, MonadIO)
 
-data ShakeOptions = ...
+data ShakeOptions = ShakeOptions {shakeThreads :: Int, ...}
 shakeOptions :: ShakeOptions
 
 shake :: ShakeOptions -> Rules () -> IO ()
@@ -30,6 +30,10 @@ class (ShakeValue key, ShakeValue value) =>
 rule :: Rule key value =>
     (key -> Maybe (Action value)) -> Rules ()
 apply :: Rule key value => [key] -> Action [value]
+
+data Resource
+newResource :: String -> Int -> Rules Resource
+withResource :: Resource -> Int -> Action a -> Action a
 \end{lstlisting}
 \todo{Include everything we use in the paper}
 \caption{Shake generic API\label{fig:shake_generic_api}}
@@ -118,75 +122,80 @@ While neither \lst'orderOnly' or \lst'needed' are in the original Shake paper, b
 
 \subsection{Polymorphic dependencies\label{sec:polymorphic}}
 
-While Shake can depend on files, it can also depend on other things, specifically Fig 1 is all about the core of Shake, while Fig 2 is about a wrapping for files. For example, we can define a rule that produces the version of gcc, allowing wrapping it easily.
+While build-systems are typically focused around files, the core of Shake is fully polymorphic, operating on objects that are uniquely labelled by a key (e.g. filename) and have rules that produce a value (e.g. modification time). This polymorphic API is presented in Figure~\ref{fig:shake_generic_api}, and the file-based API in Figure~\ref{fig:shake_file_api} is built on top. Using this polymorphic API we can define new types of rule to track additional dependencies. Looking back at our initial example, the object file is also affected by the version of \lst'gcc' used to compile it. We can capture this dependency with:
 
 \begin{lstlisting}
-newtype GccVersion () deriving ...
+newtype GccVersion = GccVersion () deriving
+    (Show a, Typeable a, Eq a
+    ,Hashable a, Binary a, NFData a)
+
 instance Rule GccVersion String where
     storedValue _ _ = return Nothing
-gccVersion = rule $ \(GccVersion _) -> Just $ do
-    Stdout s <- cmd "gcc --version"
-    return s
+
+main = shake shakeOptions $ do
+    rule $ \(GccVersion _) -> Just $ do
+        Stdout s <- cmd "gcc --version"
+        return s
+
+    "*.o" %> \out ->
+        apply [GccVersion ()] :: Action [String]
+        ...
 \end{lstlisting}
 
-Now we can agument our rule by including:
+This code defines a unique type \lst'GccVersion' to serve as the key for the rule. We define a \lst'Rule' instance so Shake rules can operate on \lst'GccVersion' keys, declaring the associated value to be \lst'String'. We are only required to implement the \lst'storedValue' method, where we declare that the rule generating the \lst'gcc' version should \emph{always} be rerun (using \lst'Nothing').
+
+Next we use \lst'rule' to describe how to generate the value associated with \lst'GccVersion', and use 'apply' to force execution of the rule and introduce a dependency on the result. For files, \lst'%>' is implemented in terms of \lst'rule', and \lst'need' is implemented in terms of \lst'apply'. In every build \lst'gcc --version' will be executed, and if the output changes from last time, any rule which called \lst'apply [GccVersion ()]' will rerun. Our build system will now automatically recompile all C files if the compiler is changed.
+
+The use of non-file rule types is common in large build systems, occurring ten times in our implementation of GHC's build system in \S\ref{sec:ghc}. To simplify such uses we define an oracle abstraction, allowing us to write:
 
 \begin{lstlisting}
-apply [GccVersion ()] :: Action [String]
-\end{lstlisting}
-
-Now, if the gcc version changes our rule will rebuild. To ensure this happens when required, our build system will necessarily run the gcc version command in each iteration. To simplify this pattern we wrap the common pattern up as an oracle:
-
-\begin{lstlisting}
-gccVersion <- addOracle $ \(GccVersion _) ->
+gccVersion <- addOracle $ \(GccVersion _) -> do
     Stdout s <- cmd "gcc --version"
     return s
 
-gccVersion $ GccVersion ()
+"*.o" %> \out -> do
+    gccVersion $ GccVersion ()
+    ...
 \end{lstlisting}
 
-Now we are freed from defining our own Rule instance and have more type safe sugar. The definition corresponds to the pieces above abstracted out and is only a handful of lines.
+Using oracles we are freed from defining our own \lst'Rule' instance and can use a type-safe version of \lst'apply' tailored to our particular oracle. The definition of oracles is only a handful of lines long, but sharply decreases the number of Shake concepts that must be understood to define a non-file rules following the typical pattern. All non-file rules in GHC are implemented using oracles.
 
-We do not believe that polymorphic dependencies give any fundamental additional expressive power. What they do is allow greater composition by not having to invent a file name for each thing, by avoiding so many files, and by having far richer keys than simply filenames. We use oracles pervasively in Shake.
+We do not believe that polymorphic dependencies give any fundamental additional expressive power over file rules, but they do provide:
 
-If an oracle does not change it does not rerun. This approximately captures the Make pattern of running an action and not updating the output file if it has not changed.
-
-We use oracles pervasively in the GHC build system, fwd ref.
-
-They can also model shared caches.
-
+\begin{itemize}
+\item An easy way to get unique keys, by allowing use of a uniquely defined type. While two unrelated parts of the build system might both define \lst'gcc-version.txt' rules and clash, any two definitions of \lst'GccVersion' will either be distinct via their qualified name, or will result in a compile error.
+\item Additional structure for keys and values, instead of hierarchical filenames and binary content files. In particular keys can contain full algebraic data types including lists, tuples and booleans.
+\item Greater granularity, by not forcing each rule to be backed by a separate file. For example, a configuration file might consist of thousands of keys. Making thousands of files is not always desirable, but thousands of non-file keys is no problem.
+\end{itemize}
+ 
 \subsection{Limiting Parallelism}
 
-When you run -j10 (shakeThreads=10) you are asking the build system to limit computation so it uses no more than ten CPU resources at a time. The CPU is certainly a precious resource, but there are other resource limitations a build system may need to obey:
+Like most build systems, Shake can run multiple rules in parallel. However, running too many rules in parallel can cause the machine to become overloaded, spending much of its time switching between tasks instead of executing them. Most build systems take an argument to set the maximum number of rules that can be run simultaneously (Shake has \lst'shakeThreads'), and typically the number used is based on the number of available CPUs. However, there are other instances where certain rules should not run in parallel:
 
 \begin{enumerate}
-\item Some APIs are global in nature, if you run two programs that access the Excel API at the same time things start to fail.
-\item Many people have large numbers of CPUs, but only one slow rotating hard drive. If you run ten hard-drive thrashing linkers simultaneously the computer is likely to grind to a halt.
-\item Some proprietary software requires licenses, a fixed number of which can be purchased and managed using a license manager. As an example, the Kansas Lava team only have access to 48 licenses for modelsim.
+\item Some APIs are global in nature. If you run two programs that access the Excel API simultaneously things start to fail.
+\item Many people have large numbers of CPUs, but only one slow rotating hard-drive. Running many disk-heavy linker processes simultaneously can overload the hard-drive.
+\item Some proprietary software has licenses which limit the number of concurrent processes, for example ModelSim.
 \end{enumerate}
 
-I know of three approaches used by other build systems to obey resource constraints:
+Build systems typically obey such constraints using one of the three following approaches:
 
 \begin{enumerate}
-\item Limit the number of CPUs to hit your target - for example, the Lava build system could cap the number of CPUs to the number of licenses. People with 24 CPUs might ask the build system to use only 8, so the linkers do not make their machines unusable (and even then, a link heavy rebuild may still harm interactive performance). This solution wastes CPU resources, leaving CPUs that could be building your code idling.
-\item Add locks to suspend jobs that are competing for the shared resource. For example any rule using Excel could take the Excel lock, either a mutex/MVar in some build systems, or creating a file to serve as the lock in make based build systems. Locking can be made to work, but is tricky if you have to fake locks using the file system, and still squanders CPU resources - instead of blocking the CPU should be running another rule.
-\item Use dependencies in sequence to ensure that the items running in parallel are serialised.
+\item Limit the number of CPUs to hit your target. For example a user with 24 CPUs might limit the build system to 8 simultaneous rules so that linking is not unbearable. This solution wastes CPU resources, leaving CPUs idling.
+\item Add locks to suspend jobs that are competing for the shared resource. For example any rule using the Excel API could check for the existence of a lock file before continuing, and create a lock file while executing. This approach still wastes CPU resources, causing them to block instead of executing other rules.
+\item Use fake dependencies to serialise the rules into a known linear order, ensuring only one can run at a time. This approach reduces available parallelism and requires a global ordering on the build rules.
 \end{enumerate}
 
-In Shake the Resource type represents a finite resource, which multiple build rules can use. Resource values are created with newResource and used with withResource. As an example, only one set of calls to the Excel API can occur at one time, therefore Excel is a finite resource of quantity 1. You can write:
+In Shake this problem can be solved directly using the \lst'Resource' type, which represents a finite resource that multiple build rules can use. Resource values are created with \lst'newResource' and used by \lst'withResource'. As an example, only one set of calls to the Excel API can occur at one time, therefore Excel is a finite resource of quantity 1. We can write:
 
 \begin{lstlisting}
-shake shakeOptions{shakeThreads=2} $ do
-    want ["a.xls","b.xls"]
-    excel <- newResource "Excel" 1
-    "*.xls" *> \out ->
-        withResource excel 1 $
-            system' "excel" [out,...]
+want ["a.xls","b.xls"]
+excel <- newResource "Excel" 1
+"*.xls" *> \out ->
+    withResource excel 1 $ cmd "excel" out ...
 \end{lstlisting}
 
-Now we will never run two copies of excel simultaneously. Moreover, it will never block waiting for excel if there are other rules that could be run.
-
-Fwd ref to ghc-pkg.
+Now we will never run two copies of excel simultaneously, regardless of the \lst'shakeThreads' setting. Moreover, the build system will never block waiting for the resource if there are other rules that could be run. We use this approach to deal with the \lst'ghc-pkg' tool, which only permits one writer or multiple readers, see \S?.
 
 \subsection{Tracking File Contents\label{sec:file-contents}}
 
