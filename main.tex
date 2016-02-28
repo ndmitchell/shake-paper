@@ -7,6 +7,8 @@
 \usepackage{setspace}
 \usepackage{balance}
 \usepackage{verbatim}
+\usepackage[T1]{fontenc}  % access \textquotedbl
+\usepackage{textcomp}
 \usepackage[all]{xy}
 \include{paper}
 
@@ -14,7 +16,12 @@
     basicstyle=\sffamily,
     columns=fullflexible,
     keepspaces=true,
-    literate={->}{{$\rightarrow$}}1 {=>}{{$\Rightarrow$}}1
+    literate={-}{{\hbox{-}}}1
+             {"}{{\textquotedbl}}1
+             {->}{{$\rightarrow$}}1 {<-}{{$\leftarrow$}}1
+             {=>}{{$\Rightarrow$}}1
+             {>>}{{>\!>}}1
+             {===}{{$\equiv$}}1
 }
 \newcommand\lst\lstinline
 
