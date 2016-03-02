@@ -1,6 +1,76 @@
 \section{Challenges of large-scale build systems\label{sec:challenges}}
 
-Writing a large build system using make is challenging. The GHC build system has been reweritten 4 times, and even after that we've ended up with:
+Many existing build systems work just fine for small projects, or
+projects that follow a common pattern.  For example, building a single
+executable or library from single-language source files is a
+well-supported common case covered by virtually all build systems.  A
+lot of projects fit into this category, and so never run into the
+limits of existing build systems.
+
+Things start to get hairy when the following complexities are
+encountered:
+
+\begin{itemize}
+\item The project has a large number of components (libraries or
+  executables), using multiple languages, with complex
+  interdependencies.  Executables depending on libraries, for example,
+  or tools generate inputs for other parts of the build system.
+\item Many components follow similar patterns, so there is a need for
+  abstractions that allow common functionality to be shared between
+  different parts of the build system.
+\item Parts of the build system are not static and are generated,
+  perhaps by running tools that are also built by the same build
+  system.
+\item The build system has complex configuration, with aspects of its
+  behaviour being controlled by a variety of different sources:
+  automatic platform-specific configuration, command-line options,
+  configuration files, and so on.
+\end{itemize}
+
+The GHC build system includes all of the above.  It has evolved
+through a number of rewrites as we struggled to find good solutions to
+the problems that arose:
+
+\begin{itemize}
+\item The first incarnation of the build system used \emph{jmake}, a
+  system inspired by the X Consortium's \emph{imake}.  This was
+  essentially ordinary \make{} together with the C preprocessor to
+  allow the use of macros in \lst"Makefile"s.  The macro layer partly
+  solves the problem of needing to share functionality between
+  different parts of the build system.
+
+\item The C preprocessor was somewhat painful to use with \make{}.
+  The syntax was difficult to get right, and the need to constantly
+  \lst"make Makefiles" when working on the build system was tiresome.  GNU
+  \make{} came along which had built-in support for \lst"include" files and
+  other features, and this meant that we could do away with the C
+  preprocessor.  We rewrote the build system to use GNU \make{}, and
+  simulated macros with include files (GNU \make{} didn't have macros at
+  the time).
+
+\item Then there were several large changes to the GHC build system
+  that didn't amount to complete rewrites.  First we make the build
+  system able to build multiple bootstrap \emph{stages} in a single
+  build tree; that is, build the compiler (stage 1) and then build the
+  compiler again using the stage 1 compiler (stage 2).  Previously
+  this had required two separte builds.
+
+  Around this time the library ecosystem of Haskell was exploding, and
+  the Cabal build system for Haskell libraries emerged.  We wanted to
+  integrate Haskell libraries with Cabal build systems into the GHC
+  build, but without duplicating the Cabal metadata or build logic for
+  those packages.  So we integrated our build system with Cabal,
+
+\item The build system in its current form had grown unweildy, and had
+  many idiosyncrasies.  The root of many of the problems was that the
+  build system was constructed as a set of Makefiles that recursively
+  invoked each other.  Recursive \make{} is considered harmful
+  \cite{recursive-make} for very good reasons; it is not possible to
+  accurately track dependencies when the build system is constructed
+  of separate components that invoke each other.  So in the next
+  rewrite of the build system we made it non-recursive.  However,
+  in doing so we stretched GNU \make{} to its absolute limits.  Here is
+  an example of one rule in our build system:
 
 \begin{lstlisting}[basicstyle=\footnotesize\sffamily,escapeinside={(*}{*)}]
 $1/$2/build/%.$$($3_osuf) : $1/$4/%.hs $$(LAX_DEPS_FOLLOW) \
@@ -11,59 +81,102 @@ $1/$2/build/%.$$($3_osuf) : $1/$4/%.hs $$(LAX_DEPS_FOLLOW) \
   $$(call ohi(*-*)sanity(*-*)check,$1,$2,$3,$1/$2/build/$$*)
 \end{lstlisting}
 
-This code shows some of the problems of a large-scale build system:
-
-\todo{list all the problems, mostly from the solutions section}
-
-\begin{enumerate}
-\item The programming language is complex. This macro expands through multiple levels, so \lst"$$$$($1_$2_HC_DEP)" looks up in the environment two stages later.
-\item The dependency on \lst"$1_$2_PKGDATA_DEP" is only to reduce parallelism, to ensure too many commands do not run in parallel.
-\end{enumerate}
-
-\subsection{The GHC build system}
-
-Build systems need to evolve quickly with the projects they support. While it is
-\textit{possible} to develop large scale systems in \make, it is not
-\textit{pleasant} -- resulting in heroic efforts where straight-forward
-simplicity should be preferred.
-
-The GHC build system is a complex multi-language build system. The system is a
-bootstrapping compiler, where the GHC compiler is built using a system compiler,
-then recompiled using built compiler and recompiled system libraries. This
-pattern naturally contains repeated patterns, but capturing them in \make{} is
-hard.
-
-We focus on the GHC build system for two reasons. Firstly, it is the coal-face
-at which many of us work, so improvements to it will bring real improvements to
-our daily development. Secondly, the GHC build system has many complex features
-that test the limits of existing features:
-
-\begin{itemize}
-\item GHC is cross-language, including large amounts of both C and Haskell code.
-It also generates user manuals from docbook, which can be viewed as another
-language with unique build/dependency patterns.
-\item GHC is a bootstrapping compiler with stages. It first builds a compiler
-using the system compiler, then uses that new compiler
-\item The GHC build system necessarily integrates with other build systems,
-including \make{} (for building libgmp) and \cabal{} (for building/registering
-Haskell libraries).
-\item It generates files, e.g. \texttt{compiler/stage1/ghc\_boot\_platform.h}
-that \texttt{\#define}'s various platform-specific constants used throughout the
-build system.
-\item It is cross-platform, working on Windows, Linux, Mac, iOS, Android,
-Solaris, BSD flavours etc.
-\item The system is in constant flux as new features are added to the system.
+  Every part of this rule is there for a good reason, but the
+  cumulative effect of solving all the problems that arise in a
+  complex build system using a tool that is not equipped to cope with
+  it, is impenetrable code like the above.
 \end{itemize}
 
-Writing such a build system remains a challenging engineering undertaking, but
-one we now hope not to have to repeat. This is the fifth version, and interestingly, perhaps the most user friendly. Applying all the guidelines in Recursive Make Considered Harmful we have gone through the following stages.
+To give a flavour of the kinds of problems that arose when using GNU
+\make{} for a large non-recursive build system:
 
-\begin{enumerate}
-  \item jmake - cpp + make clone of X11 imake
-  \item GNU make - drop cpp, recursive make, manual stages
-  \item GNU make - no manual stages, cabal integration, first
-   use of macros
-   \item GNU make - current iteration, non recursive, cite Recursive
-     Make Considered Harmful here, extensive use of macros,
-     building abstractions in make
-\end{enumerate}
+\begin{itemize}
+\item Expanding a variable before the variable is defined gives an
+  empty result.  Thus, if we're definiing a macro before the variables
+  it refers to, we need to use a double dollar (\lst"$$") to delay the
+  expansion until the macro is called.  Sometimes we need to delay the
+  expansion by yet another step, requiring a double-double-dollar (\lst"$$$$").
+  Deciding how many dollars to use in any given place is hard.
+
+\item GNU \make{} has a single global namespace for variables, and yet we
+  have a single build system that encompasses many similar components.
+  To keep things sane, we have to prefix all our variables with the
+  directory name, and because we build multiple instances of things
+  (e.g. two stages of the compiler), we have yet more prefixes.  There
+  are three prefixes in total, by convention we tend to use \lst"$1",
+  \lst"$2", and \lst"$3".
+
+\item The build system needs to generate parts of itself.  For
+  example, to find the dependencies of Haskell code requires running
+  the compiler, but the compiler is one of the things that gets built.
+  GNU \make{} has a hack to handle this kind of problem: it detects when
+  any of the Makefiles it has read are changed, and restarts itself.
+  This works in simple cases, but it falls down when the generated
+  parts of the build system themselves have complex interdependencies.
+  We had to explicitly split the build into \emph{phases}, and have an
+  outer Makefile that invokes \make{} separately for each of the phases
+  in turn.  Understanding what happens in each phase, and where the
+  phase boundary needs to be placed and why, was virtually impossible.
+\end{itemize}
+
+Nevertheless, by carefully employing a set of idioms (such as the
+prefix idiom above), we managed to construct a non-recursive build
+system for GHC in GNU \make{}.  It works surprisingly well, and by
+virtue of being non-recursive it tracks dependencies accurately;
+however, it is almost impossible to understand and maintain.  So while
+it is \textit{possible} to develop large scale systems in \make, it is
+not \textit{pleasant} -- resulting in heroic efforts where
+straight-forward simplicity should be preferred.
+
+% \begin{enumerate}
+% \item The programming language is complex. This macro expands through multiple levels, so \lst"$$$$($1_$2_HC_DEP)" looks up in the environment two stages later.
+% \item The dependency on \lst"$1_$2_PKGDATA_DEP" is only to reduce parallelism, to ensure too many commands do not run in parallel.
+% \end{enumerate}
+
+% \subsection{The GHC build system}
+% 
+% Build systems need to evolve quickly with the projects they support. While it is
+% \textit{possible} to develop large scale systems in \make, it is not
+% \textit{pleasant} -- resulting in heroic efforts where straight-forward
+% simplicity should be preferred.
+% 
+% The GHC build system is a complex multi-language build system. The system is a
+% bootstrapping compiler, where the GHC compiler is built using a system compiler,
+% then recompiled using built compiler and recompiled system libraries. This
+% pattern naturally contains repeated patterns, but capturing them in \make{} is
+% hard.
+% 
+% We focus on the GHC build system for two reasons. Firstly, it is the coal-face
+% at which many of us work, so improvements to it will bring real improvements to
+% our daily development. Secondly, the GHC build system has many complex features
+% that test the limits of existing build systems:
+% 
+% \begin{itemize}
+% \item GHC is cross-language, including large amounts of both C and Haskell code.
+% It also generates user manuals from docbook, which can be viewed as another
+% language with unique build/dependency patterns.
+% \item GHC is a bootstrapping compiler with stages. It first builds a compiler
+% using the system compiler, then uses that new compiler
+% \item The GHC build system necessarily integrates with other build systems,
+% including \make{} (for building libgmp) and \cabal{} (for building/registering
+% Haskell libraries).
+% \item It generates files, e.g. \texttt{compiler/stage1/ghc\_boot\_platform.h}
+% that \texttt{\#define}'s various platform-specific constants used throughout the
+% build system.
+% \item It is cross-platform, working on Windows, Linux, Mac, iOS, Android,
+% Solaris, BSD flavours etc.
+% \item The system is in constant flux as new features are added to the system.
+% \end{itemize}
+% 
+% Writing such a build system remains a challenging engineering undertaking, but
+% one we now hope not to have to repeat. This is the fifth version, and interestingly, perhaps the most user friendly. Applying all the guidelines in Recursive Make Considered Harmful we have gone through the following stages.
+% 
+% \begin{enumerate}
+%   \item jmake - cpp + make clone of X11 imake
+%   \item GNU make - drop cpp, recursive make, manual stages
+%   \item GNU make - no manual stages, cabal integration, first
+%    use of macros
+%    \item GNU make - current iteration, non recursive, cite Recursive
+%      Make Considered Harmful here, extensive use of macros,
+%      building abstractions in make
+% \end{enumerate}
