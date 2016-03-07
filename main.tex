@@ -15,14 +15,20 @@
 \lstset{
     basicstyle=\sffamily,
     columns=fullflexible,
-    keepspaces=true,
+    keepspaces=true, 
+    escapechar=\#,
     literate={-}{{\hbox{-}}}1
              {"}{{\textquotedbl}}1
              {->}{{$\rightarrow$}}1 {<-}{{$\leftarrow$}}1
              {=>}{{$\Rightarrow$}}1
              {>>}{{>\!>}}1
-             {===}{{$\equiv$}}1
-}
+             {<<}{{<\!<}}1
+             {<>}{{<\hspace{-0.4mm}>}}1
+             {</>}{{<\hspace{-0.4mm}/\hspace{-0.4mm}>}}1
+             {<.>}{{<\hspace{-0.3mm}.\hspace{-0.3mm}>}}1            
+             {<\$>}{{<\hspace{-0.3mm}\$\hspace{-0.3mm}>}}1            
+             {<*>}{{<\hspace{-0.3mm}*\hspace{-0.3mm}>}}1            
+             {===}{{$\equiv$}}1 }
 \newcommand\lst\lstinline
 
 \newcommand\prog\textsc

@@ -85,8 +85,8 @@ newtype Diff a = Diff { fromDiff :: a -> a }
 type DiffExpr a = Expr (Diff a)
 
 type Args     = DiffExpr [String]
-type Packages = DiffExpr [Package]
-type Ways     = DiffExpr [Way]
+
+interpret :: Target -> Args -> [String]
 \end{lstlisting}
 \caption{GHC build system abstractions\label{fig:abstractions}}
 \end{figure}
@@ -350,71 +350,81 @@ designers and users of the build system could focus on what matters.
 \noindent ----\\
 \noindent Example of a micro build system.
 
+\newcommand{\tabx}[1]{\hspace{.106\textwidth}\rlap{#1}}
+\newcommand{\taby}[1]{\hspace{.103\textwidth}\rlap{#1}}
+\newcommand{\tabz}[1]{\hspace{.24\textwidth}\rlap{#1}}
+
 \begin{figure}
-\begin{lstlisting}[basicstyle=\ttfamily]
+\begin{lstlisting}
+#\vspace{-5mm}#
+#\line(1,0){240}#
+#\itab{data Stage} \tabx{= Stage0} \taby{| Stage1}\hspace{29mm}\textbf{\emph{Build~types}}#
+#\itab{data Package} \tabx{= Array} \taby{| Base}#
+#\itab{data Way} \tabx{= Vanilla} \taby{| Profiling}#
+#\itab{data Builder} \tabx{= Ghc Stage} \taby{| Ar}#
+#\vspace{-5mm}#
+#\line(1,0){240}#
+ghcArgs, arArgs, userArgs, allArgs :: Args#\hspace{7.8mm}\textbf{\emph{Command~line}}#
+ghcArgs = builder Ghc ? mconcat#\hspace{23.3mm}\textbf{\emph{arguments}}#
+    [ arg "-O2"
+    , way Profiling ? arg "-prof"
+    , file "//base/GHC/IO.*" ? arg "-funbox-strict-fields" 
+    , arg "-c", arg =<< getInput 
+    , arg "-o", arg =<< getOutput ]
+#\vspace{-1mm}#
+arArgs = builder Ar ? mconcat
+    [ arg "q"
+    , arg =<< getOutput
+    , append =<< getInputs ]
+#\vspace{-1mm}#
+userArgs = package Array ? arg "-Wall"
+#\vspace{-1mm}#
+allArgs = ghcArgs <> arArgs <> userArgs
+#\vspace{-5mm}#
+#\line(1,0){240}#
+build :: Target -> Action ()#\hspace{32mm}\textbf{\emph{Build rules}}#
+build target@Target {..} = do
+    path <- builderPath builder
+    args #\,#<- interpret target allArgs
+    cmd [path] args
 
-rules :: Rules ()
-rules = do
-    for_ [Stage0, Stage1] $ \stage ->
-        for_ [array, base] $ \pkg ->
-            for_ [vanilla, profiling] $ \way -> do
-                let context = Context stage pkg way
-                compilePackage context
-                buildPackageLibrary context
-
-osuf :: Way -> String
-osuf vanilla   = ".o"
-osuf profiling = ".p_o"
-
-asuf :: Way -> String
-asuf vanilla   = ".a"
-asuf profiling = "_p.a"
+path :: Context -> FilePath
+path context@Context#\,#{..} = show#\,#stage </> pkgName#\,#package
+#\vspace{-1mm}#
+#\itab{osuf :: Way $\rightarrow$ String} \tabz{asuf :: Way $\rightarrow$ String}#
+#\itab{osuf Vanilla~~~= ".o"} \tabz{asuf Vanilla~~~= ".a"}#
+#\itab{osuf Profiling = ".p\_o"} \tabz{asuf Profiling = "\_p.a"}#
+#\vspace{-1mm}#
+lookupDependencies :: Context#\,#->#\,#FilePath#\,#->#\,#Action#\,#[FilePath]
+#\vspace{-1mm}#
+lookupSources :: Context -> Action [FilePath]
 
 compilePackage :: Context -> Rules ()
-compilePackage context @ Context {..} = do
-    let path = show stage </> pkgName package
-
-    path </> "*" ++ osuf way %> \obj -> do
+compilePackage context@Context {..} = 
+    path context </> "*" ++ osuf way %> \obj -> do
         let src = obj -<.> "hs"
         deps <- lookupDependencies context obj
         need $ src : deps
         build $ Target context (Ghc stage) [src] [obj]
 
 buildPackageLibrary :: Context -> Rules ()
-buildPackageLibrary context @ Context {..} = do
-    let path    = show stage </> pkgName package
-        obj src = path </> src -<.> osuf way
-
-    path </> "*" ++ asuf way %> \a -> do
+buildPackageLibrary context@Context {..} = 
+    path context </> "*" ++ asuf way %> \a -> do
         srcs <- lookupSources context
-        let objs = map obj srcs
+        let objs = [ src -<.> osuf way | src <- srcs ]
         need objs
         build $ Target context Ar objs [a]
+#\vspace{-5mm}#
+#\line(1,0){240}#
+main :: IO ()#\hspace{59.5mm}\textbf{\emph{Main}}#
+main = shake shakeOptions $ do
+    let contexts = Context <$> 
+        [Stage0,#\,#Stage1]#\,#<*>#\,#[Array,#\,#Base]#\,#<*>#\,#[Vanilla,#\,#Profiling]
+  
+    want [#\,#path#\,#c </> "HSlib" ++ asuf#\,#(way#\,#c) | c <- contexts#\,#]
 
-ghcArgs :: Args
-ghcArgs = builder Ghc ? mconcat
-    [ arg "-O2"
-    , way profiling ? arg "-prof"
-    , arg "-c", arg =<< getInput
-    , arg "-o", arg =<< getOutput ]
-
-arArgs :: Args
-arArgs = builder Ar ? mconcat
-    [ arg "q"
-    , arg =<< getOutput
-    , append =<< getInputs ]
-
-userArgs :: Args
-userArgs = builder Ghc ? arg "-Wall"
-
-allArgs :: Args
-allArgs = ghcArgs <> arArgs <> userArgs
-
-build :: Target -> Action ()
-build target @ Target {..} = do
-    path <- builderPath context
-    args <- runReaderT allArgs target
-    cmd [path] args
+    traverse_ compilePackage      #\hspace{0.2mm}#contexts
+    traverse_ buildPackageLibrary contexts
 \end{lstlisting}
 \caption{Example of a build system\label{fig:example-abstractions}}
 \end{figure}
