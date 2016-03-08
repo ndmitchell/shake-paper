@@ -46,47 +46,87 @@ facilities. Examples:
   \item Compute build arguments from target filename
 \end{itemize}
 
+\newcommand{\itab}[1]{\hspace{0em}\rlap{#1}}
+\newcommand{\tab}[1]{\hspace{.12\textwidth}\rlap{#1}}
+\newcommand{\ctab}[1]{\hspace{.031\textwidth}\rlap{#1}}
+\newcommand{\ptab}[1]{\hspace{.074\textwidth}\rlap{#1}}
+\newcommand{\cotab}[1]{\hspace{.064\textwidth}\rlap{#1}}
+\newcommand{\ttab}[1]{\hspace{.058\textwidth}\rlap{#1}}
+\newcommand{\tytab}[1]{\hspace{.052\textwidth}\rlap{#1}}
+\newcommand{\atab}[1]{\hspace{.102\textwidth}\rlap{#1}}
+
 \begin{figure}
-\begin{lstlisting}[basicstyle=\ttfamily]
-data PackageType = Program | Library
+\begin{lstlisting}
+#\vspace{-7mm}#
+#\line(1,0){240}#
+data PackageType = Library | Program#\hspace{15mm}\textbf{\emph{Build types}}#
 
 data Package = Package
-    { pkgName :: PackageName
-    , pkgPath :: FilePath
-    , pkgType :: PackageType }
+#\itab{~~~~\{} \ctab{pkgName} \ptab{:: PackageName}#
+#\itab{~~~~,} \ctab{pkgPath} \ptab{:: FilePath}#
+#\itab{~~~~,} \ctab{pkgType} \ptab{:: PackageType \}}#
+
+data Stage = Stage0 | Stage1 | Stage2 | Stage3 deriving#\,#Enum
 
 newtype Way = ... deriving Eq
 
-data Stage = Stage0 | Stage1 | Stage2 | Stage3
-    deriving Enum
-
 data Context = Context
-    { stage   :: Stage
-    , package :: Package
-    , way     :: Way }
+#\itab{~~~~\{} \ctab{stage} \cotab{:: Stage}#
+#\itab{~~~~,} \ctab{package} \cotab{:: Package}#
+#\itab{~~~~,} \ctab{way} \cotab{:: Way \}}#
 
 data Builder = Alex
-             | Ar
-             | GenPrimopCode
-             | Ghc Stage
-             | Haddock
-             ... (22 more builders)
+                  | Ar
+                  | GenPrimopCode
+                  | Ghc Stage
+                  | Haddock
+                  ... (22 more builders)
 
 data Target = Target
-    { context :: Context
-    , builder :: Builder
-    , inputs  :: [FilePath]
-    , outputs :: [FilePath] }
-
-type Expr a = ReaderT Target Action a
+#\itab{~~~~\{} \ctab{context} \ttab{:: Context}#
+#\itab{~~~~,} \ctab{builder} \ttab{:: Builder}#
+#\itab{~~~~,} \ctab{inputs} \ttab{:: [FilePath]}#
+#\itab{~~~~,} \ctab{outputs} \ttab{:: [FilePath] \}}#
+#\vspace{-5mm}#
+#\line(1,0){240}#
+type Expr a = ReaderT Target Action a#\hspace{14mm}\textbf{\emph{Expressions}}#
 
 newtype Diff a = Diff { fromDiff :: a -> a }
 
-type DiffExpr a = Expr (Diff a)
+type Args = Expr (Diff [String])
 
-type Args     = DiffExpr [String]
+append :: [String] -> Args
+append as = return $ Diff (<> as)
 
-interpret :: Target -> Args -> [String]
+remove :: [String] -> Args
+remove as = return . Diff $ filter (`notElem` as)
+
+arg :: String -> Args
+arg = append . return
+
+interpret :: Target -> Args -> Action [String]
+interpret target args = do
+    diff <- runReaderT args target
+    return $ fromDiff diff mempty
+#\vspace{-5mm}#
+#\line(1,0){240}#
+type Predicate = Expr Bool#\hspace{31mm}\textbf{\emph{Predicates}}#
+
+package :: Package -> Predicate
+package p = do
+    c <- asks context
+    return $ p == Context.package c
+
+#\itab{stage} \tytab{:: Stage} \atab{$\rightarrow$ Predicate}#
+#\itab{way} \tytab{:: Way} \atab{$\rightarrow$ Predicate}#
+#\itab{builder} \tytab{:: Builder} \atab{$\rightarrow$ Predicate}#
+#\itab{file} \tytab{:: FilePattern} \atab{$\rightarrow$ Predicate}#
+
+(?) :: Monoid a => Predicate -> Expr a -> Expr a
+predicate ? expr = do
+    bool <- predicate
+    if bool then expr else return mempty
+#\vspace{-4mm}#
 \end{lstlisting}
 \caption{GHC build system abstractions\label{fig:abstractions}}
 \end{figure}
@@ -259,9 +299,6 @@ instance Monoid a => Monoid (Expr a) where
     mappend = liftM2 mappend
 \end{lstlisting}
 
-\newcommand{\itab}[1]{\hspace{0em}\rlap{#1}}
-\newcommand{\tab}[1]{\hspace{.12\textwidth}\rlap{#1}}
-
 Predicates and monoidal expressions are a powerful combination with many useful
 laws that allow to reason about them:
 \begin{enumerate}
@@ -356,7 +393,7 @@ designers and users of the build system could focus on what matters.
 
 \begin{figure}
 \begin{lstlisting}
-#\vspace{-5mm}#
+#\vspace{-7mm}#
 #\line(1,0){240}#
 #\itab{data Stage} \tabx{= Stage0} \taby{| Stage1}\hspace{29mm}\textbf{\emph{Build~types}}#
 #\itab{data Package} \tabx{= Array} \taby{| Base}#
@@ -371,14 +408,14 @@ ghcArgs = builder Ghc ? mconcat#\hspace{23.3mm}\textbf{\emph{arguments}}#
     , file "//base/GHC/IO.*" ? arg "-funbox-strict-fields" 
     , arg "-c", arg =<< getInput 
     , arg "-o", arg =<< getOutput ]
-#\vspace{-1mm}#
+
 arArgs = builder Ar ? mconcat
     [ arg "q"
     , arg =<< getOutput
     , append =<< getInputs ]
-#\vspace{-1mm}#
+
 userArgs = package Array ? arg "-Wall"
-#\vspace{-1mm}#
+
 allArgs = ghcArgs <> arArgs <> userArgs
 #\vspace{-5mm}#
 #\line(1,0){240}#
@@ -390,13 +427,13 @@ build target@Target {..} = do
 
 path :: Context -> FilePath
 path context@Context#\,#{..} = show#\,#stage </> pkgName#\,#package
-#\vspace{-1mm}#
+
 #\itab{osuf :: Way $\rightarrow$ String} \tabz{asuf :: Way $\rightarrow$ String}#
 #\itab{osuf Vanilla~~~= ".o"} \tabz{asuf Vanilla~~~= ".a"}#
 #\itab{osuf Profiling = ".p\_o"} \tabz{asuf Profiling = "\_p.a"}#
-#\vspace{-1mm}#
+
 lookupDependencies :: Context#\,#->#\,#FilePath#\,#->#\,#Action#\,#[FilePath]
-#\vspace{-1mm}#
+
 lookupSources :: Context -> Action [FilePath]
 
 compilePackage :: Context -> Rules ()
@@ -425,6 +462,7 @@ main = shake shakeOptions $ do
 
     traverse_ compilePackage      #\hspace{0.2mm}#contexts
     traverse_ buildPackageLibrary contexts
+#\vspace{-4mm}#
 \end{lstlisting}
 \caption{Example of a build system\label{fig:example-abstractions}}
 \end{figure}
