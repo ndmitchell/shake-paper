@@ -230,7 +230,7 @@ Much of a build system is calling out to programs that execute real code, e.g. c
 -- impossible, it uses singleton chunks.
 chunksOfSize :: Int -> [String] -> [[String]]
 chunksOfSize n = repeatedly $ \xs ->
-    let i = length $ takeWhile (<= n) $ scanl1 (+) $ map length xs
+    let#\,#i = length $ takeWhile#\,#(<=#\,#n) $ scanl1#\,#(+) $ map#\,#length#\,#xs
     in splitAt (max 1 i) xs
 \end{lstlisting}
 
@@ -263,3 +263,23 @@ The main lessons we have learnt are:
 \item Use a build system that can express the necessary dependencies. We make use of \textit{monadic dependencies} \S?, \textit{non-file dependencies} \S?, \textit{resources} \S?. While some of these features are only used in a few places (e.g. resources), their absence would require pervasive workarounds, and a significant increase in overall complexity.
 \end{itemize}
 
+\subsection{Abstracting over patterns of dependencies}
+
+\todo{This was moved from Section 5.}
+
+By embedding the build system in Haskell we get access to its rich abstraction
+facilities. Examples:
+\begin{itemize}
+  \item Use general predicates instead of file patterns. For example, several
+  files are built by calling \texttt{genprimopcode}, which can be captured by a
+  single build OR-rule:
+
+\begin{lstlisting}
+[ "autogen/GHC/Prim.hs"
+, "GHC/PrimopWrappers.hs"
+, "*.hs-incl" ] |%> \file -> do ...
+\end{lstlisting}
+
+  \item Build rules with multiple outputs (AND-rules)
+  \item Compute build arguments from target filename
+\end{itemize}

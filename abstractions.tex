@@ -1,50 +1,48 @@
-\section{Useful abstractions\label{sec:abstractions}}
+\section{Abstractions\label{sec:abstractions}}
 
-\begin{itemize}
-  \item Example shared with Background to Shake section
-  \item top-level, starting with main = buildPackage etc.
-\end{itemize}
+% \begin{itemize}
+%   \item Example shared with Background to Shake section
+%   \item top-level, starting with main = buildPackage etc.
+% \end{itemize}
 
-In the previous section we covered how we neatly sidestep the unnecessary
+In the previous section we covered how Shake helps us sidestep the unnecessary
 complexities inherent in a large scale build system. In this section we focus on
-the remaining complexities, how to engineer a successful build system. Before
+the remaining complexities, how to engineer a successful build system. efore
 starting, it is useful to explain our goals. We want the resulting system to be
 maintainable, in addition to being fast and correct. For maintainability on such
 a large system there are really several aspects:
 
 \begin{itemize}
-\item The code should be simple and direct, talking about concepts familiar to developers. In particular that means files that are produced, configuration settings and tools that are used to produce them. These concepts need first-class representation, not merely strings.
-\item The code should permit debugging. There are lots of obscure configuration operations inherent in any large system, and the build system is the place where such knowledge should live. As an example, when running the Alex program over one particular file we need to pass the \texttt{--latin1} flag. We want users to be able to determine what flags were used and where specifically that decision was made.
-\item The code should permit configuration. Many GHC users work with GHC in different modes. Turning on/off documentation, different packages of optimisation flags etc.
+\item The code should be simple and direct, talking about concepts familiar to
+developers. In particular that means files that are produced, tools that are
+used to produce them, and their configuration settings. These concepts
+need first-class representation, not merely strings.
+\item The code should permit debugging. There are lots of obscure configuration
+operations inherent in any large system, and the build system is the place where
+such knowledge should live. As an example, when running the \texttt{Alex}
+program over one particular file we need to pass the \texttt{--latin1} flag. We
+want users to be able to determine what flags were used and where specifically
+that decision was made.
+\item The code should permit configuration. Many GHC users work with GHC in
+different modes and in different environments. Common configuration settings
+include turning on/off documentation, choosing different sets of optimisation flags,
+etc.
 \end{itemize}
 
-The solution was not obvious to us at first, but we ended up building a DSL for expressions, and an interpreter that evaluates it to run the build. Where the DSL would be unnecessarily complex we opt for a direct implementation. The configuration language is tracked (if it changes the necessary bits rebuild), has provenance (using the new Location feature in GHC) and permits easy configuration. As an example of the configuration:
+The solution was not obvious to us at first, but we ended up building a DSL for
+expressions, and an interpreter that evaluates it to run the build. Where the
+DSL would be unnecessarily complex we opt for a direct implementation. The
+configuration language is tracked (if it changes the affected build rules are
+rerun), has provenance (using the new \lst'?location :: Location' feature in
+GHC) and permits easy configuration, for example:
 
-\begin{verbatim}
+\begin{lstlisting}
 package compiler ?
-    builder Alex ? arg "--latin1"
-\end{verbatim}
-
-\subsection{Abstracting over patterns of dependencies}
-
-\todo{Shall we move this to the previous section?}
-
-By embedding the build system in Haskell we get access to its rich abstraction
-facilities. Examples:
-\begin{itemize}
-  \item Use general predicates instead of file patterns. For example, several
-  files are built by calling \texttt{genprimopcode}, which can be captured by a
-  single build OR-rule:
-
-\begin{lstlisting}[basicstyle=\ttfamily]
-[ "autogen/GHC/Prim.hs"
-, "GHC/PrimopWrappers.hs"
-, "*.hs-incl" ] |%> \file -> do ...
+#\hspace{7.3mm}#builder Alex ? arg "--latin1"
 \end{lstlisting}
 
-  \item Build rules with multiple outputs (AND-rules)
-  \item Compute build arguments from target filename
-\end{itemize}
+The expression adds the \texttt{--latin1} argument to the command line of
+the \texttt{Alex} program when building the \texttt{compiler} package.
 
 \newcommand{\itab}[1]{\hspace{0em}\rlap{#1}}
 \newcommand{\tab}[1]{\hspace{.12\textwidth}\rlap{#1}}
@@ -303,6 +301,7 @@ Predicates and monoidal expressions are a powerful combination with many useful
 laws that allow to reason about them:
 \begin{enumerate}
   \item \itab{Absorption:} \tab{\texttt{p ? mempty \ \ \ \ \ == mempty}}
+  \item \itab{Commutativity:} \tab{\texttt{p ? q ? e \ \ \ \ \ \ == q ? p ? e}}
   \item \itab{Distributivity:} \tab{\texttt{p ? (e <> f) \ \ \ == p ? e <> p ? f}}
   \item \itab{Conjunction:} \tab{\texttt{p ? q ? e \ \ \ \ \ \ == (p $\wedge$ q) ? e}}
   \item \itab{Complement:} \tab{\texttt{p ? e <> $\!\neg$p ? e == e}}

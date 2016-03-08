@@ -62,7 +62,8 @@
 %% CUSTOM COMMANDS
 
 % \todo - write out a todo reminder, easy to grep for
-\newcommand{\todo}[1]{\textbf{\textsc{Todo:} #1}}
+\usepackage{color}
+\newcommand{\todo}[1]{\textcolor{blue}{\textbf{TODO:} #1}}
 
 \newenvironment{onepage}
 	{\noindent\begin{minipage}{\linewidth}}
