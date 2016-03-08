@@ -19,7 +19,7 @@ used to produce them, and their configuration settings. These concepts
 need first-class representation, not merely strings.
 \item The code should permit debugging. There are lots of obscure configuration
 operations inherent in any large system, and the build system is the place where
-such knowledge should live. As an example, when running the \texttt{Alex}
+such knowledge should live. As an example, when running the \lst'Alex'
 program over one particular file we need to pass the \texttt{--latin1} flag. We
 want users to be able to determine what flags were used and where specifically
 that decision was made.
@@ -42,10 +42,10 @@ package compiler ?
 \end{lstlisting}
 
 \noindent The expression adds the \texttt{--latin1} argument to the command line
-of the \texttt{Alex} program when building the \texttt{compiler} package.
+of the \lst'Alex' program when building the \lst'compiler' package.
 
 \newcommand{\itab}[1]{\hspace{0em}\rlap{#1}}
-\newcommand{\tab}[1]{\hspace{.12\textwidth}\rlap{#1}}
+\newcommand{\tab}[1]{\hspace{.1\textwidth}\rlap{#1}}
 \newcommand{\ctab}[1]{\hspace{.031\textwidth}\rlap{#1}}
 \newcommand{\ptab}[1]{\hspace{.074\textwidth}\rlap{#1}}
 \newcommand{\cotab}[1]{\hspace{.064\textwidth}\rlap{#1}}
@@ -132,12 +132,13 @@ predicate ? expr = do
 \subsection{Programming model}
 
 GHC source code is split into logical units, or \emph{packages}. We model
-packages with the \lst'Package' type, see Fig.~\ref{fig:abstractions}. A
-package is identified by a unique \lst'PackageName' and a \lst'FilePath'
-pointing to its location in the source tree. A GHC package can be a library
-(e.g., \texttt{array}) or a program (e.g., \texttt{genprimopcode}), which
-is captured by \lst'PackageType'. There are 32 libraries and 18 programs
-(the latter includes the GHC itself and various utilities).
+packages with the \lst'Package' type, see Fig.~\ref{fig:abstractions}
+(the \emph{Build types} subfigure). A package is identified by a unique
+\lst'PackageName' and a \lst'FilePath' pointing to its location in the source
+tree. A GHC package can be a library (e.g., \texttt{array}) or a program (e.g.,
+\texttt{genprimopcode}), which is captured by \lst'PackageType'. There are 32
+libraries and 18 programs (the latter includes the GHC itself and various
+utilities).
 
 A package can be built multiple \emph{ways}, for example, to produce a library
 with or without profiling information. This is captured by an opaque
@@ -195,16 +196,16 @@ builderProvenance = \case
 
 In particular, one can see that \lst'Ghc Stage0' is an external builder,
 \lst'Ghc Stage1' is an internal one built from package \lst'ghc'
-during \lst'Stage0', \texttt{haddock} is built in \lst'Stage2', etc. There are
-27 builders and 16 of them are internal. Some builders are \emph{optional}, e.g.,
-\texttt{hscolour}, which (if installed) is used to colourise Haskell code when
-building documentation.
+during \lst'Stage0', \lst'Haddock' is built in \lst'Stage2', etc. There are
+27 builders and 16 of them are internal. Furthermore, some builders are
+\emph{optional}, e.g., \lst'HsColour', which (if installed) is used to
+colourise Haskell code when building documentation.
 
 Each invocation of a builder is fully described by a \lst'Target', which
 comprises a build \lst'Context', a \lst'Builder', a list of input and
-a list of output files. 30000 targets are built when building a vanilla
+a list of output files. 2555 targets are built when building a vanilla
 \lst'Stage2' GHC with documentation. Consider the following invocation of
-builder \texttt{Alex} as an example:
+builder \lst'Alex' as an example:
 
 \begin{verbatim}
 alex -g --latin1 compiler/parser/Lexer.x
@@ -213,28 +214,25 @@ alex -g --latin1 compiler/parser/Lexer.x
 
 \noindent The corresponding \lst'Target' is:
 
-\newcommand{\ltab}[1]{\hspace{.032\textwidth}\rlap{#1}}
-\newcommand{\lltab}[1]{\hspace{.059\textwidth}\rlap{#1}}
-
 \begin{lstlisting}
 lexerTarget = Target
-#\itab{~~~~\{} \ltab{context} \lltab{= Context Stage1 compiler vanilla}#
-#\itab{~~~~,} \ltab{builder} \lltab{= Alex}#
-#\itab{~~~~,} \ltab{inputs} \lltab{= ["compiler/parser/Lexer.x"]}#
-#\itab{~~~~,} \ltab{outputs} \lltab{= ["compiler/stage1/build/Lexer.hs"] \}}#
+#\itab{~~~~\{} \ctab{context} \ttab{= Context Stage1 compiler vanilla}#
+#\itab{~~~~,} \ctab{builder} \ttab{= Alex}#
+#\itab{~~~~,} \ctab{inputs} \ttab{= ["compiler/parser/Lexer.x"]}#
+#\itab{~~~~,} \ctab{outputs} \ttab{= ["compiler/stage1/build/Lexer.hs"] \}}#
 \end{lstlisting}
 
 \noindent By examining \lst'lexerTarget' it is possible to compute the full
 command line for building \texttt{compiler/stage1/build/Lexer.hs}:
 \begin{itemize}
-  \item The builder is \texttt{Alex}. We lookup the right command
+  \item The builder is \lst'Alex'. We lookup the right command
   \texttt{alex} in the configuration file \texttt{system.config}, and use the
   following command line expression: \texttt{-g <input> -o <output>}.
-  \item The package is \texttt{compiler}. We know that we need to add
+  \item The package is \lst'compiler'. We know that we need to add
   flag \texttt{--latin1} to the above expression.
   \item We know how to substitute \texttt{<input>} and \texttt{<output>} in the
   above expression.
-  \item We ignore \texttt{stage} and \texttt{way} because they are not relevant
+  \item We ignore \lst'stage' and \lst'way' because they are not relevant
   in this particular case. However, we record them in the build log.
 \end{itemize}
 
@@ -245,153 +243,166 @@ describe them. After experimenting with several abstractions, we converged on
 
 \subsection{Expressions}
 
-An expression \texttt{Expr a} is a computation that produces a value of type
-\texttt{Action a} and can read the current build \texttt{Target}. For example,
-the following expression computes command line arguments for invoking
-\texttt{Alex}:
+An expression \lst'Expr a' is a computation that produces a value of type
+\lst'Action a' and can read the current build \lst'Target', as shown in
+Fig.~\ref{fig:abstractions} (see the \emph{Expressions} subfigure). For example,
+the following expression computes command line arguments for invoking \lst'Alex':
 
-\begin{lstlisting}[basicstyle=\ttfamily]
+\newcommand{\altab}[1]{\hspace{.05\textwidth}\rlap{#1}}
+
+\begin{lstlisting}
 alexArgs :: Expr [String]
 alexArgs = do
-    pkg <- asks Target.package
-    src <- asks Target.inputs
-    out <- asks Target.outputs
+#\itab{~~~~pkg} \altab{$\leftarrow$ asks Target.package}#
+#\itab{~~~~src} \altab{$\leftarrow$ asks Target.inputs}#
+#\itab{~~~~out} \altab{$\leftarrow$ asks Target.outputs}#
     return $ [ "-g" ]
-          ++ [ "--latin1" | pkg == compiler ]
-          ++ [ head src ]
-          ++ [ "-o", head out ]
+          #\!#++ [ "--latin1" | pkg == compiler ]
+          #\!#++ [ head src ]
+          #\!#++ [ "-o", head out ]
 \end{lstlisting}
 
-% \noindent Here \texttt{builderPath :: Builder -> Action FilePath} determines the
-% path to a builder depending on its provenance and the contents of
-% \texttt{system.config} file.
-
-There is a room for improvement of the \texttt{alexArgs} expression. For
-example, conditional flags like \texttt{--latin1} are very common in build
+There is a room for improvement of the \lst'alexArgs' expression. For
+example, conditional arguments like \texttt{--latin1} are very common in build
 systems and a better way to express them is clearly desirable. We use Boolean
-\emph{predicates} to achieve this:
+\emph{predicates} of type \lst'Expr Bool' to achieve this, see
+Fig.~\ref{fig:abstractions} (the \emph{Predicates} subfigure). In particular, we
+use \lst'package :: Package -> Predicate' to check whether a particular package
+is currently being built. For example, predicate \lst'package compiler'
+returns \lst'True' when the current target belongs to the \lst'compiler'
+package.
 
-\begin{lstlisting}[basicstyle=\ttfamily]
-package :: Package -> Predicate
-package p = do
-    context <- asks Target.context
-    return $ p == Context.package context
+Operator \lst'(?) :: Monoid a => Predicate -> Expr a -> Expr a' is a
+convenient shortcut for applying a predicate to an expression that computes a monoidal value, such
+as \lst'[String]'. For example, the following expression returns
+\texttt{--latin1} when the current target belongs to the compiler package and an empty expression otherwise:
 
-(?) :: Monoid a => Predicate -> Expr a -> Expr a
-predicate ? expr = do
-    bool <- predicate
-    if bool then expr else return mempty
-\end{lstlisting}
-
-We can now use \texttt{package} to check whether a particular package is
-currently being built, e.g., predicate \texttt{package compiler} returns
-\texttt{True} when the current target belongs to the compiler package.
-Operator \texttt{?} provides a convenient shortcut for applying a predicate
-to an expression that computes a monoidal value, such as \texttt{[String]}. For
-example, the following expression returns \texttt{--latin1} when the current
-target belongs to the compiler package and an empty expression otherwise:
-
-\begin{lstlisting}[basicstyle=\ttfamily]
+\begin{lstlisting}
 latin1 :: Expr [String]
 latin1 = package compiler ? return ["--latin1"]
 \end{lstlisting}
 
 \noindent Note, expressions computing monoids themselves form a monoid:
 
-\begin{lstlisting}[basicstyle=\ttfamily]
+\begin{lstlisting}
 instance Monoid a => Monoid (Expr a) where
-    mempty  = return mempty
+    mempty #\hspace{1.5mm}#= return mempty
     mappend = liftM2 mappend
 \end{lstlisting}
 
 Predicates and monoidal expressions are a powerful combination with many useful
 laws that allow to reason about them:
 \begin{enumerate}
-  \item \itab{Absorption:} \tab{\texttt{p ? mempty \ \ \ \ \ == mempty}}
-  \item \itab{Commutativity:} \tab{\texttt{p ? q ? e \ \ \ \ \ \ == q ? p ? e}}
-  \item \itab{Distributivity:} \tab{\texttt{p ? (e <> f) \ \ \ == p ? e <> p ? f}}
-  \item \itab{Conjunction:} \tab{\texttt{p ? q ? e \ \ \ \ \ \ == (p $\wedge$ q) ? e}}
-  \item \itab{Complement:} \tab{\texttt{p ? e <> $\!\neg$p ? e == e}}
-  \item \itab{Reordering:} \tab{\texttt{p ? e <> $\!\neg$p ? f  == $\neg$p ? f <> p ? e}}
+  \item \itab{Absorption:} \tab{\lst'p ? mempty === mempty'}
+  \item \itab{Distributivity:} \tab{\lst'p ? (e <> f) === p ? e <> p ? f'}
+  \item \itab{Conjunction:} \tab{\lst'p ? q ? e === (p &&& q) ? e === q ? p ? e'}
+  \item \itab{Disjunction:} \tab{if \lst'p &&& q === False' then} \vspace{1mm}\\
+  \lst'    p ? e <> q ? e === (p ||| q) ? e === q ? e <> p ? e'
+  \item \itab{Complement:} \tab{\lst'p ? e <> !!!p ? e === e'}
 \end{enumerate}
 
-\todo{The above is true only for certain well-behaved predicates: need
-termination and no observable effects? }
-
 All expressions need to be modifiable by users of the build system. We therefore
-need to provide a way not only to add new flags to an expression, but also to
-modify and remove them. A simple way to achieve this is to switch to difference
-list expressions, represented by type \texttt{DiffExpr a}, which is used to
-construct values of type \texttt{Diff a} with the following monoid instance:
+need to provide a way not only to add new arguments to an expression, but also
+to modify and remove them. A simple way to achieve this is to switch to difference
+list expressions, represented by type \lst'Expr (Diff a)', which is used to
+construct values of type \lst'Diff a' with the following monoid instance:
 
-\begin{lstlisting}[basicstyle=\ttfamily]
+\begin{lstlisting}
 instance Monoid (Diff a) where
-    mempty = Diff id
-    Diff x `mappend` Diff y = Diff $ y . x
+    mempty #\hspace{24mm}#= Diff id
+    mappend (Diff x) (Diff y) = Diff $ y . x
 \end{lstlisting}
 
-The reverse order of function composition \texttt{y . x} ensures that when two
-\texttt{DiffExpr a} computations are combined \texttt{c1 <> c2}, then
-\texttt{c1} is applied first and \texttt{c2} is applied second.
+\noindent The reverse order of function composition \lst'y . x' ensures that
+when two \lst'Expr (Diff a)' computations are combined \lst'c1 <> c2', then
+\lst'c1' is applied first and \lst'c2' is applied second.
 
 The following functions can be used to append and remove items to/from a
 difference list:
 
-\begin{lstlisting}[basicstyle=\ttfamily]
-append :: Monoid a => a -> DiffExpr a
+\begin{lstlisting}
+append :: Monoid a => a -> Expr (Diff a)
 append x = return $ Diff (<> x)
 
-remove :: Eq a => [a] -> DiffExpr [a]
-remove xs = return $ Diff $ filter (`notElem` xs)
+remove :: Eq a => [a] -> Expr (Diff [a])
+remove xs = return . Diff $ filter (`notElem` xs)
 \end{lstlisting}
 
-We are now ready to introduce \texttt{Args}, a type of expressions for
+We are now ready to introduce \lst'Args', a type of expressions for
 constructing command line arguments in the build system. In addition to the
-above generic functions, it is equipped with function \texttt{arg} for injecting
-simple \texttt{String} arguments into \texttt{Args}:
+above generic functions (whose specialised versions are shown in
+Fig.~\ref{fig:abstractions}), it is equipped with function
+\lst'arg :: String -> Args' for injecting simple \lst'String' arguments into
+\lst'Args'. With these abstractions in place, we can construct command line
+arguments for \lst'Alex' as follows:
 
-\begin{lstlisting}[basicstyle=\ttfamily]
-arg :: String -> Args
-arg = append . return
-\end{lstlisting}
-
-With the above abstractions in place, we can construct command line arguments
-for \texttt{Alex} as follows:
-
-\begin{lstlisting}[basicstyle=\ttfamily]
+\begin{lstlisting}
 alexArgs :: Args
 alexArgs = mconcat [ arg "-g"
-                   , package compiler ? arg "--latin1"
-                   , arg =<< getInput
-                   , arg "-o", arg =<< getOutput ]
+#\hspace{28.8mm}#, package compiler ? arg "--latin1"
+#\hspace{28.8mm}#, arg =<< getInput
+#\hspace{28.8mm}#, arg "-o", arg =<< getOutput ]
 \end{lstlisting}
 
-Here \texttt{getInput} and \texttt{getOutput} are expressions that check that
-\texttt{Target.inputs} and \texttt{Target.outputs} contain exactly one value and
+\noindent Here \lst'getInput :: Expr FilePath' and
+\lst'getOutput :: Expr FilePath' are expressions that check that
+\lst'Target.inputs' and \lst'Target.outputs' contain exactly one element and
 return it.
 
-The resulting \texttt{alexArgs} expression is terse and readable. All
-distracting plumbing details have been abstracted away so that the
-designers and users of the build system could focus on what matters.
+The resulting \lst'alexArgs' expression is terse and readable. All
+distracting plumbing details have been abstracted away so that the designers and
+users of the build system could focus on what matters. \todo{Also mention
+Packages and Ways expressions.}
 
-\noindent ----\\
-\noindent The \texttt{build} function takes care of building a single
-\texttt{Target}:
+We compose all command line arguments into \lst'allArgs :: Args' expression,
+applying custom user modifications \lst'userArgs' in the very end, hence
+allowing the user to override any default setting:
+
+\begin{lstlisting}
+allArgs :: Args
+allArgs = mconcat [ builder Alex ? alexArgs, ..., userArgs ]
+\end{lstlisting}
+
+The resulting expression is used in the \lst'build' function that is responsible
+for building a given \lst'Target':
+
+\begin{lstlisting}
+build :: Target -> Action ()
+build target@Target {..} = do
+    path <- builderPath builder
+    args #\,#<- interpret target allArgs
+    need [path]
+    checkArgsHash target
+    cmd [path] args
+\end{lstlisting}
+
+\noindent We clarify each statement of the \lst'build' function below:
 \begin{itemize}
-  \item It computes the complete command line to build the target from the
-  \texttt{Args} expression.
-  \item If the command line has changed since the last invocation of the build
-  system, the target is rebuilt even if all its dependencies are up-to-date.
-  This tracks changes both in the environment and in the build system itself.
-  \item It makes sure the required builder is up-to-date. Some builders are
-  built by the build system, e.g. \texttt{genprimopcode}, \texttt{ghc-cabal},
-  stage1 GHC, so it is important to rebuild them if need be.
-  \item Finally, it runs the builder to build the target, printing diagnostic
-  information if need be.
+  \item Firstly, \lst'builderPath :: Builder -> Action FilePath' determines the
+  path to the builder depending on its provenance and the contents of the
+  \texttt{system.config} file.
+  \item We \lst'interpret' the \lst'allArgs' expression w.r.t. to the
+  \lst'target', and obtain the list of \lst'String' arguments to be passed to
+  the builder. See Fig.~\ref{fig:abstractions} for the implementation of
+  \lst'interpret'.
+  \item We \lst'need' the builder to make sure it is up-to-date. Some builders
+  are built by the build system, e.g. \texttt{genprimopcode},
+  \texttt{ghc-cabal}, stage1 GHC, so it is important to rebuild them (as well as
+  all dependent targets) if need be.
+  \item Function \lst'checkArgsHash :: Target -> Action ()' checks whether the
+  \lst'target' needs to be rebuilt because the command line computed from
+  \lst'allArgs' expression has changed since the previous build. If it changed,
+  the target is rebuilt even if all its dependencies are up-to-date. This tracks
+  changes both in the environment and in the build system itself. \todo{Explain
+  how checkArgsHash works?}
+  \item Finally, we invoke the builder with appropriate arguments using Shake's
+  \lst'cmd' function.
 \end{itemize}
 
-\noindent ----\\
-\noindent Example of a micro build system.
+\subsection{A simple build system example}
+
+Fig.~\ref{fig:example-abstractions} shows a simple build system that uses the
+abstractions introduced in this section.
 
 \newcommand{\tabx}[1]{\hspace{.106\textwidth}\rlap{#1}}
 \newcommand{\taby}[1]{\hspace{.103\textwidth}\rlap{#1}}
@@ -473,6 +484,8 @@ main = shake shakeOptions $ do
 \caption{Example of a build system\label{fig:example-abstractions}}
 \end{figure}
 
+\noindent ----\\
+\noindent Example of a micro build system.
 
 \subsection{Design pattern: DSL + escape hatch}
 
