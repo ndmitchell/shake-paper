@@ -41,8 +41,8 @@ package compiler ?
 #\hspace{7.3mm}#builder Alex ? arg "--latin1"
 \end{lstlisting}
 
-The expression adds the \texttt{--latin1} argument to the command line of
-the \texttt{Alex} program when building the \texttt{compiler} package.
+\noindent The expression adds the \texttt{--latin1} argument to the command line
+of the \texttt{Alex} program when building the \texttt{compiler} package.
 
 \newcommand{\itab}[1]{\hspace{0em}\rlap{#1}}
 \newcommand{\tab}[1]{\hspace{.12\textwidth}\rlap{#1}}
@@ -131,55 +131,55 @@ predicate ? expr = do
 
 \subsection{Programming model}
 
-Source code is typically split into logical units, or \emph{packages},
-and GHC is no exception. We model packages with the \texttt{Package}
-type, see Fig.~\ref{fig:abstractions}. A package is identified by a unique
-\texttt{PackageName} and a \texttt{FilePath} pointing to its location in the
-source tree. A GHC package can be a program (e.g., \texttt{genprimopcode}) or a
-library (e.g., \texttt{array}), which is captured by \texttt{PackageType}.
+GHC source code is split into logical units, or \emph{packages}. We model
+packages with the \lst'Package' type, see Fig.~\ref{fig:abstractions}. A
+package is identified by a unique \lst'PackageName' and a \lst'FilePath'
+pointing to its location in the source tree. A GHC package can be a library
+(e.g., \texttt{array}) or a program (e.g., \texttt{genprimopcode}), which
+is captured by \lst'PackageType'. There are 32 libraries and 18 programs
+(the latter includes the GHC itself and various utilities).
 
 A package can be built multiple \emph{ways}, for example, to produce a library
 with or without profiling information. This is captured by an opaque
-type \texttt{Way} inhabited by values such as \texttt{vanilla} (the simplest
-possible way), \texttt{profiling} (with profiling information), \texttt{debug} (with
-debug information), and many others. Some ways can be combined, e.g.,
-\texttt{debugProfiling}; however, not all combinations are allowed or currently
-supported. By making \texttt{Way} opaque we make it easier to add new ways
-or change their internal representation, something that would be
-impossible to achieve in \make{}, where no information hiding is
-possible.
+type \lst'Way' inhabited by values such as \lst'vanilla' (the simplest
+possible way), \lst'profiling' (with profiling information), \lst'debug'
+(with debug information), and many others (there are 18 ways in total). Some
+ways can be combined, e.g., \lst'debugProfiling'; however, not all combinations
+are allowed or currently supported. By making \lst'Way' opaque we make it easier
+to add new ways or change their internal representation, something that would be
+impossible to achieve in \make{}, where no information hiding is possible. 
 
 In addition to different build ways, each package can be built by several
 versions of GHC, which leads to the notion of \emph{stages}.
 
-In \texttt{Stage0} we use the \emph{bootstrap} GHC, i.e. the one that is
-installed in the system. During this stage we build \texttt{Stage1} GHC, an
+In \lst'Stage0' we use the \emph{bootstrap} GHC, i.e. the one that is
+installed in the system. During this stage we build \lst'Stage1' GHC, an
 intermediate compiler that still lacks many features. It is used during the
-following \texttt{Stage1} for building a fully-featured \texttt{Stage2} GHC, the
-primary goal of the build system. We sometimes also build \texttt{Stage3} GHC as
-a self-test: the object code of \texttt{Stage2} and \texttt{Stage3} compilers
+following \lst'Stage1' for building a fully-featured \lst'Stage2' GHC, the
+primary goal of the build system. We sometimes also build \lst'Stage3' GHC as
+a self-test: the object code of \lst'Stage2' and \lst'Stage3' compilers
 should be the same.
 
-\texttt{Stage}, \texttt{Package}, and \texttt{Way} form a GHC-specific
-\emph{build context} represented by type \texttt{Context}. A typical GHC build
-rule, such as \texttt{compilePackage}, depends on the context as follows: it
+\lst'Stage', \lst'Package' and \lst'Way' form a GHC-specific
+\emph{build context} represented by type \lst'Context'. A typical GHC build
+rule, such as \lst'compilePackage', depends on the context as follows: it
 uses an appropriate compiler version (e.g., the bootstrap compiler in
-\texttt{Stage0}), produces object files with different extensions (e.g.,
-vanilla \texttt{"*.o"} or profiled \texttt{"*.p\_o"} object files), puts build
-artefacts into an appropriate directory (e.g.,
-\texttt{"stage1/libraries/base"}), etc.
+\lst'Stage0'), produces object files with different extensions (e.g., vanilla
+\texttt{"*.o"} or profiled \texttt{"*.p\_o"} object files), puts build artefacts
+into an appropriate directory (e.g., \texttt{"stage1/libraries/base"}), etc.
+There are $4 \times 40 \times 18 = 2880$ different possible contexts.
 
 A typical build system invokes several build tools, or \emph{builders}, such as
 compilers, linkers, archivers, etc., some of which may also be built by the
-build system itself. The builders are captured by the \texttt{Builder} type. It
+build system itself. The builders are captured by the \lst'Builder' type. It
 is useful to distinguish \emph{internal} and \emph{external} builders, i.e.
 those that are build by the build system and those which are installed in the
-system, respectively. Function \texttt{builderProvenance} returns the stage
+system, respectively. Function \lst'builderProvenance' returns the stage
 during which an internal builder is built, the way it is built, and the package
-containing the sources (all captured by a \texttt{Context}); \texttt{Nothing} is
+containing the sources (all captured by a \lst'Context'); \lst'Nothing' is
 known about the provenance of external builders.
 
-\begin{lstlisting}[basicstyle=\ttfamily]
+\begin{lstlisting}
 builderProvenance :: Builder -> Maybe Context
 builderProvenance = \case
     GenPrimopCode -> Just $
@@ -193,32 +193,39 @@ builderProvenance = \case
     _ -> Nothing
 \end{lstlisting}
 
-In particular, one can see that \texttt{Ghc Stage0} is an external builder,
-\texttt{Ghc Stage1} is an internal one built from package \texttt{ghc}
-during \texttt{Stage0}, etc.
+In particular, one can see that \lst'Ghc Stage0' is an external builder,
+\lst'Ghc Stage1' is an internal one built from package \lst'ghc'
+during \lst'Stage0', \texttt{haddock} is built in \lst'Stage2', etc. There are
+27 builders and 16 of them are internal. Some builders are \emph{optional}, e.g.,
+\texttt{hscolour}, which (if installed) is used to colourise Haskell code when
+building documentation.
 
-Each invocation of a builder is fully described by a \texttt{Target}, which
-comprises a build \texttt{Context}, a \texttt{Builder}, a list of input and
-a list of output files. For example, consider the following invocation of
-builder \texttt{Alex}:
+Each invocation of a builder is fully described by a \lst'Target', which
+comprises a build \lst'Context', a \lst'Builder', a list of input and
+a list of output files. 30000 targets are built when building a vanilla
+\lst'Stage2' GHC with documentation. Consider the following invocation of
+builder \texttt{Alex} as an example:
 
 \begin{verbatim}
 alex -g --latin1 compiler/parser/Lexer.x
               -o compiler/stage1/build/Lexer.hs
 \end{verbatim}
 
-\noindent The corresponding \texttt{Target} is:
+\noindent The corresponding \lst'Target' is:
 
-\begin{lstlisting}[basicstyle=\ttfamily]
+\newcommand{\ltab}[1]{\hspace{.032\textwidth}\rlap{#1}}
+\newcommand{\lltab}[1]{\hspace{.059\textwidth}\rlap{#1}}
+
+\begin{lstlisting}
 lexerTarget = Target
-    { context = Context Stage1 compiler vanilla
-    , builder = Alex
-    , inputs  = ["compiler/parser/Lexer.x"]
-    , outputs = ["compiler/stage1/build/Lexer.hs"] }
+#\itab{~~~~\{} \ltab{context} \lltab{= Context Stage1 compiler vanilla}#
+#\itab{~~~~,} \ltab{builder} \lltab{= Alex}#
+#\itab{~~~~,} \ltab{inputs} \lltab{= ["compiler/parser/Lexer.x"]}#
+#\itab{~~~~,} \ltab{outputs} \lltab{= ["compiler/stage1/build/Lexer.hs"] \}}#
 \end{lstlisting}
 
-By examining \texttt{lexerTarget} it is possible to compute the full command
-line for building \texttt{compiler/stage1/build/Lexer.hs}:
+\noindent By examining \lst'lexerTarget' it is possible to compute the full
+command line for building \texttt{compiler/stage1/build/Lexer.hs}:
 \begin{itemize}
   \item The builder is \texttt{Alex}. We lookup the right command
   \texttt{alex} in the configuration file \texttt{system.config}, and use the
@@ -231,8 +238,8 @@ line for building \texttt{compiler/stage1/build/Lexer.hs}:
   in this particular case. However, we record them in the build log.
 \end{itemize}
 
-A build system typically contains many such computations (at least one for each
-builder) and it is important to provide a terse and readable notation to
+\noindent A build system typically contains many such computations (at least one
+for each builder) and it is important to provide a terse and readable notation to
 describe them. After experimenting with several abstractions, we converged on
 \emph{expressions} defined in the next subsection.
 
