@@ -404,6 +404,8 @@ build target@Target {..} = do
 Fig.~\ref{fig:example-abstractions} shows a simple build system that uses the
 abstractions introduced in this section.
 
+\todo{Add description of the example (0.5 columns).}
+
 \newcommand{\tabx}[1]{\hspace{.106\textwidth}\rlap{#1}}
 \newcommand{\taby}[1]{\hspace{.103\textwidth}\rlap{#1}}
 \newcommand{\tabz}[1]{\hspace{.24\textwidth}\rlap{#1}}
@@ -440,6 +442,7 @@ build :: Target -> Action ()#\hspace{32mm}\textbf{\emph{Build rules}}#
 build target@Target {..} = do
     path <- builderPath builder
     args #\,#<- interpret target allArgs
+    need [path]
     cmd [path] args
 
 path :: Context -> FilePath
@@ -484,12 +487,26 @@ main = shake shakeOptions $ do
 \caption{Example of a build system\label{fig:example-abstractions}}
 \end{figure}
 
-\noindent ----\\
-\noindent Example of a micro build system.
-
 \subsection{Design pattern: DSL + escape hatch}
 
-As we develop more Shake-based build systems, patterns have started to emerge. Typically 90\% of a build system can be captured in some simple DSL, taking advantage of conventions, and 10\% cannot. As an example, a large build system might build 100 C++ libraries, each with similar flags and file layout, but taking the source files from different directories. It may also minify a Javascript file, and build an installer -- both one-off tasks. Using a fully-powerful system such as Shake, it is possible to engineer robust abstractions, and then define the majority of the build system using only these abstractions. The end result is that most edits to the build system involve only the DSL, and can be performed by a large number of individuals.
+\todo{Shall we move it to the beginning of the section?}
 
-After dealing with the DSL, there are usually a few pieces left over, and these can be implemented in Shake, as normal. Thanks to the power of Shake you can interpret the DSL and combine it with the custom pieces. In our experience by providing an \textit{escape hatch} where fully-powerful code an be expressed it removes the temptation to shoehorn more advanced features in the DSL, and thus avoids turning it into an ad-hoc scripting language. Instead, should enough pieces be required in the escape hatch, they can be abstracted in the traditional ways - perhaps even combining two DSLs in one build system.
+As we develop more Shake-based build systems, patterns have started to emerge.
+Typically 90\% of a build system can be captured in some simple DSL, taking
+advantage of conventions, and 10\% cannot. As an example, a large build system
+might build 100 C++ libraries, each with similar flags and file layout, but
+taking the source files from different directories. It may also minify a
+Javascript file, and build an installer -- both one-off tasks. Using a
+fully-powerful system such as Shake, it is possible to engineer robust
+abstractions, and then define the majority of the build system using only these
+abstractions. The end result is that most edits to the build system involve only
+the DSL, and can be performed by a large number of individuals.
 
+After dealing with the DSL, there are usually a few pieces left over, and these
+can be implemented in Shake, as normal. Thanks to the power of Shake you can
+interpret the DSL and combine it with the custom pieces. In our experience by
+providing an \textit{escape hatch} where fully-powerful code an be expressed it
+removes the temptation to shoehorn more advanced features in the DSL, and thus
+avoids turning it into an ad-hoc scripting language. Instead, should enough
+pieces be required in the escape hatch, they can be abstracted in the
+traditional ways - perhaps even combining two DSLs in one build system.
