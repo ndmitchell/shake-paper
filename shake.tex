@@ -102,22 +102,22 @@ Shake achieves this result by storing the inputs and outputs after a rule comple
 
 \subsection{Post-use dependencies}
 
-Looking at our first example, the object gets recompiled if the C source file changes. But C files may \lst'#include' any number of header files, and changes to these headers will also affect the resulting object. While it is possible to write our own code to search for transitively included headers \cite[\S6.4]{shake}, a simpler alternative is to reuse the logic already present in \lst'gcc'. The \lst'gcc' command takes a flag \lst'-M' which prints out a Makefile listing all used headers. We can integrate this flag into our example by replacing the final line with:
+Looking at our first example, the object gets recompiled if the C source file changes. But C files may \lst'#include' any number of header files, and changes to these headers will also affect the resulting object. While it is possible to write our own code to search for transitively included headers \cite[\S6.4]{shake}, a simpler alternative is to reuse the logic already present in \lst'gcc'. The \lst'gcc' compilation command (\lst'-c') can also take a flag \lst'-M' to print out a Makefile listing all headers that were used by the compilation. We can integrate this flag into our example by replacing the final line with:
 
 \begin{lstlisting}
 Stdout makefile <- cmd "gcc -M -o" out "-c" src
 need $ makefileDepends makefile
 \end{lstlisting}
 
-\noindent We use \lst'Stdout' to capture the output of \lst'cmd', then \lst'makefileDepends' to parse the Makefile and return all dependencies \footnote{Using the \lst'parseMakefile' helper function in Shake we can define \lst'makefileDepends = concatMap snd . parseMakefile'.}. After obtaining the list of dependencies we \lst'need' them, ensuring that if a header changes, the object will be rebuilt.
+\noindent We use \lst'Stdout' to capture the output of \lst'cmd', then \lst'makefileDepends' to parse the Makefile and return all dependencies \footnote{Using the \lst'parseMakefile' helper function in Shake we can define \lst'makefileDepends = concatMap snd . parseMakefile'.}. After obtaining the list of dependencies we \lst'need' them, making them inputs to this rule, and ensuring that if a header changes the object will be rebuilt.
 
-However, for this use case, the \lst'need' function is actually a little \emph{too} powerful. The \lst'need' will cause Shake to pause the \lst'*.o' rule, build the dependencies, and then continue. But since the header files were \emph{already} used by \lst'gcc', if they change then the result will be inconsistent, since the object file will reflect the previous header contents.
+However, for this use case, the \lst'need' function is actually a little \emph{too} powerful. The \lst'need' will cause Shake to suspend the \lst'*.o' rule, build the dependencies, and then resume the remainder of the rule. But since the header files were \emph{already} used by \lst'gcc', if they change then the result will be inconsistent, since the object file will reflect the previous header contents.
 
 We solve this problem by using \lst'needed' instead of \lst'need', which combines \lst'need' which an assertion that the file does not change as a result of building, and thus the result is consistent. In the common case of the header files being source files, the associated rule will be the default file rule, which does not modify the file, and the assertion will not trigger.
 
 \subsection{Order-only dependencies}
 
-We have seen how \lst'needed' can be safely used for source files, but what about generated files? Imagine we have a rule to build \lst'config.h' from a configuration data file. With the existing formulation, \lst'needed' on \lst'config.h' will raise an error if the configuration data has changed and \lst'config.h' is not up-to-date. One solution is to \lst'need ["config.h"]' \emph{before} executing \lst'gcc'. This solution is safe -- the file \lst'config.h' will always be created before it is used and will not change when \lst'needed' (since it has already been built). Unfortunately this solution causes any object file that does \emph{not} include \lst'config.h' to rebuild unnecessarily if \lst'config.h' changes.
+We have seen how \lst'needed' can be safely used for source files, but what about generated files? Imagine we have a rule to build \lst'config.h' from a configuration data file. With the existing formulation, \lst'needed ["config.h"]' will raise an error if the configuration data has changed and \lst'config.h' is not up-to-date. One solution is to \lst'need ["config.h"]' \emph{before} executing \lst'gcc'. This solution is safe -- the file \lst'config.h' will always be built before it is used and will not change when \lst'needed' (since it has already been built). However, this solution introduces a dependency on \lst'config.h', which causes any object file that does \emph{not} include \lst'config.h' to rebuild unnecessarily if \lst'config.h' changes.
 
 A better solution is to use order-only dependencies, with the expression \lst'orderOnly ["config.h"]'. This expression ensures that \lst'config.h' has been built and is up-to-date before continuing, but does not introduce a dependency on \lst'config.h'. Afterwards, if the file turns out to have been required, \lst'needed' can be used to express the dependency.
 
@@ -127,7 +127,7 @@ Combining \lst'orderOnly' (ensure a file has been built) and \lst'needed' (depen
 need xs === (orderOnly xs >> needed xs)
 \end{lstlisting}
 
-While neither \lst'orderOnly' or \lst'needed' are in the original Shake paper, both can be added on top of Shake without adjusting the underlying build algorithm. Specifically, \lst'needed' can be implemented as checks around \lst'need', and \lst'orderOnly' can be implemented via an intermediate rule which calls \lst'need' and produces an empty file whose value never changes, thus causing things depending on it to not  rebuild (in fact, the intermediate file can be avoided, as we shall see in \S\ref{sec:polymorphic}).
+\noindent Although in practice both \lst'orderOnly' and \lst'needed' can be implemented on top of the \lst'need' primitive.
 
 \subsection{Polymorphic dependencies\label{sec:polymorphic}}
 
