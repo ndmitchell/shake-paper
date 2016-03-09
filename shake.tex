@@ -87,9 +87,18 @@ Following the code from top to bottom:
 
 On the first execution, this example will start running the \lst'*.o' rule to produce \lst'foo.o'. When execution gets to \lst'need [src]' this rule will stop and the rule for \lst'foo.c' will be be run. Shake provides a default rule for files that do not match any other rules, which simply checks the file already exists. After completing this simple rule, Shake will resume running the \lst'*.o' rule, executing \lst'gcc' to build \lst'foo.o'.
 
-If a similar build system was written in \make{}, \lst'gcc' would be rerun if either \lst'foo.o' did not exist, or if the modification time of \lst'foo.o' was earlier than that of \lst'foo.c'. In contrast, Shake will rerun \lst'gcc' if either file does not exist or changes modification time from when the rule was last run (or more generally, if either file changes contents, see \S\ref{sec:file-contents}). Shake achieves this result by storing the inputs and outputs after a rule completes in a per-project database, and rerunning a rule if anything has changed (and thus the result could be expected to change). Unlike \make{}, the Shake approach to rebuilding of spotting differences is robust to changing the system time or extracting old files from backups.
-
 The major source of Shakes expressive power is that in Shake a \lst'need' can come at any point during a rules \lst'Action'. In particular, we can perform arbitrary computation including I/O, running system commands and examining files produced by a previous \lst'need' before deciding which future \lst'need' to perform. In contrast, in most build systems, all dependencies of a rule must be given before the rule starts executing. We make extensive use of this additional power throughout \S\ref{sec:abstractions}.
+
+\subsection{Parsimonious rebuilding}
+
+Both \make{} and Shake try to eliminate unnecessary rebuilding, but both use different approaches:
+
+\begin{itemize}
+\item In \make{}, a rule is rerun if the output does not exist, or if the modification time of the output is earlier than any of the inputs. In an example similar to that above, \lst'gcc' would be rerun if either \lst'foo.o' did not exist, or if the modification time of \lst'foo.o' was earlier than that of \lst'foo.c'.
+\item In Shake, a rule is rerun if any of the inputs or outputs change. In our example, Shake will rerun \lst'gcc' if either \lst'foo.c' or \lst'foo.o' does not exist or if either file changes modification time from when the rule was last run (or more generally, if either file changes contents, see \S\ref{sec:file-contents}).
+\end{itemize}
+
+Shake achieves this result by storing the inputs and outputs after a rule completes in a per-project database, and rerunning a rule if anything has changed (and thus the result could be expected to change). The Shake approach has a number of advantages: 1) we can track things that aren't files as in \S\ref{sec:polymorphic}; 2) we can depend on a more refined measure than modification time as in \S\ref{sec:file-contents}; 3) we are robust to system time changes or extracting old files from backups; 4) the execution of a rule does not need to update its output to avoid future rebuilds. The final point is often worked around in \make{} by using stamp files to provide a modification time but having no actual content -- Shake simplifies this common use-case.
 
 \subsection{Post-use dependencies}
 
