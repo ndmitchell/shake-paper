@@ -133,7 +133,7 @@ need xs === (orderOnly xs >> needed xs)
 
 While build-systems are typically focused around files, the core of Shake is fully polymorphic, operating on objects that are uniquely labelled by a key (e.g. filename) and have rules that produce a value (e.g. modification time). This polymorphic API is presented in Figure~\ref{fig:shake_generic_api}, and the file-based API in Figure~\ref{fig:shake_file_api} is built on top. Using this polymorphic API we can define new types of rule to track additional dependencies.
 
-As an example of a new type of rule, let's imagine the actual compiler name is obtained from a configure script that produces a configuration file containing many key/value pairs. The \lst'*.o' rule could depend on and parse the configuration file, but then any change to the configuration file would cause all rules using the C compiler to rebuild, even if the compiler name did not change. Alternatively, we could have rules to split the single configuration file into many files which are only updated if their contents change, but that might result in thousands of files. Instead, we can define a rule to map from configuration keys to values.
+As an example of a new type of rule, let's imagine the actual compiler name is obtained from a configure script that produces a configuration file containing many key/value pairs. The \lst'*.o' rule could depend on and parse the configuration file, but then any change to the configuration file would cause all rules using the C compiler to rebuild, even if the compiler name did not change. Alternatively, we could have rules to split the single configuration file into one file per key, where each file is only updated if that key changes, but that might result in thousands of files. Instead, we can define a rule to map from configuration keys to values.
 
 \begin{lstlisting}
 newtype ConfigKey = ConfigKey String deriving
@@ -159,28 +159,28 @@ This code defines a fresh type \lst'ConfigKey' to serve as the key for the rule.
 
 Next we use \lst'rule' to describe how to generate the value associated with \lst'ConfigKey', using \lst"readFile'" to read the config file, and assuming the existence of a suitable \lst'parseConfig' function. We use \lst'apply' to force execution of the rule and introduce a dependency on the result. For files, \lst'%>' is implemented in terms of \lst'rule', and \lst'need' is implemented in terms of \lst'apply'. Now the \lst'*.o' rule will have the \emph{value} of the \lst'cc' key as a dependency, and if that value changes, all \lst'*.o' files will rebuild.
 
-\todo{Do we need to explain oracles? Just polymorphic rules aren't that much harder}
+% \todo{Do we need to explain oracles? Just polymorphic rules aren't that much harder}
+% 
+% The use of non-file rule types is common in large build systems, occurring ten times in our implementation of GHC's build system in \S\ref{sec:ghc}. To simplify such uses we define an oracle abstraction, allowing us to write:
+% 
+% \begin{lstlisting}
+% configKey <- addOracle $ \(ConfigKey key) -> do
+%     src <- readFile' "config.file"
+%     return $ parseConfig src Map.! key
+% 
+% "*.o" %> \out -> do
+%     cc <- configKey $ ConfigKey key
+%     ...
+% \end{lstlisting}
+% 
+% Using oracles we are freed from defining our own \lst'Rule' instance and can use a type-safe version of \lst'apply' tailored to our particular oracle. The definition of oracles is only a handful of lines long, but sharply decreases the number of Shake concepts that must be understood to define non-file rules following the typical pattern. All non-file rules in GHC are implemented using oracles.
 
-The use of non-file rule types is common in large build systems, occurring ten times in our implementation of GHC's build system in \S\ref{sec:ghc}. To simplify such uses we define an oracle abstraction, allowing us to write:
-
-\begin{lstlisting}
-configKey <- addOracle $ \(ConfigKey key) -> do
-    src <- readFile' "config.file"
-    return $ parseConfig src Map.! key
-
-"*.o" %> \out -> do
-    cc <- configKey $ ConfigKey key
-    ...
-\end{lstlisting}
-
-Using oracles we are freed from defining our own \lst'Rule' instance and can use a type-safe version of \lst'apply' tailored to our particular oracle. The definition of oracles is only a handful of lines long, but sharply decreases the number of Shake concepts that must be understood to define non-file rules following the typical pattern. All non-file rules in GHC are implemented using oracles.
-
-Polymorphic dependencies do not give any fundamental additional expressive power over file rules, but they do provide:
+The use of non-file rule types is common in large build systems, occurring ten times in our implementation of GHC's build system in \S\ref{sec:ghc}. Polymorphic dependencies do not give any fundamental additional expressive power over file rules, but they do provide:
 
 \begin{itemize}
-\item An easy way to get unique keys, by allowing use of a freshly defined type. While two unrelated parts of the build system might both define \lst'gcc-version.txt' rules and clash, any two definitions of \lst'GccVersion' will either be distinct via their qualified name, or will result in a compile error.
+\item An easy way to get unique keys, by allowing use of a freshly defined type. While two unrelated parts of the build system might both define \lst'config-key-cc.txt' rules and clash, any two definitions of \lst'ConfigKey' will either be distinct via their qualified name, or will result in a compile error.
 \item Additional structure for keys and values, instead of hierarchical filenames and binary content files. In particular keys can contain full algebraic data types including lists, tuples and booleans.
-\item Greater granularity, by not forcing each rule to be backed by a separate file. Our build system in \S? has \todo{10,000} config rules.
+\item Greater granularity, by not forcing each rule to be backed by a separate file. GHC's build system has \todo{10,000} non-file rules.
 \end{itemize}
  
 \subsection{Limiting Parallelism}
