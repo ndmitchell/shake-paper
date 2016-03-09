@@ -131,39 +131,45 @@ need xs === (orderOnly xs >> needed xs)
 
 \subsection{Polymorphic dependencies\label{sec:polymorphic}}
 
-While build-systems are typically focused around files, the core of Shake is fully polymorphic, operating on objects that are uniquely labelled by a key (e.g. filename) and have rules that produce a value (e.g. modification time). This polymorphic API is presented in Figure~\ref{fig:shake_generic_api}, and the file-based API in Figure~\ref{fig:shake_file_api} is built on top. Using this polymorphic API we can define new types of rule to track additional dependencies. Looking at our initial example, the object file is also affected by the version of \lst'gcc' used to compile it. We can capture this dependency with:
+While build-systems are typically focused around files, the core of Shake is fully polymorphic, operating on objects that are uniquely labelled by a key (e.g. filename) and have rules that produce a value (e.g. modification time). This polymorphic API is presented in Figure~\ref{fig:shake_generic_api}, and the file-based API in Figure~\ref{fig:shake_file_api} is built on top. Using this polymorphic API we can define new types of rule to track additional dependencies.
+
+As an example of a new type of rule, let's imagine the actual compiler name is obtained from a configure script that produces a configuration file containing many key/value pairs. The \lst'*.o' rule could depend on and parse the configuration file, but then any change to the configuration file would cause all rules using the C compiler to rebuild, even if the compiler name did not change. Alternatively, we could have rules to split the single configuration file into many files which are only updated if their contents change, but that might result in thousands of files. Instead, we can define a rule to map from configuration keys to values.
 
 \begin{lstlisting}
-newtype GccVersion = GccVersion () deriving
+newtype ConfigKey = ConfigKey String deriving
     (Show a, Typeable a, Eq a
     ,Hashable a, Binary a, NFData a)
 
-instance Rule GccVersion String where
+instance Rule ConfigKey String where
     storedValue _ _ = return Nothing
 
 main = shake shakeOptions $ do
-    rule $ \(GccVersion _) -> Just $ do
-        Stdout s <- cmd "gcc --version"
-        return s
+    rule $ \(ConfigKey key) -> Just $ do
+        src <- readFile' "config.file"
+        return $ parseConfig src Map.! key
 
     "*.o" %> \out ->
-        apply [GccVersion ()] :: Action [String]
+        cc <- apply [ConfigKey "cc"]
         ...
+
+parseConfig :: String -> Map String String
 \end{lstlisting}
 
-This code defines a fresh type \lst'GccVersion' to serve as the key for the rule. We define a \lst'Rule' instance so Shake rules can operate on \lst'GccVersion' keys, declaring the associated value to be of type \lst'String'. We are only required to implement the \lst'storedValue' method, where we declare that the rule generating the \lst'gcc' version should \emph{always} be rerun (using \lst'Nothing').
+This code defines a fresh type \lst'ConfigKey' to serve as the key for the rule. We define a \lst'Rule' instance so Shake rules can operate on \lst'ConfigKey' keys, declaring the associated value to be of type \lst'String'. We are only required to implement the \lst'storedValue' method, where we declare that the rule producing the config key is not stored separately on disk.
 
-Next we use \lst'rule' to describe how to generate the value associated with \lst'GccVersion', and use \lst'apply' to force execution of the rule and introduce a dependency on the result. For files, \lst'%>' is implemented in terms of \lst'rule', and \lst'need' is implemented in terms of \lst'apply'. In every build \lst'gcc --version' will be executed, and if the output changes from last time, any rule which called \lst'apply [GccVersion ()]' will rerun. Our build system will now automatically recompile all C files if the compiler is changed.
+Next we use \lst'rule' to describe how to generate the value associated with \lst'ConfigKey', using \lst"readFile'" to read the config file, and assuming the existence of a suitable \lst'parseConfig' function. We use \lst'apply' to force execution of the rule and introduce a dependency on the result. For files, \lst'%>' is implemented in terms of \lst'rule', and \lst'need' is implemented in terms of \lst'apply'. Now the \lst'*.o' rule will have the \emph{value} of the \lst'cc' key as a dependency, and if that value changes, all \lst'*.o' files will rebuild.
+
+\todo{Do we need to explain oracles? Just polymorphic rules aren't that much harder}
 
 The use of non-file rule types is common in large build systems, occurring ten times in our implementation of GHC's build system in \S\ref{sec:ghc}. To simplify such uses we define an oracle abstraction, allowing us to write:
 
 \begin{lstlisting}
-gccVersion <- addOracle $ \(GccVersion _) -> do
-    Stdout s <- cmd "gcc --version"
-    return s
+configKey <- addOracle $ \(ConfigKey key) -> do
+    src <- readFile' "config.file"
+    return $ parseConfig src Map.! key
 
 "*.o" %> \out -> do
-    gccVersion $ GccVersion ()
+    cc <- configKey $ ConfigKey key
     ...
 \end{lstlisting}
 
@@ -174,7 +180,7 @@ Polymorphic dependencies do not give any fundamental additional expressive power
 \begin{itemize}
 \item An easy way to get unique keys, by allowing use of a freshly defined type. While two unrelated parts of the build system might both define \lst'gcc-version.txt' rules and clash, any two definitions of \lst'GccVersion' will either be distinct via their qualified name, or will result in a compile error.
 \item Additional structure for keys and values, instead of hierarchical filenames and binary content files. In particular keys can contain full algebraic data types including lists, tuples and booleans.
-\item Greater granularity, by not forcing each rule to be backed by a separate file. For example, a configuration file might consist of thousands of keys. Making thousands of files is not always desirable, but thousands of non-file keys is no problem.
+\item Greater granularity, by not forcing each rule to be backed by a separate file. Our build system in \S? has \todo{10,000} config rules.
 \end{itemize}
  
 \subsection{Limiting Parallelism}
