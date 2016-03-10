@@ -3,14 +3,45 @@
 In this section we report on our experience on applying the techniques presented
 so far to building a large-scale software project: the Glasgow Haskell Compiler.
 
-\todo{Summary: How we used better tools and abstractions to do better.}
+\todo{Andrey: list current limitations.}
 
 \subsection{Analysis of common use-cases}
 
-\todo{Andrey: Table with qualitative comparison of make and Shake}.
+In this section we discuss several use-cases of the GHC build system, which
+are fairly typical for build systems in general.
 
-Qualitative results: easier to understand and maintain. Can we say this? Or do
-we need a proper user study?
+\subsubsection{Change nothing and rebuild}
+
+Both \make{} and Shake work. Shake is faster.
+
+\subsubsection{Change a source file and rebuild}
+
+Both \make{} and Shake work. Shake does fewer rebuilds. Several examples with
+different rebuild chains.
+
+\subsubsection{Add comments to \texttt{ghc-cabal} and rebuild}
+ 
+Both \make{} and Shake work. \make{} ends up rebuilding everything. Shake only
+reruns \texttt{ghc-cabal} and stops, as generated files are not changed.
+
+\subsubsection{Change a command line in the build system and rebuild}
+
+\make{} doesn't track such changes. Shake reruns only necessary rules.
+Also show how changing a command line looks like in \make{} and in Shake.
+
+\subsubsection{Switch \texttt{git} branch and rebuild}
+ 
+\make{} rebuilds everything. Shake reruns only necessary rules.
+
+\subsubsection{Change path to \texttt{gcc} and rebuild}
+ 
+Both \make{} and Shake work. \make{} ends up rebuilding everything. Shake reruns
+only necessary rules.
+
+\subsubsection{Change build rules and rebuild}
+ 
+Both \make{} and Shake don't notice this and fail to rebuild. Checking
+equivalence is hard. Future work.
 
 \subsection{Benchmarks}
 
@@ -30,3 +61,15 @@ instead?}
 Most useful one is if two people whack the same output. Other thing is where
 doing all .hs files in a dir, and then you generate one. Should this go
 somewhere else? Perhaps in S5.
+
+\subsection{Summary}
+
+\todo{How we used better tools and abstractions to do better.}
+
+\todo{Quantitative results: are we faster? Fewer lines of code? Fewer system
+dependencies?}
+
+\todo{Qualitative results: easier to understand and maintain. Can we
+say this? Can we say that the new build system works in more environments,
+because we have fewer dependencies?}
+
