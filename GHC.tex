@@ -3,22 +3,93 @@
 In this section we report on our experience on applying the techniques presented
 so far to building a large-scale software project: the Glasgow Haskell Compiler.
 
-\subsection{Overview of GHC}
+\todo{Andrey: list current limitations.}
 
-High-level design of the GHC build system (bootstrapping, stages,
-packages, ways, etc.). Why is it so difficult with \texttt{Make}.
+\subsection{Analysis of common use-cases}
 
-\subsection{Achieved results}
+In this section we discuss several use-cases of the GHC build system, which
+are fairly typical for build systems in general.
 
-Summary: \emph{How we used better tools and abstractions to do better.}
+\subsubsection{Change nothing and rebuild}
 
-Qualitative results: easier to understand and maintain. Can we say this? Or do
-we need a proper user study?
+When a build system is run in a 
+Both \make{} and Shake work. Shake is faster.
+
+\subsubsection{Change a source file and rebuild}
+
+Both \make{} and Shake work. Shake does fewer rebuilds. Several examples with
+different rebuild chains.
+
+\subsubsection{Add comments to \texttt{ghc-cabal} and rebuild}
+ 
+Both \make{} and Shake work. \make{} ends up rebuilding everything. Shake only
+reruns \texttt{ghc-cabal} and stops, as generated files are not changed.
+
+\subsubsection{Change a command line in the build system and rebuild}
+
+\make{} doesn't track such changes. Shake reruns only necessary rules.
+Also show how changing a command line looks like in \make{} and in Shake.
+
+\subsubsection{Switch between \texttt{git} branches and rebuild}
+ 
+Consider the following sequence of commands, which can occur when working on
+multiple \texttt{git} branches simultaneously:
+
+\begin{lstlisting}
+$ build
+$ git checkout -b test
+$ touch libraries/base/Prelude.hs
+$ git checkout master
+$ build
+\end{lstlisting}
+
+We expect the second \texttt{build} to be a no-op, since the \texttt{master}
+branch wasn't changed. However, \texttt{git branch master} changes modification
+time of all files that were updated between branches, which forces \make{} to
+rerun all dependent rules. Shake's ability to track file contents in addition to
+modification time allows us to avoid such unnecessary rebuils, see
+\S\ref{sec:file-contents}.
+
+\textbf{Outcome:} the old build system does a partial rebuild, the new build
+system rebuilds nothing.
+ 
+\subsubsection{Change path to \texttt{gcc} and rebuild}
+ 
+Both \make{} and Shake work. \make{} ends up rebuilding everything. Shake reruns
+only necessary rules.
+
+\subsubsection{Change build rules and rebuild}
+ 
+Both \make{} and Shake don't notice this and fail to rebuild. Checking
+equivalence is hard. Future work.
+
+\subsection{Benchmarks}
+
+\todo{Neil: your profiling results can go here}
 
 Quantitative results: benchmarking, profiling, achieved parallelism.
 
-We used parallelism to speed up some phases. Show profiles showing ghc-cabal was a bottleneck.
+We used parallelism to speed up some phases. Show profiles showing ghc-cabal was
+a bottleneck.
 
 \subsection{Things lint spotted}
 
-Most useful one is if two people whack the same output. Other thing is where doing all .hs files in a dir, and then you generate one. Should this go somewhere else? Perhaps in S5.
+\todo{Neil: I think I have only one good example: result of getDirectoryFiles
+changed. Do we want to discuss it here? Maybe somewhere in the Shake section
+instead?}
+
+Most useful one is if two people whack the same output. Other thing is where
+doing all .hs files in a dir, and then you generate one. Should this go
+somewhere else? Perhaps in S5.
+
+\subsection{Summary}
+
+\todo{How we used better tools and abstractions to do better.}
+
+\todo{Quantitative results: are we faster? Fewer lines of code? Fewer system
+dependencies?}
+
+\todo{Qualitative results: easier to understand and maintain. Can we
+say this? Can we say that the new build system works in more environments,
+because we have fewer dependencies?}
+
