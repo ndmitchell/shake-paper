@@ -1,5 +1,34 @@
 \section{Introduction}
 
+\todo{Note for SLPJ: there are 196 makefiles in the
+build system. This is not counting testsuite, nofib and some incidental
+makefiles, such as libraries/hoopl/paper/Makefile, which are not related to the
+build system. I expect I may have lost a file or two, or counted one which
+should not have been counted, so we can say 'around 200' makefiles. These
+makefiles contain 10416 lines and \$10764, so a little more than a dollar per
+line. Doesn't sound too impressive, but considering that there are a lot of 
+comments, it's still very high. Also, if we only look into rules/*.mk we get
+40 files, 2866 lines and \$6773, which is \$2.36 per line.
+And here is my favourite heavy-weight champion (see rules/build-prog.mk):}
+
+\begin{lstlisting}[basicstyle=\tiny]
+$1/$2/build/tmp/$$($1_$2_PROG) : $$($1_$2_$$($1_$2_PROGRAM_WAY)_HS_OBJS)
+  $$($1_$2_$$($1_$2_PROGRAM_WAY)_C_OBJS) $$($1_$2_$$($1_$2_PROGRAM_WAY)_S_OBJS)
+  $$($1_$2_OTHER_OBJS) | $$$$(dir $$$$@)/.
+  
+	$$(call cmd,$1_$2_CC) -o $$@ $$($1_$2_$$($1_$2_PROGRAM_WAY)_ALL_CC_OPTS)
+	  $$($1_$2_$$($1_$2_PROGRAM_WAY)_ALL_LD_OPTS)
+	  $$($1_$2_$$($1_$2_PROGRAM_WAY)_HS_OBJS) $$($1_$2_$$($1_$2_PROGRAM_WAY)_C_OBJS)
+	  $$($1_$2_$$($1_$2_PROGRAM_WAY)_S_OBJS) $$($1_$2_OTHER_OBJS)
+	  $$($1_$2_$$($1_$2_PROGRAM_WAY)_EXTRA_CC_OPTS)
+	  $$(addprefix -l,$$($1_$2_EXTRA_LIBRARIES))
+\end{lstlisting}
+
+\todo{The first line contains \$42 and the second one the absolute record \$64!}
+
+\todo{The new build system contains 91 Haskell files, 5753 lines, and just
+\$600.}
+
 A build system is a critical component of any software project. It's the
 coal-face at which developers spend their days, so must be fast to run, produce
 the outputs correctly, and provide all the features needed. Despite the
