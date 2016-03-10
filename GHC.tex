@@ -3,22 +3,30 @@
 In this section we report on our experience on applying the techniques presented
 so far to building a large-scale software project: the Glasgow Haskell Compiler.
 
-\subsection{Overview of GHC}
+\todo{Summary: How we used better tools and abstractions to do better.}
 
-High-level design of the GHC build system (bootstrapping, stages,
-packages, ways, etc.). Why is it so difficult with \texttt{Make}.
+\subsection{Analysis of common use-cases}
 
-\subsection{Achieved results}
-
-Summary: \emph{How we used better tools and abstractions to do better.}
+\todo{Andrey: Table with qualitative comparison of make and Shake}.
 
 Qualitative results: easier to understand and maintain. Can we say this? Or do
 we need a proper user study?
 
+\subsection{Benchmarks}
+
+\todo{Neil: your profiling results can go here}
+
 Quantitative results: benchmarking, profiling, achieved parallelism.
 
-We used parallelism to speed up some phases. Show profiles showing ghc-cabal was a bottleneck.
+We used parallelism to speed up some phases. Show profiles showing ghc-cabal was
+a bottleneck.
 
 \subsection{Things lint spotted}
 
-Most useful one is if two people whack the same output. Other thing is where doing all .hs files in a dir, and then you generate one. Should this go somewhere else? Perhaps in S5.
+\todo{Neil: I think I have only one good example: result of getDirectoryFiles
+changed. Do we want to discuss it here? Maybe somewhere in the Shake section
+instead?}
+
+Most useful one is if two people whack the same output. Other thing is where
+doing all .hs files in a dir, and then you generate one. Should this go
+somewhere else? Perhaps in S5.
