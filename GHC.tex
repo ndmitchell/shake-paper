@@ -12,7 +12,7 @@ are fairly typical for build systems in general.
 
 \subsubsection{Change nothing and rebuild}
 
-When a build system is run in a 
+When a build system is run in a
 Both \make{} and Shake work. Shake is faster.
 
 \subsubsection{Change a source file and rebuild}
@@ -21,7 +21,7 @@ Both \make{} and Shake work. Shake does fewer rebuilds. Several examples with
 different rebuild chains.
 
 \subsubsection{Add comments to \texttt{ghc-cabal} and rebuild}
- 
+
 Both \make{} and Shake work. \make{} ends up rebuilding everything. Shake only
 reruns \texttt{ghc-cabal} and stops, as generated files are not changed.
 
@@ -31,7 +31,7 @@ reruns \texttt{ghc-cabal} and stops, as generated files are not changed.
 Also show how changing a command line looks like in \make{} and in Shake.
 
 \subsubsection{Switch between \texttt{git} branches and rebuild}
- 
+
 Consider the following sequence of commands, which can occur when working on
 multiple \texttt{git} branches simultaneously:
 
@@ -52,14 +52,14 @@ modification time allows us to avoid such unnecessary rebuils, see
 
 \textbf{Outcome:} the old build system does a partial rebuild, the new build
 system rebuilds nothing.
- 
+
 \subsubsection{Change path to \texttt{gcc} and rebuild}
- 
+
 Both \make{} and Shake work. \make{} ends up rebuilding everything. Shake reruns
 only necessary rules.
 
 \subsubsection{Change build rules and rebuild}
- 
+
 Both \make{} and Shake don't notice this and fail to rebuild. Checking
 equivalence is hard. Future work.
 
