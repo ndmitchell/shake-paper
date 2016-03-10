@@ -12,10 +12,22 @@ are fairly typical for build systems in general.
 
 \subsubsection{Change nothing and rebuild}
 
-When a build system is run in a 
-Both \make{} and Shake work. Shake is faster.
+Running a build system twice in a row should be equivalent to only running it
+once. Moreover the second build should do nothing, as quickly as possible.
+Such a do-nothing build is referred to as a \emph{zero build}. The time it takes
+represents internal overheads of the build system: scanning the file system,
+reading the database, etc.
+
+\textbf{Outcome:} Both the old and the new build systems pass this test
+successfully. Notably, the new one does this 3 times faster, as reported in
+\S\ref{sec:benchmarks}.
 
 \subsubsection{Change a source file and rebuild}
+
+\begin{lstlisting}
+$ build
+$ build
+\end{lstlisting}
 
 Both \make{} and Shake work. Shake does fewer rebuilds. Several examples with
 different rebuild chains.
@@ -43,8 +55,8 @@ $ git checkout master
 $ build
 \end{lstlisting}
 
-We expect the second \texttt{build} to be a no-op, since the \texttt{master}
-branch wasn't changed. However, \texttt{git branch master} changes modification
+We expect the second \texttt{build} to do nothing, since the \texttt{master}
+branch hasn't changed. However, \texttt{git branch master} changes modification
 time of all files that were updated between branches, which forces \make{} to
 rerun all dependent rules. Shake's ability to track file contents in addition to
 modification time allows us to avoid such unnecessary rebuils, see
@@ -63,7 +75,7 @@ only necessary rules.
 Both \make{} and Shake don't notice this and fail to rebuild. Checking
 equivalence is hard. Future work.
 
-\subsection{Benchmarks}
+\subsection{Benchmarks\label{sec:benchmarks}}
 
 \todo{Neil: your profiling results can go here}
 
