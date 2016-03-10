@@ -33,7 +33,7 @@ Both \make{} and Shake work. Shake does fewer rebuilds. Several examples with
 different rebuild chains.
 
 \subsubsection{Add comments to \texttt{ghc-cabal} and rebuild}
- 
+
 Both \make{} and Shake work. \make{} ends up rebuilding everything. Shake only
 reruns \texttt{ghc-cabal} and stops, as generated files are not changed.
 
@@ -43,7 +43,7 @@ reruns \texttt{ghc-cabal} and stops, as generated files are not changed.
 Also show how changing a command line looks like in \make{} and in Shake.
 
 \subsubsection{Switch between \texttt{git} branches and rebuild}
- 
+
 Consider the following sequence of commands, which can occur when working on
 multiple \texttt{git} branches simultaneously:
 
@@ -64,14 +64,14 @@ modification time allows us to avoid such unnecessary rebuils, see
 
 \textbf{Outcome:} the old build system does a partial rebuild, the new build
 system rebuilds nothing.
- 
+
 \subsubsection{Change path to \texttt{gcc} and rebuild}
- 
+
 Both \make{} and Shake work. \make{} ends up rebuilding everything. Shake reruns
 only necessary rules.
 
 \subsubsection{Change build rules and rebuild}
- 
+
 Both \make{} and Shake don't notice this and fail to rebuild. Checking
 equivalence is hard. Future work.
 
@@ -104,4 +104,25 @@ dependencies?}
 \todo{Qualitative results: easier to understand and maintain. Can we
 say this? Can we say that the new build system works in more environments,
 because we have fewer dependencies?}
+
+
+\subsection{Performance notes}
+
+Zero build Shake
+
+\begin{lstlisting}
+shakeArgsWith                        0.001s    0%
+Function shake                       0.156s    4%  =
+Database read                        0.329s   10%  ===
+With database                        0.021s    0%
+Running rules                        2.502s   77%  =========================
+Pool finished (7639 threads, 8 max)  0.001s    0%
+Lint checking                        0.202s    6%  ==
+Total                                3.211s  100%
+Build completed in 0:04m
+
+real    0m3.700s
+\end{lstlisting}
+
+Zero build with Make, real    0m12.342s
 
