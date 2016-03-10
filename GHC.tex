@@ -93,3 +93,24 @@ dependencies?}
 say this? Can we say that the new build system works in more environments,
 because we have fewer dependencies?}
 
+
+\subsection{Performance notes}
+
+Zero build Shake
+
+\begin{lstlisting}
+shakeArgsWith                        0.001s    0%
+Function shake                       0.156s    4%  =
+Database read                        0.329s   10%  ===
+With database                        0.021s    0%
+Running rules                        2.502s   77%  =========================
+Pool finished (7639 threads, 8 max)  0.001s    0%
+Lint checking                        0.202s    6%  ==
+Total                                3.211s  100%
+Build completed in 0:04m
+
+real    0m3.700s
+\end{lstlisting}
+
+Zero build with Make, real    0m12.342s
+
