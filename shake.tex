@@ -2,6 +2,39 @@
 
 Our solution to the issues raised in \S\ref{sec:challenges} starts with switching from \make{} to the Shake build system \cite{shake}. In this section we recap the key ideas behind Shake, and also describe some of the additional features provided by Shake, but not covered in the original paper. These features are of general use and all predate our efforts to replace the GHC build system.
 
+\subsection{Introduction\label{sec:shake_intro}}
+
+As an example of a small Shake build system, let us compile a C file into an object file:
+
+\begin{lstlisting}[numbers=left,xleftmargin=2em,framexleftmargin=1.5em]
+module Main(main) where
+import Development.Shake
+import System.FilePath
+
+main :: IO ()
+main = shake shakeOptions $ do
+    want ["foo.o"]
+
+    "*.o" %> \out -> do
+        let src = replaceExtension out "c"
+        need [src]
+        cmd "gcc -o" out "-c" src
+\end{lstlisting}
+
+Following the code from top to bottom:
+
+\begin{description}
+\item[Line 1] declares a Haskell module. Shake is a Haskell library, so all Shake build systems are written in Haskell and can make full use of other Haskell libraries and Haskell abstractions (functions, modules, packages, \lst'let' expressions etc).
+\item[Line 2] imports the \lst'Development.Shake' module, which provides most of the functions and types in Shake. Some of the Shake API is given in Figures \ref{fig:shake_generic_api} and \ref{fig:shake_file_api}.
+\item[Line 3] imports the \lst'System.FilePath' module, which in this example provides the \lst'replaceExtension' function.
+\item[Lines 6] declares the \lst'main' function, which calls \lst'shake'. The \lst'shake' function takes some options (parallelism settings etc), along with a set of \lst'Rules', and executes the necessary rules.
+\item[Line 7] calls \lst'want' to declare that after the build system has finished we would like the file \lst'foo.o' to be available and up-to-date.
+\item[Line 9] defines a rule to build \lst'*.o' files, namely those files which end with the extension \lst'.o'. The \lst'%>' operator produces a rule of type \lst'Rules' which takes a pattern on the left, and an \lst'Action' on the right. The variable \lst'out' will be bound to the actual file being produced, namely \lst'foo.o' in this example.
+\item[Line 10] computes the name of the source file, in our case \lst'src' will be \lst'foo.c'.
+\item[Line 11] uses \lst'need' to ensure \lst'foo.c' has been built before continuing, and to introduce a dependency that if \lst'foo.c' changes then this rule will require rerunning.
+\item[Line 12] uses the variable-arity function \lst'cmd' to execute the system command \lst'gcc' with appropriate arguments to produce \lst'out' from \lst'src'. Since the \lst'Action' type has an instance of \lst'MonadIO' we can do any \lst'IO' operation at this point.
+\end{description}
+
 \begin{figure}
 \begin{lstlisting}
 newtype Rules a = ...
@@ -51,39 +84,6 @@ orderOnly :: [FilePath] -> Action ()
 \end{lstlisting}
 \caption{Shake file-specific API\label{fig:shake_file_api}}
 \end{figure}
-
-\subsection{Introduction\label{sec:shake_intro}}
-
-As an example of a small Shake build system, let us compile a C file into an object file:
-
-\begin{lstlisting}[numbers=left,xleftmargin=2em,framexleftmargin=1.5em]
-module Main(main) where
-import Development.Shake
-import System.FilePath
-
-main :: IO ()
-main = shake shakeOptions $ do
-    want ["foo.o"]
-
-    "*.o" %> \out -> do
-        let src = replaceExtension out "c"
-        need [src]
-        cmd "gcc -o" out "-c" src
-\end{lstlisting}
-
-Following the code from top to bottom:
-
-\begin{description}
-\item[Line 1] declares a Haskell module. Shake is a Haskell library, so all Shake build systems are written in Haskell and can make full use of other Haskell libraries and Haskell abstractions (functions, modules, packages, \lst'let' expressions etc).
-\item[Line 2] imports the \lst'Development.Shake' module, which provides most of the functions and types in Shake. Some of the Shake API is given in Figures \ref{fig:shake_generic_api} and \ref{fig:shake_file_api}.
-\item[Line 3] imports the \lst'System.FilePath' module, which in this example provides the \lst'replaceExtension' function.
-\item[Lines 6] declares the \lst'main' function, which calls \lst'shake'. The \lst'shake' function takes some options (parallelism settings etc), along with a set of \lst'Rules', and executes the necessary rules.
-\item[Line 7] calls \lst'want' to declare that after the build system has finished we would like the file \lst'foo.o' to be available and up-to-date.
-\item[Line 9] defines a rule to build \lst'*.o' files, namely those files which end with the extension \lst'.o'. The \lst'%>' operator produces a rule of type \lst'Rules' which takes a pattern on the left, and an \lst'Action' on the right. The variable \lst'out' will be bound to the actual file being produced, namely \lst'foo.o' in this example.
-\item[Line 10] computes the name of the source file, in our case \lst'src' will be \lst'foo.c'.
-\item[Line 11] uses \lst'need' to ensure \lst'foo.c' has been built before continuing, and to introduce a dependency that if \lst'foo.c' changes then this rule will require rerunning.
-\item[Line 12] uses the variable-arity function \lst'cmd' to execute the system command \lst'gcc' with appropriate arguments to produce \lst'out' from \lst'src'. Since the \lst'Action' type has an instance of \lst'MonadIO' we can do any \lst'IO' operation at this point.
-\end{description}
 
 On the first execution, this example will start running the \lst'*.o' rule to produce \lst'foo.o'. When execution gets to \lst'need [src]' this rule will stop and the rule for \lst'foo.c' will be be run. Shake provides a default rule for files that do not match any other rules, which simply checks the file already exists. After completing this simple rule, Shake will resume running the \lst'*.o' rule, executing \lst'gcc' to build \lst'foo.o'.
 

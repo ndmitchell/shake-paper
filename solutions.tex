@@ -19,7 +19,7 @@ An alternative solution would be to avoid putting complexity into the Makefile, 
 
 At this point it is worth remarking that many alternative build systems do indeed offer real programming language embedding, e.g. SCons (Python). We address the specific limitations that drove us away from them in later sections, and discuss all alternatives in \S?.
 
-\subsection{Pattern/rule language}
+\subsection{Pattern/rule language\label{sec:pattern-rule-language}}
 
 A build system builds some output files from some input files. The fundamental unit of work in \make{} (and also Shake) is a rule that produces some output by running commands on some input. Consider the following pattern rule:
 
