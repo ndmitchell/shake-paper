@@ -1,10 +1,10 @@
 \section{Introduction}
 
 In 1998 Peter Miller published his famously influential paper
-\emph{``Recursive make considered harmful''}~\cite{miller:recursive_make},
+\emph{``Recursive Make Considered Harmful''}~\cite{miller:recursive_make}.
 He made a compelling case that, when designing the build system for
-a large project, it is far better to ensure that \make{} can see
-the entire dependency graph rather that a series of framgments.
+a large project, it is far better to ensure that Make can see
+the entire dependency graph rather that a series of fragments. 
 
 Miller was right about that.  But he then went on to say ```\emph{But, but, but}'
 I hear you cry.  `\emph{A single makefile is too big, it's unmaintainable,
@@ -14,21 +14,24 @@ As a historical aside, Miller points out that memory size is no
 longer a problem, because
 ``the physical memory of modern computers exceeds 10MB''.  Indeed!}.
 Here, however, he is wrong.  Using
-\make{} for large projects really \emph{is} unmaintainable, and the rules really
-\emph{are} too hard to write.
+Make for large projects really \emph{is} unmaintainable, and the rules really
+\emph{are} too hard to write. \todo{\textbf{SLPJ}:
+Shall we say that (Non-Recursive) Make still dominates the world of build
+systems despite much time since Peter Miller's paper?}
 
 In this paper we substante this claim, and offer a solution,
 making the following contributions:
 \begin{itemize}
 \item Using the Glasgow Haskell Compiler (GHC) as a substantial exemplar,
 we give concrete evidence of the fundamental lack of scalability of
-\make{} and similar build systems (Sections~\ref{sec:challenges} and
-\ref{sec:solutions}.  Over the last 25 years we have implemented no
-fewer than four major versions of GHC's build system; it improved each
+Make and similar build systems (\S\ref{sec:challenges} and
+\S\ref{sec:solutions}). Over the last 25 years GHC developers have implemented
+no fewer than four major versions of GHC's build system; it improved each
 time, but the result is still manifestly inadequate.
 
 \item We describe Shake, an embedded domain specfic language (or library)
-in Haskell that directly addresses the challenges we identify (Section~\ref{sec:shake}).
+in Haskell that directly addresses the challenges we identify
+in~\S\ref{sec:shake}.
 Although Shake has been introduced before~\cite{shake}, we describe here
 several key features that were mentioned only in passing if at all, notably:
 post-use and order-only dependencies; polymorphic dependencies and oracles;
@@ -36,14 +39,14 @@ resources; and content hashes.
 
 \item We show in some detail how Shake's built-in abstractions address
 many of the scalabilty challenges that have been causing us such pain over
-two decades (Section~\ref{sec:solutions}).
+two decades (\S\ref{sec:solutions}).
 
 \item A huge benefit of using an embedded DSL as a build system is that
 we can use the facilities of the host language (Haskell) to build
 abstractions on top of Shake, to fit it for the particular use case.
 This sort of claim is easier to make than to substantiate; so we present
-in Section~\ref{sec:abstractions} an overview of the new build system we have
-built for GHC, and the new abstractions (not part of Shake) that we built
+in~\S\ref{sec:abstractions} an overview of the new build system we have
+developed for GHC, and the new abstractions (not part of Shake) that we built
 to support it.
 
 \item To validate our claims, we have completely re-implemented GHC's
@@ -51,10 +54,11 @@ build system, for the fifth and final time.  We replaced 10,000 lines
 of (utterly incomphrehensible) makefile code spead over 200 files, with
 6,000 lines of (beatuifully modular) Haskell code spread over 90 files.
 Not only that, but the resulting system has much better behaviour in many
-common use-cases, as we disuss in Section~\ref{sec:ghc}.
+common use-cases, as we disuss in~\S\ref{sec:ghc}. \todo{\textbf{SDM}: would
+you like to reword this to remove the focus from the line count comarison?}
 \end{itemize}
-None of this is fundamentally new; we review related work in
-Section~\ref{section-review}.
+None of this is fundamentally new; we review related work
+in~\S\ref{section-review}.
 The distinctive feature of this paper is that it is grounded in the reality
 of a very large, long-lived software project.  Peter Miller would be happy.
 
