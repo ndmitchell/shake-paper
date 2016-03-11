@@ -7,9 +7,8 @@ well-supported common case covered by virtually all build systems.  A
 lot of projects fit into this category, and so never run into the
 limits of existing build systems.
 
-Things start to get hairy when the following complexities are
-encountered:
-
+Things start to get hairy in big projects, when complexities such as these
+show up:
 \begin{itemize}
 \item The project has a large number of components (libraries or
   executables), using multiple languages, with complex
@@ -26,10 +25,28 @@ encountered:
   automatic platform-specific configuration, command-line options,
   configuration files, and so on.
 \end{itemize}
+The GHC build system includes all of the above. To illustrate the
+consequences, here is one rule in GHC's current build system, which
+is based on \make{}:
+\begin{lstlisting}[basicstyle=\footnotesize\sffamily,escapeinside={(*}{*)}]
+$1/$2/build/%.$$($3_osuf) : \
+    $1/$4/%.hs $$(LAX_DEPS_FOLLOW) \
+    $$$$($1_$2_HC_DEP) $$($1_$2_PKGDATA_DEP)
+  $$(call cmd,$1_$2_HC) $$($1_$2_$3_ALL_HC_OPTS) \
+    -c $$< -o $$@ \
+    $$(if $$(findstring YES,$$($1_$2_DYNAMIC_TOO)), \
+       -dyno $$(addsuffix .$$(dyn_osuf),$$(basename $$@)) )
+  $$(call ohi(*-*)sanity(*-*)check,$1,$2,$3,$1/$2/build/$$*)
+\end{lstlisting}
+Yes, there are four dollar signs in a row!  If it wasn't so tragic,
+impenetrable code like this would be hilarious.  This kind of thing
+goes on for \emph{thousands} of lines.  The result is a nighmare to
+maintain and modify.
 
-The GHC build system includes all of the above.  It has evolved
-through a number of rewrites as we struggled to find good solutions to
-the problems that arose:
+Perhaps GHC's implementors just aren't very clever?  Maybe so, but
+they did at least try hard. The current build system is the
+fourth major iteration, as we struggled to find good solutions to the
+problems that arose:
 
 \begin{itemize}
 \item The first incarnation of the build system used \emph{jmake}, a
@@ -65,68 +82,26 @@ the problems that arose:
   many idiosyncrasies.  The root of many of the problems was that the
   build system was constructed as a set of Makefiles that recursively
   invoked each other.  Recursive \make{} is considered harmful
-  \cite{recursive-make} for very good reasons; it is not possible to
+  for very good reasons~\cite{miller:recursive_make}; it is not possible to
   accurately track dependencies when the build system is constructed
-  of separate components that invoke each other.  So in the next
-  rewrite of the build system we made it non-recursive.  However,
-  in doing so we stretched GNU \make{} to its absolute limits.  Here is
-  an example of one rule in our build system:
+  of separate components that invoke each other.
 
-\begin{lstlisting}[basicstyle=\footnotesize\sffamily,escapeinside={(*}{*)}]
-$1/$2/build/%.$$($3_osuf) : $1/$4/%.hs $$(LAX_DEPS_FOLLOW) \
-    $$$$($1_$2_HC_DEP) $$($1_$2_PKGDATA_DEP)
-  $$(call cmd,$1_$2_HC) $$($1_$2_$3_ALL_HC_OPTS) -c $$< -o \
-    $$@ $$(if $$(findstring YES,$$($1_$2_DYNAMIC_TOO)),-dyno \
-    $$(addsuffix .$$(dyn_osuf),$$(basename $$@)))
-  $$(call ohi(*-*)sanity(*-*)check,$1,$2,$3,$1/$2/build/$$*)
-\end{lstlisting}
-
-  Every part of this rule is there for a good reason, but the
-  cumulative effect of solving all the problems that arise in a
-  complex build system using a tool that is not equipped to cope with
-  it, is impenetrable code like the above.
+  So in the next rewrite of the build system we made it non-recursive.
+  However, in doing so we stretched GNU \make{} to its absolute
+  limits, as the example above illustrates.  Every part of the rule is
+  there for a good reason, but the cumulative effect of solving all
+  the problems that arise in a complex build system using a tool that
+  is not equipped to cope with it, is impenetrable.
 \end{itemize}
-
-To give a flavour of the kinds of problems that arose when using GNU
-\make{} for a large non-recursive build system:
-
-\begin{itemize}
-\item Expanding a variable before the variable is defined gives an
-  empty result.  Thus, if we're definiing a macro before the variables
-  it refers to, we need to use a double dollar (\lst"$$") to delay the
-  expansion until the macro is called.  Sometimes we need to delay the
-  expansion by yet another step, requiring a double-double-dollar (\lst"$$$$").
-  Deciding how many dollars to use in any given place is hard.
-
-\item GNU \make{} has a single global namespace for variables, and yet we
-  have a single build system that encompasses many similar components.
-  To keep things sane, we have to prefix all our variables with the
-  directory name, and because we build multiple instances of things
-  (e.g. two stages of the compiler), we have yet more prefixes.  There
-  are three prefixes in total, by convention we tend to use \lst"$1",
-  \lst"$2", and \lst"$3".
-
-\item The build system needs to generate parts of itself.  For
-  example, to find the dependencies of Haskell code requires running
-  the compiler, but the compiler is one of the things that gets built.
-  GNU \make{} has a hack to handle this kind of problem: it detects when
-  any of the Makefiles it has read are changed, and restarts itself.
-  This works in simple cases, but it falls down when the generated
-  parts of the build system themselves have complex interdependencies.
-  We had to explicitly split the build into \emph{phases}, and have an
-  outer Makefile that invokes \make{} separately for each of the phases
-  in turn.  Understanding what happens in each phase, and where the
-  phase boundary needs to be placed and why, was virtually impossible.
-\end{itemize}
-
-Nevertheless, by carefully employing a set of idioms (such as the
-prefix idiom above), we managed to construct a non-recursive build
+\noindent
+By carefully employing a set of
+idioms\footnote{\url{https://ghc.haskell.org/trac/ghc/wiki/Building/Architecture}}
+(such as the prefix idiom above), we managed to construct a non-recursive build
 system for GHC in GNU \make{}.  It works surprisingly well, and by
 virtue of being non-recursive it tracks dependencies accurately;
-however, it is almost impossible to understand and maintain.  So while
-it is \textit{possible} to develop large scale systems in \make, it is
-not \textit{pleasant} -- resulting in heroic efforts where
-straight-forward simplicity should be preferred.
+but, it is almost impossible to understand and maintain.  So while
+it is \textit{possible} to develop large scale systems in \make{}, it is
+clear that we have gone far beyond the scalability limits of \make{}.
 
 % \begin{enumerate}
 % \item The programming language is complex. This macro expands through multiple levels, so \lst"$$$$($1_$2_HC_DEP)" looks up in the environment two stages later.

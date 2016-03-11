@@ -52,7 +52,7 @@ $1/$2/build/%.$$($3_osuf) : $1/$4/%.hs $$(LAX_DEPS_FOLLOW) \
 \end{lrbox}
 
 The standard approach to overcome some of \make{}'s limitations is to use
-\emph{macros}. They provide some additional flexibility, but quickly become difficult to follow. As an example, here is a \emph{significantly simplified} snippet\footnote{\usebox{\exampleCode}} from the GHC build system:
+\emph{macros}. They provide some additional flexibility, but quickly become difficult to follow. As an example, here is a significantly simplified snippet\footnote{\usebox{\exampleCode}} from the GHC build system:
 
 \begin{lstlisting}
 $1/$2/build/%.o : $1/$4/%.hs $$$$($1_$2_HC)
@@ -60,12 +60,33 @@ $1/$2/build/%.o : $1/$4/%.hs $$$$($1_$2_HC)
 \end{lstlisting}
 
 \noindent As before, the rule is responsible for compiling a Haskell source
-file into an object file. Arguments of the macro (\lst"$1" to \lst"$4") provide
-additional information about the current build target so that we can pick the
-right Haskell compiler \lst"$1_$2_HC" and run it with appropriate command
-line arguments \lst"$1_$2_$3_HC_OPTS".
+file into an object file. The plethora of dollars works rooughly like this:
+\begin{itemize}
+\item Arguments of the macro are (\lst"$1" to \lst"$4").
 
-Using Shake the simplest variant looks slightly more complex as it has had Haskell syntax inserted:
+\item GNU \make{} has a single global namespace for variables, and yet we
+  have a single build system that encompasses many similar components.
+  To keep things sane, we have to prefix all our variables with the
+  directory name, and because we build multiple instances of things
+  (e.g. two stages of the compiler), we have yet more prefixes.  There
+  are three prefixes in total, by convention we tend to use \lst"$1",
+  \lst"$2", and \lst"$3".
+
+  In this case we pick the right Haskell compiler \lst"$1_$2_HC"
+  and run it with appropriate command line arguments \lst"$1_$2_$3_HC_OPTS".
+
+\item Expanding a variable before the variable is defined gives an
+  empty result.  Thus, if we're definiing a macro before the variables
+  it refers to, we need to use a double dollar (\lst"$$") to delay the
+  expansion until the macro is called.
+
+\item Sometimes we need to delay the
+  expansion by yet another step, requiring a double-double-dollar (\lst"$$$$").
+  Deciding how many dollars to use in any given place is hard.
+\end{itemize}
+
+Using Shake the simplest variant looks slightly more complex, because it
+must be expressed in Haskell syntax:
 
 \begin{lstlisting}
 "*.o" %> \out -> do
@@ -73,20 +94,20 @@ Using Shake the simplest variant looks slightly more complex as it has had Haske
     need [hs]
     cmd "ghc" hc_opts hs
 \end{lstlisting}
-
+\noindent
 However, as the complexity grows, so the build system scales properly. Making \lst"hc_opts" depend on the Haskell file requires the small and obvious change of:
 
 \begin{lstlisting}
     cmd "ghc" (hc_opts hs) hs
 \end{lstlisting}
-
+\noindent
 To use richer pattern matching we can drop down to a lower level Shake operation. In Shake the definition of is \lst"%>" is itself defined in terms of \lst"?>", as:
 
 \begin{verbatim}
 pat %> act = (pat ?==) ?> act
 \end{verbatim}
-
-Namely the wildcard pattern matching is just a special case, so we can use an arbitrary predicate to exert more precise control over where the match occurs. In both cases the generality of higher-order functions solves the problem.
+\noindent
+So the wildcard pattern matching is just a special case, so we can use an arbitrary predicate to exert more precise control over where the match occurs. In both cases the generality of higher-order functions solves the problem.
 
 \subsection{Multiple outputs}
 
