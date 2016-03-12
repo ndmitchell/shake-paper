@@ -1,3 +1,69 @@
+\begin{table*}[t]
+\centering
+\begin{tabular}{p{60mm} || p{50mm} | p{50mm}}
+\textbf{Use case}
+& \textbf{Old build system} based on Make
+& \textbf{New build system} based on Shake
+\\
+\hline
+\textsf{U1:} Fully-featured GHC build
+& Everything is built \hfill \checkmark
+& Not all features supported, see~\S\ref{sec:limitations}
+\\
+\textsf{U2:} Clean build
+& Everything is built \hfill \checkmark
+& Everything is built \hfill \checkmark
+\\
+\textsf{U3:} Zero build \hspace{6.4mm}
+& Nothing is rebuilt \hfill \checkmark
+& Nothing is rebuilt \hfill \checkmark
+\\
+\hline
+\textsf{U4:} Add comment: \textsf{libraries/base/Prelude.hs}
+& \textsf{Prelude.o}, \textsf{base} library, and all
+\newline dependent binaries are rebuilt
+& Only \textsf{Prelude.o} is rebuilt \hfill \checkmark
+\\
+\textsf{U5:} Modify code: \hspace{1.75mm}\textsf{libraries/base/Prelude.hs}
+& \textsf{Prelude.o} and all its dependencies \hfill \checkmark \newline
+are rebuilt
+& \textsf{Prelude.o} and all its dependencies \hfill \checkmark \newline
+are rebuilt
+\\
+\textsf{U6:} Add comment: \textsf{utils/ghc-cabal/Main.hs}
+& Almost everything is rebuilt
+& All \textsf{ghc-cabal} rules are rerun
+\\
+\textsf{U7:} Modify code: \hspace{1.75mm}\textsf{utils/ghc-cabal/Main.hs}
+& Almost everything is rebuilt
+& Only the targets affected by the \hfill \checkmark \newline change are rebuilt
+\\
+\hline
+\textsf{U8:} Modify the build system: pass \textsf{-O2} when\newline
+$\textit{~~~~~~~}$compiling Stage2 GHC
+& Nothing is rebuilt
+& Stage2 GHC and its dependencies \hfill \checkmark \newline are rebuilt
+\\
+\textsf{U9:} Modify the build system without changing \newline
+$\textit{~~~~~~~}$command line arguments of build tools
+& Nothing is rebuilt
+& Nothing is rebuilt
+\\
+\hline
+\textsf{U10:} Switch to a \textsf{git} branch and back
+& Some files are rebuilt
+& Nothing is rebuilt \hfill \checkmark
+\\
+\textsf{U11:} Change path to \textsf{gcc}
+& Everything is rebuilt
+& Files depending on \textsf{gcc} are rebuilt \hfill \checkmark
+\\
+\end{tabular}
+\caption{Comparison of GHC build systems on common use cases. Checkmarks
+\checkmark indicate expected behaviour.}
+\label{tab:use-cases}
+\end{table*}
+
 \section{Shaking up GHC\label{sec:ghc}}
 
 In this section we report on our experience on applying the techniques presented
@@ -63,20 +129,15 @@ however, that \lst'U6' behaviour is still suboptimal: \lst'ghc-cabal' rules
 are rerun, because GHC currently produces non-deterministic output
 (\lst'ghc-cabal''s binary is changed).
 
-\subsubsection{Add comments to \texttt{ghc-cabal} and rebuild}
+In \lst'U8' we modify the build system itself by changing command line
+arguments for one of the build files. The old build system rebuilds nothing,
+as Make does not track such changes. The new build system correctly reruns all
+affected rules. We currently only track command line arguments, therefore if one
+does other, more subtle modifications (\lst'U9'), they will be unnoticed.
 
-Both Make and Shake work. Make ends up rebuilding everything. Shake only
-reruns \texttt{ghc-cabal} and stops, as generated files are not changed.
-
-\subsubsection{Change a command line in the build system and rebuild}
-
-Make doesn't track such changes. Shake reruns only necessary rules.
-Also show how changing a command line looks like in Make and in Shake.
-
-\subsubsection{Switch between \texttt{git} branches and rebuild}
-
-Consider the following sequence of commands, which can occur when working on
-multiple \texttt{git} branches simultaneously:
+Working with multiple \lst'git' branches is a problematic use-case for build
+systems based on Make (see second bullet point in \S\ref{sec:file-contents}). In
+\lst'U10' we conduct the following simple experiment:
 
 \begin{lstlisting}
 $ build
@@ -86,93 +147,21 @@ $ git checkout master
 $ build
 \end{lstlisting}
 
-We expect the second \texttt{build} to do nothing, since the \texttt{master}
-branch hasn't changed. However, \texttt{git branch master} changes modification
-time of all files that were updated between branches, which forces \make{} to
-rerun all dependent rules. Shake's ability to track file contents in addition to
-modification time allows us to avoid such unnecessary rebuils, see
-\S\ref{sec:file-contents}.
+We expect the second \lst'build' to do nothing, since the \lst'master'
+branch has not changed. However, \lst'git checkout master' changes modification
+time of all files that were updated between branches, forcing the new
+build system to rerun all dependent rules (as in \lst'U4'). Shake's ability to
+track file contents~\S\ref{sec:file-contents} in addition to modification time allows us to
+avoid such unnecessary rebuils.
 
-\textbf{Outcome:} the old build system does a partial rebuild, the new build
-system rebuilds nothing.
+In \lst'U11' we modify the build environment, by changing the path to \lst'gcc'
+in the configuration file. As in \lst'U6-U7', the old build system rebuilds
+almost everything since depending on a single configuration setting is not
+supported. The new build system correctly reruns only affected rules.
 
-\subsubsection{Change path to \texttt{gcc} and rebuild}
-
-Both Make and Shake work. Make ends up rebuilding everything. Shake reruns
-only necessary rules.
-
-\subsubsection{Change build rules and rebuild}
-
-Both Make and Shake don't notice this and fail to rebuild. Checking
-equivalence is hard. Future work.
-
-\begin{table*}[t]
-\centering
-\begin{tabular}{p{60mm} || p{50mm} | p{50mm}}
-\textbf{Use case}
-& \textbf{Old build system} based on Make
-& \textbf{New build system} based on Shake
-\\
-\hline
-\textsf{U1:} Fully-featured GHC build
-& Everything is built \hfill \checkmark
-& Not all features supported, see~\S\ref{sec:limitations}
-\\
-\textsf{U2:} Clean build
-& Everything is built \hfill \checkmark
-& Everything is built \hfill \checkmark
-\\
-\textsf{U3:} Zero build \hspace{6.4mm}
-& Nothing is rebuilt \hfill \checkmark
-& Nothing is rebuilt \hfill \checkmark
-\\
-\hline
-\textsf{U4:} Add comment: \textsf{libraries/base/Prelude.hs}
-& \textsf{Prelude.o}, \textsf{base} library, and all
-\newline dependent binaries are rebuilt
-& Only \textsf{Prelude.o} is rebuilt \hfill \checkmark
-\\
-\textsf{U5:} Modify code: \hspace{1.75mm}\textsf{libraries/base/Prelude.hs}
-& \textsf{Prelude.o} and all its dependencies \hfill \checkmark \newline
-are rebuilt
-& \textsf{Prelude.o} and all its dependencies \hfill \checkmark \newline
-are rebuilt (40\% by time)
-\\
-\textsf{U6:} Add comment: \textsf{utils/ghc-cabal/Main.hs}
-& Almost everything is rebuilt
-& All \textsf{ghc-cabal} rules are rerun (due \newline
-to non-deterministic GHC builds)
-\\
-\textsf{U7:} Modify code: \hspace{1.75mm}\textsf{utils/ghc-cabal/Main.hs}
-& Almost everything is rebuilt
-& Only the targets affected by the \hfill \checkmark \newline change are rebuilt
-\\
-\hline
-\textsf{U8:} Modify the build system: pass \textsf{-O2} when\newline
-$\textit{~~~~~~~}$compiling Stage2 GHC
-& Nothing is rebuilt, as build system
-\newline is not tracked
-& Stage2 GHC and its dependencies \hfill \checkmark \newline are rebuilt
-\\
-\textsf{U9:} Modify the build system without changing \newline
-$\textit{~~~~~~~}$command line arguments of build tools
-& Nothing is rebuilt
-& Nothing is rebuilt
-\\
-\hline
-\textsf{U10:} Switch to a \textsf{git} branch and back
-& Some files are rebuilt
-& Nothing is rebuilt \hfill \checkmark
-\\
-\textsf{U11:} Change path to \textsf{gcc}
-& Everything is rebuilt
-& Files depending on \textsf{gcc} are rebuilt \hfill \checkmark
-\\
-\end{tabular}
-\caption{Comparison of GHC build systems on common use cases. Checkmarks
-\checkmark indicate expected behaviour.}
-\label{tab:use-cases}
-\end{table*}
+In summary, the new build system correctly handles most use cases, whereas
+the old one performs a lot of unnecessary rebuilds in all but simple cases. In
+the next section we show that the new build system is also faster.
 
 \subsection{Benchmarks\label{sec:benchmarks}}
 
