@@ -11,42 +11,30 @@ functional programming for the language level, and Shake for the dependency
 level. After tackling these unnecessary complexities, we show how to structure a
 large build system in~\S\ref{sec:abstractions}.
 
-\subsection{Programming model}
+\subsection{Variables}
 
-Make's program state involves a global namespace of mutable string variables which are
+Make's program state involves a global namespace of mutable string variables that are
 spliced into the program. This model naturally causes challenges:
 
 \begin{itemize}
 \item Since variables live in a single global namespace, there is limited
 encapsulation and implementation hiding.
-\item Since variables are strings, arrays and associatve maps are typically
+\item Since variables are strings, arrays and associative maps are typically
 encoded using computed variable names, which is error-prone.
-\item Since variables are mutable, the time at which they are expanded needs
-to be carefully controlled, resulting in constructs such as \lst'$$$$foo' to
-delay expansion until after interpretation by two macros.
 \item Since variable references are spliced into the Makefile contents
 and interpretted, certain special characters can cause problems --
 notably space (which splits lexemes) and colon (which declares rules, but is
-also used in Windows drive letters).
+also found in Windows drive letters).
 \end{itemize}
 
-The solution to encapsulation is a properly block-scoped language with implementation
-hiding, e.g. modules in Haskell. The solution to excessive
-freedom is types (not necessarily static). The solution to
-splicing is to separate values and program text, much like most programming
-languages do. By using Haskell, or indeed any other modern programming language,
-most of these issues are eliminated.
-
-An alternative solution is to generate the Makefile, either using a tool such as
-Automake or a full programming language. However, a generator cannot interact with the
-build system after generation, resulting in problems with dynamic dependecies
+By using a build system embedded in Haskell, or indeed any other modern programming language,
+most of these issues are eliminated. An alternative solution is to generate the Makefile, either using a tool such as Automake or a full programming language. However, a generator cannot interact with the
+build system after generation, resulting in problems with dynamic dependencies
 (\S\ref{sec:dynamic-deps}).
 
-\subsection{Pattern/rule language\label{sec:pattern-rule-language}}
+\subsection{Macros\label{sec:pattern-rule-language}}
 
-A build system builds some output files from some input files. The fundamental
-unit of work in Make (and also Shake) is a rule that produces some output by
-running commands on some input. Consider the following Make pattern rule:
+Consider the following Make rule:
 
 \begin{lstlisting}
 %.o : %.hs
@@ -55,9 +43,8 @@ running commands on some input. Consider the following Make pattern rule:
 
 \noindent It tells Make that object files \lst"*.o" can be produced from Haskell
 source files \lst"*.hs" by compiling them with \lst"ghc" command invoked with
-\lst"HC_OPTS" arguments. The notation is terse and works well for this simple
-case. Unfortunately, this simple formulation does not support numerous important
-features, for example:
+\lst"HC_OPTS" arguments. The notation is terse and works well for this example.
+Unfortunately, this simple formulation does not scale:
 
 \begin{itemize}
 \item What if we want the rule to match \lst"foo.o" and \lst"bar.o", but not
@@ -66,43 +53,26 @@ to rely on patterns whose expressive power is limited.
 \item What if \lst"HC_OPTS" should depends on the file being compiled?
 \end{itemize}
 
-The standard approach to overcome some of Make's limitations is to use
-\emph{macros}. They provide some additional flexibility, but quickly become
-difficult to follow. As an example, here is a rule derived from the example
-shown in~\S\ref{sec:challenges}:
+The standard Make approach to solve these problems is to use \emph{macros}.
+As an example, here is a highly simplified version of the macro from~\S\ref{sec:challenges}:
 
 \begin{lstlisting}
-$1/$2/build/%.o : $1/$4/%.hs $$$$($1_$2_HC)
-    $1_$2_HC $$($1_$2_$3_HC_OPTS) -c $$< -o $$@
+define hs-compile =
+$1/$2/build/%.o : $1/$4/%.hs
+    ghc $$($1_$2_$3_HC_OPTS) -c $$< -o $$@
+endef
 \end{lstlisting}
 
 \noindent As before, the rule is responsible for compiling a Haskell source
-file into an object file. The plethora of dollars works like this:
+file into an object file. The arguments to the macro are available as \lst'$1'
+to \lst'$4'. We have solved the two problems above, but inelegantly:
+
 \begin{itemize}
-\item Arguments of the macro are \lst"$1" to \lst"$4".
-
-\item GNU Make has a single global namespace for variables, and yet we
-  have a single build system that encompasses many similar components.
-  To keep things sane, we have to prefix all our variables with the
-  directory name, and because we build multiple instances of things
-  (e.g. two stages of the compiler), we have yet more prefixes.  There
-  are three prefixes in total, by convention we tend to use \lst"$1",
-  \lst"$2", and \lst"$3".
-
-  In this case we pick the right Haskell compiler \lst"$1_$2_HC"
-  and run it with command line arguments \lst"$1_$2_$3_HC_OPTS".
-
-\item Expanding a variable before the variable is defined gives an
-  empty result.  Thus, if we're defining a macro before the variables
-  it refers to, we need to use a double dollar (\lst"$$") to delay the
-  expansion until the macro is called.
-
-\item Sometimes we need to delay the
-  expansion by yet another step, requiring a double-double-dollar (\lst"$$$$").
-  Deciding how many dollars to use in any given place is hard.
+\item The restriction to certain directories is solved by using the macro to generate rules, and calling that macro at all relevant matches. We are duplicating the rule to make up for weak pattern matching, and are still quite restricted in what can be expressed.
+\item The dependence of the options on the file is solved using a computed variable name, which is dereferenced using \lst'$$(...)' to ensure the value is not expanded when the macro is \emph{defined}, but when it is \emph{called}. However, certain variables are present in positions where the value is unavailable when first called, requiring \lst'$$$$(..)' to further delay expansion. Alas, it is far from obvious when extra delaying is required.
 \end{itemize}
 
-\noindent Using Shake the simplest variant looks slightly more complex, because
+\noindent Using Shake, the simplest variant looks slightly more complex, because
 it must be expressed in Haskell syntax:
 
 \begin{lstlisting}
@@ -112,23 +82,21 @@ it must be expressed in Haskell syntax:
     cmd "ghc" hc_opts hs
 \end{lstlisting}
 \noindent
-However, as the complexity grows, so the build system scales properly. Making
+However, as the complexity grows, the build system scales properly. Making
 \lst"hc_opts" depend on the Haskell file requires the small and obvious change of:
 
 \begin{lstlisting}
     cmd "ghc" (hc_opts hs) hs
 \end{lstlisting}
-\noindent
-To use richer pattern matching we can drop down to a lower level Shake
-operation. In Shake the definition of is \lst"%>" is itself defined in terms of
-\lst"?>", as:
 
-\begin{verbatim}
+\noindent Namely turning \lst'hc_opts' from a constant to a function. To use richer pattern matching we can drop down to a lower-level Shake operation. In Shake \lst"%>" is itself defined in terms of \lst"?>":
+
+\begin{lstlisting}
 pat %> act = (pat ?==) ?> act
-\end{verbatim}
+\end{lstlisting}
 \noindent
-So the wildcard pattern matching is just a special case, and we can use an
-arbitrary predicate to exert more precise control over where the match occurs.
+Wildcard pattern matching is just a special case, and we can use an
+arbitrary predicate to exert more precise control over what matches.
 In both cases the generality of higher-order functions solves the problem.
 
 \subsection{Generating rules}
@@ -348,29 +316,29 @@ Note, Redo (\S\ref{sec:redo}) is the only other clearly monadic build
 system, while it can be encoded in SCons using the dependency rules.
 
 % \subsection{Fine-grain dependencies\label{sec:fine-grain-deps}}
-% 
+%
 % There are many instances where an action depends on a part of a file. As a
 % compelling example in GHC, there are many configuration settings provided in a
 % file \lst"system.config", which reads:
-% 
+%
 % \begin{lstlisting}
 % system-ghc = /usr/bin/ghc
 % system-gcc = /usr/bin/gcc
 % ...
 % \end{lstlisting}
-% 
+%
 % \vspace{-2mm}
 % When executing a command we typically depend on only a handful of lines in this
 % large configuration file. However, using simple file dependencies, we have to
 % depend on the whole file. As a result, we end up rebuilding more than is
 % necessary (see~\S\ref{sec:ghc}).
-% 
+%
 % One solution is to create a single file for each setting, but in GHC the whole
 % \lst"system.config" file is generated by the \lst'configure' script, which makes
 % this challenging. Since a single file is being generated, the next best solution
 % is to chop it up into multiple small files, to provide accurate fine-grained
 % dependencies.
-% 
+%
 % This approach does not work in Make. We can produce individual
 % files, but the individual files must all depend on \lst"system.config", so they
 % update appropriately. In the rule to generate the fragments, if we always generate the
@@ -378,7 +346,7 @@ system, while it can be encoded in SCons using the dependency rules.
 % ultimate dependency on the whole file. If in a rule we chose to avoid generating
 % the small file then the file always looks dirty (since its timestamp is older
 % than that of \lst"system.config", which Make considers to signify dirty).
-% 
+%
 % Fortunately, Shake supports polymorphic dependencies that solve this problem,
 % as discussed in~\S\ref{sec:polymorphic}. This brings dramatic improvements -- on
 % real build systems we regularly see build times of a couple of seconds, which
