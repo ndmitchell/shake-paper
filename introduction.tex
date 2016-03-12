@@ -4,7 +4,7 @@ In 1998 Peter Miller published his famously influential paper
 \emph{``Recursive Make Considered Harmful''}~\cite{miller:recursive_make}.
 He made a compelling case that, when designing the build system for
 a large project, it is far better to ensure that Make can see
-the entire dependency graph rather that a series of fragments. 
+the entire dependency graph rather that a series of fragments.
 
 Miller was right about that.  But he then went on to say ```\emph{But, but, but}'
 I hear you cry.  `\emph{A single makefile is too big, it's unmaintainable,
@@ -19,7 +19,7 @@ Make for large projects really \emph{is} unmaintainable, and the rules really
 Shall we say that (Non-Recursive) Make still dominates the world of build
 systems despite much time since Peter Miller's paper?}
 
-In this paper we substante this claim, and offer a solution,
+In this paper we substantiate this claim, and offer a solution,
 making the following contributions:
 \begin{itemize}
 \item Using the Glasgow Haskell Compiler (GHC) as a substantial exemplar,
@@ -62,24 +62,24 @@ in~\S\ref{section-review}.
 The distinctive feature of this paper is that it is grounded in the reality
 of a very large, long-lived software project.  Peter Miller would be happy.
 
-% 
-% 
+%
+%
 % \todo{Note for SLPJ: there are 196 makefiles in the
 % build system. This is not counting testsuite, nofib and some incidental
 % makefiles, such as libraries/hoopl/paper/Makefile, which are not related to the
 % build system. I expect I may have lost a file or two, or counted one which
 % should not have been counted, so we can say 'around 200' makefiles. These
 % makefiles contain 10416 lines and \$10764, so a little more than a dollar per
-% line. Doesn't sound too impressive, but considering that there are a lot of 
+% line. Doesn't sound too impressive, but considering that there are a lot of
 % comments, it's still very high. Also, if we only look into rules/*.mk we get
 % 40 files, 2866 lines and \$6773, which is \$2.36 per line.
 % And here is my favourite heavy-weight champion (see rules/build-prog.mk):}
-% 
+%
 % \begin{lstlisting}[basicstyle=\tiny]
 % $1/$2/build/tmp/$$($1_$2_PROG) : $$($1_$2_$$($1_$2_PROGRAM_WAY)_HS_OBJS)
 %   $$($1_$2_$$($1_$2_PROGRAM_WAY)_C_OBJS) $$($1_$2_$$($1_$2_PROGRAM_WAY)_S_OBJS)
 %   $$($1_$2_OTHER_OBJS) | $$$$(dir $$$$@)/.
-%   
+%
 % 	$$(call cmd,$1_$2_CC) -o $$@ $$($1_$2_$$($1_$2_PROGRAM_WAY)_ALL_CC_OPTS)
 % 	  $$($1_$2_$$($1_$2_PROGRAM_WAY)_ALL_LD_OPTS)
 % 	  $$($1_$2_$$($1_$2_PROGRAM_WAY)_HS_OBJS) $$($1_$2_$$($1_$2_PROGRAM_WAY)_C_OBJS)
@@ -87,12 +87,12 @@ of a very large, long-lived software project.  Peter Miller would be happy.
 % 	  $$($1_$2_$$($1_$2_PROGRAM_WAY)_EXTRA_CC_OPTS)
 % 	  $$(addprefix -l,$$($1_$2_EXTRA_LIBRARIES))
 % \end{lstlisting}
-% 
+%
 % \todo{The first line contains \$42 and the second one the absolute record \$64!}
-% 
+%
 % \todo{The new build system contains 91 Haskell files, 5753 lines, and just
 % \$600.}
-% 
+%
 % A build system is a critical component of any software project. It's the
 % coal-face at which developers spend their days, so must be fast to run, produce
 % the outputs correctly, and provide all the features needed. Despite the
@@ -100,13 +100,13 @@ of a very large, long-lived software project.  Peter Miller would be happy.
 % The build system for the Glasgow Haskell Compiler~(GHC)~\cite{ghc} has been
 % rewritten three times using \make{}~\cite{make}, and while lessons have been
 % learnt each time, the end result remains frustratingly complex. As an example:
-% 
+%
 % \begin{lstlisting}
 % $$(foreach dep,$$($1_$2_DEP_COMPONENT_IDS),\
 %     $$$$($$(dep)_dist-$(if $(filter 0,$3),boot,install)\
 %         _PROGRAM_DEP_LIB))
 % \end{lstlisting}
-% 
+%
 % Taking a look at \lst"$$($1_$2_DEP_COMPONENT_IDS)" -- this constructs a variable
 % name using the variables \lst"$1" and \lst"$2" (themselves macro arguments),
 % then resolves this variable. It then takes the value of that variable and
@@ -114,13 +114,13 @@ of a very large, long-lived software project.  Peter Miller would be happy.
 % of any individual symbol is hard to track down. Many are defined, redefined and
 % conditionally defined. While the first line is confusing, the second is
 % significantly more so, with 4 indirections of a computed variable.
-% 
+%
 % Were this the only example in the build system, we might be able to solve it
 % with lots of documentation. But alas, this snippet is the rule, not the exception.
-% 
+%
 % In this paper we show a better approach to designing large build systems. Our
 % approach is two pronged:
-% 
+%
 % \begin{itemize}
 % \item  We use the latest innovations in build systems (specifically Shake,
 % \cite{shake}), combined with the abstraction power of functional programming (in
@@ -134,20 +134,20 @@ of a very large, long-lived software project.  Peter Miller would be happy.
 % (which optimisation flags are required to which tools in which modes), cleanly
 % separating this configuration from the rest of the build system.
 % \end{itemize}
-% 
+%
 % We have used our approach to write a new GHC build system \S\ref{sec:ghc}. The
 % new build system is about half the length of the previous one (5,824 lines as
 % opposed to 10,952). \todo{The new system has reasonable chunks of the old system
 % as comments. Should check non-comment and non-blank lines.} More satisfyingly,
 % the new build system remains intelligible, and hopefully will not require
 % further rewrites.
-% 
+%
 % % SimonM: the new build system is still missing some functionality,
 % % correct?  So how can we get an accurate comparison of size?
-% 
+%
 % %  \item Motivating examples of mission-critical build systems, perhaps, from
 % %  Standard Chartered and/or Facebook?
-% 
+%
 % ~\\
 % \textbf{Contritubions}:
 % \begin{itemize}
@@ -159,8 +159,8 @@ of a very large, long-lived software project.  Peter Miller would be happy.
 %   \item How Shake solves make's problems
 %   \item Non-recursive Make Considered Harmful.
 %   \item Version 5 of GHC build system; the paper is informed by
-%   experience of a truly large scale build system (used to 
+%   experience of a truly large scale build system (used to
 %   have 800 files with N generated).
 %   \item Flag provenance tracking and simpler provenance as no
-%   generated files. 
+%   generated files.
 % \end{itemize}
