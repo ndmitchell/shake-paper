@@ -154,7 +154,7 @@ equivalence is hard. Future work.
 
 \subsection{Benchmarks\label{sec:benchmarks}}
 
-When building from scratch, ignoring the initial boot/configure steps which are shared, the Make system takes 1266 seconds and the Shake one takes 737 seconds. These were tested in as similar configurations as we could manage, but due to the complexity of the build system, there are almost certain minor differences. For the build where nothing has changed, Make takes 18.4 seconds and Shake takes 2.1 seconds. \todo{optimise Shake}
+When building from scratch, ignoring the initial boot/configure steps which are shared, the Make system takes 1266 seconds and the Shake one takes 737 seconds. These were tested in as similar configurations as we could manage, but due to the complexity of the build system, there are almost certain minor differences. For the build where nothing has changed, Make takes 12.3 seconds and Shake takes 2.1 seconds. \todo{optimise Shake}
 
 Since Shake and Haskell both provide profiling and analysis tools, we have already used these features to optimise the Shake build, resulting in modest gains sofar and several opportunities we have yet to exploit. Looking at the full build number of Shake, it takes 737 seconds, the longest single task is building the GMP library (315 seconds), and total amount of single threaded computation is 2206 seconds, of which 2099 is calling out to external processes. The critical dependency path has 378 steps on it, and requires 463 seconds -- a lower bound on the time even if we have an unlimited number of processors.
 
