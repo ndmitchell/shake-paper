@@ -5,7 +5,7 @@ so far to building a large-scale software project: the Glasgow Haskell Compiler.
 
 \subsection{Current limitations\label{sec:limitations}}
 
-We implemented a new build system for GHC using Shake and our
+We implemented a new build system for GHC using Shake and our build
 abstractions~\S\ref{sec:abstractions}. The current implementation can build
 \lst'Stage2' GHC, but has the following limitations:
 \begin{itemize}
@@ -16,6 +16,9 @@ abstractions~\S\ref{sec:abstractions}. The current implementation can build
   \item Cross-compilation is not implemented.
   \item Installation or binary/source distribution are not supported.
 \end{itemize}
+
+\noindent We intend to fix the above in the near future; nothing presents any
+new challenges or requires changes to the current infrastructure.
 
 \subsection{Qualitative analysis}
 
