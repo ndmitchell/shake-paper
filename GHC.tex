@@ -69,9 +69,9 @@ $\textit{~~~~~~~}$command line arguments of build tools
 In this section we report on our experience on applying the techniques presented
 so far to building a large-scale software project: the Glasgow Haskell Compiler.
 
-\subsection{Current limitations\label{sec:limitations}}
+\subsection{Current status and limitations\label{sec:limitations}}
 
-We implemented a new build system for GHC using Shake and our build
+We implemented a new build system for GHC from scratch using Shake and our build
 abstractions~\S\ref{sec:abstractions}. The current implementation can build
 \lst'Stage2' GHC, but has the following limitations:
 \begin{itemize}
@@ -84,7 +84,7 @@ abstractions~\S\ref{sec:abstractions}. The current implementation can build
 \end{itemize}
 
 \noindent We intend to fix the above in the near future; nothing presents any
-new challenges or requires changes to the current infrastructure.
+new challenges or requires changes to the build infrastructure.
 
 \subsection{Qualitative analysis\label{sec:use-cases}}
 
@@ -132,12 +132,13 @@ are rerun, because GHC currently produces non-deterministic output
 In \lst'U8' we modify the build system itself by changing command line
 arguments for one of the build files. The old build system rebuilds nothing,
 as Make does not track such changes. The new build system correctly reruns all
-affected rules. We currently only track command line arguments, therefore if one
-does other, more subtle modifications (\lst'U9'), they will be unnoticed.
+affected rules. We currently only track command line arguments, therefore other,
+more subtle modifications of the build system (\lst'U9') are unnoticed.
 
 Working with multiple \lst'git' branches is a problematic use-case for build
-systems based on Make (see second bullet point in \S\ref{sec:file-contents}). In
-\lst'U10' we conduct the following simple experiment:
+systems based on Make (as discissed in the second bullet point of
+\S\ref{sec:file-contents}). In \lst'U10' we conduct the following simple
+experiment:
 
 \begin{lstlisting}
 $ build
@@ -151,11 +152,11 @@ We expect the second \lst'build' to do nothing, since the \lst'master'
 branch has not changed. However, \lst'git checkout master' changes modification
 time of all files that were updated between branches, forcing the new
 build system to rerun all dependent rules (as in \lst'U4'). Shake's ability to
-track file contents~\S\ref{sec:file-contents} in addition to modification time allows us to
-avoid such unnecessary rebuils.
+track file contents in addition to modification time~\S\ref{sec:file-contents}
+allows us to avoid such unnecessary rebuils.
 
 In \lst'U11' we modify the build environment, by changing the path to \lst'gcc'
-in the configuration file. As in \lst'U6-U7', the old build system rebuilds
+in the configuration files. As in \lst'U6-U7', the old build system rebuilds
 almost everything since depending on a single configuration setting is not
 supported. The new build system correctly reruns only affected rules.
 
