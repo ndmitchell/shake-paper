@@ -3,13 +3,12 @@
 In this section we report on our experience on applying the techniques presented
 so far to building a large-scale software project: the Glasgow Haskell Compiler.
 
+\subsection{Limitations\label{sec:limitations}}
 \todo{Andrey: list current limitations.}
 
 \subsection{Qualitative analysis}
 
 In this part we say how they both behave in different circumstances. In addition Shake gives us profiling reports, both from GHC and Shake itself.
-
-\todo{Q: Drop full and zero from the table? These are a different type of analysis, and covered in benchmark}
 
 \subsection{Analysis of common use-cases}
 \begin{table*}[t]
@@ -17,69 +16,62 @@ In this part we say how they both behave in different circumstances. In addition
 \begin{tabular}{c | p{56mm} || p{50mm} | p{50mm}}
 ~
 & \textbf{Use case}
-& \textbf{Old build system} based on \make{}
+& \textbf{Old build system} based on Make
 & \textbf{New build system} based on Shake
 \\
 \hline
-\hline
-1 & Full clean build
-& Everything is built, 1266 sec \hfill \checkmark
-& Everything is built, 737 M sec \hfill \checkmark
+1 & Fully-featured GHC build
+& Everything is built \hfill \checkmark
+& Not all features supported, see~\S\ref{sec:limitations}
 \\
-\hline
-2 & Zero build \hspace{6.4mm}
-& Nothing is rebuilt, 18.4 sec \hfill \checkmark
-& Nothing is rebuilt, 2.1 sec \hfill \checkmark
+2 & Clean build
+& Everything is built \hfill \checkmark
+& Everything is built \hfill \checkmark
 \\
-\hline
-3 & Add comment: \textsf{libraries/base/Prelude.hs}
+3 & Zero build \hspace{6.4mm}
+& Nothing is rebuilt \hfill \checkmark
+& Nothing is rebuilt \hfill \checkmark
+\\
+4 & Add comment: \textsf{libraries/base/Prelude.hs}
 & \textsf{Prelude.o}, \textsf{base} library, and all
 \newline dependent binaries are rebuilt
 & Only \textsf{Prelude.o} is rebuilt \hfill \checkmark
 \\
-\hline
-4 & Modify code: \hspace{1.75mm}\textsf{libraries/base/Prelude.hs}
+5 & Modify code: \hspace{1.75mm}\textsf{libraries/base/Prelude.hs}
 & \textsf{Prelude.o} and all its dependencies \hfill \checkmark \newline
 are rebuilt
 & \textsf{Prelude.o} and all its dependencies \hfill \checkmark \newline
 are rebuilt (40\% by time)
 \\
-\hline
-5 & Add comment: \textsf{utils/ghc-cabal/Main.hs}
+6 & Add comment: \textsf{utils/ghc-cabal/Main.hs}
 & Almost everything is rebuilt, since \newline \textsf{package-data.mk} files
 are changed & All \textsf{ghc-cabal} rules are rerun (due \newline
 to non-deterministic GHC builds)
 \\
-\hline
-6 & Modify code: \hspace{1.75mm}\textsf{utils/ghc-cabal/Main.hs}
+7 & Modify code: \hspace{1.75mm}\textsf{utils/ghc-cabal/Main.hs}
 & Almost everything is rebuilt
-& Only the targets affected by the \newline change are rebuilt \hfill
-\checkmark
+& Only the targets affected by the \hfill \checkmark \newline change are rebuilt
 \\
-\hline
-7 & Modify the build system: pass \textsf{-O2} when compiling Stage2 GHC
+8 & Modify the build system: pass \textsf{-O2} when compiling Stage2 GHC
 & Nothing is rebuilt, as build system \newline is not tracked
-& Stage2 GHC and all its \newline dependencies are rebuilt \hfill \checkmark\\
-\hline
-8 & Modify the build system without changing command line arguments of build
+& Stage2 GHC and its dependencies \hfill \checkmark \newline are rebuilt
+\\
+9 & Modify the build system without changing command line arguments of build
 tools
 & Nothing is rebuilt
 & Nothing is rebuilt
 \\
-\hline
-9 & Switch to a \textsf{git} branch and back
+10 & Switch to a \textsf{git} branch and back
 & Some files are rebuilt
 & Nothing is rebuilt \hfill \checkmark
 \\
-\hline
-10 & Change path to \textsf{gcc}
+11 & Change path to \textsf{gcc}
 & Everything is rebuilt
 & Files depending on \textsf{gcc} are rebuilt \hfill \checkmark
 \\
 \end{tabular}
-\caption{Comparison of GHC build systems on common use cases
-(using \textsf{quick} build flavour with 4 CPUs). Checkmarks \checkmark indicate expected
-behaviour.}
+\caption{Comparison of GHC build systems on common use cases. Checkmarks
+\checkmark indicate expected behaviour.}
 \label{tab:use-cases}
 \end{table*}
 
