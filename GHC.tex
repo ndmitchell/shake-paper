@@ -22,33 +22,46 @@ new challenges or requires changes to the current infrastructure.
 
 \subsection{Qualitative analysis}
 
-In this section we discuss several use-cases of the GHC build system, which
+In this section we discuss several use cases of the GHC build system, which
 are fairly typical for build systems in general. Table~\ref{tab:use-cases}
-lists use-cases \lst'U1-U11' highlighting differences between the old and the
-new build systems. Below we go through some of the use-cases in more detail.
+lists use cases \lst'U1-U11' highlighting differences between the old and the
+new build systems. Below we go through some of the use cases in more detail.
 See~\S\ref{sec:benchmarks} for performance comparison.
 
-\subsubsection{Change nothing and rebuild}
+\lst'U1-U3' are simplest use cases. For the sake of fairness we start with
+\lst'U1', where the old build system reigns over our current implementation due
+to the aforementioned limitations. When unsupported features are not used
+(\lst'U2'), the new build system successfully builds all expected targets.
+Running a build system twice in a row must be equivalent to only running it
+once; the second build must do nothing, hence the name \emph{zero
+build} (\lst'U3'). The new build system works as expected, and is much faster
+than the old one (see \S\ref{sec:benchmarks}).
 
-Running a build system twice in a row should be equivalent to only running it
-once. Moreover the second build should do nothing, as quickly as possible.
-Such a do-nothing build is referred to as a \emph{zero build}. The time it takes
-represents internal overheads of the build system: scanning the file system,
-reading the database, etc.
+% The time it takes represents internal overheads of the build system:
+% scanning the file system, reading the database, etc. 
 
-\textbf{Outcome:} Both the old and the new build systems pass this test
-successfully. Notably, the new one does this 3 times faster, as reported in
-\S\ref{sec:benchmarks}.
+In \lst'U4-U5' we modify \lst'libraries/base/Prelude.hs' and rebuild GHC.
+When only comments are added (\lst'U4'), the new build system recompiles the
+file, notices the object code is unchanged, and stops: there is nothing else to
+be done. The old build system continues to rebuild the \lst'base' library as
+well as all dependent binaries, which is unnecessary. In \lst'U5' the
+modification of \lst'Prelude.hs' leads to changes in \lst'Prelude.o', which
+causes all dependencies to be rebuilt. Both build systems handle this case
+correctly.
 
-\subsubsection{Change a source file and rebuild}
-
-\begin{lstlisting}
-$ build
-$ build
-\end{lstlisting}
-
-Both Make and Shake work. Shake does fewer rebuilds. Several examples with
-different rebuild chains.
+\lst'U6-U7' are similar, but we now modify sources of \lst'ghc-cabal' build
+tool. The old build system rebuilds almost everything in both cases,
+which is unnecessary. Rebuilds are caused by rerunning updated \lst'ghc-cabal'
+binary, which changes modification time of generated \lst'package-data.mk'
+files. The lack of polymorphic dependencies means we have to depend on the whole
+file when using Make, therefore even if only one field in a
+\lst'package-data.mk' file is changed, e.g. \lst'CC_OPTS', we end up
+rebuilding everything, not only C compilation rules that depend on
+\lst'CC_OPTS'. The new build system uses Shake's polymorphic
+dependencies~\S\ref{sec:polymorphic} to avoid such unnecessary rebuilds. Note
+however, that \lst'U6' behaviour is still suboptimal: \lst'ghc-cabal' rules
+are rerun, because GHC currently produces non-deterministic output
+(\lst'ghc-cabal''s binary is changed).
 
 \subsubsection{Add comments to \texttt{ghc-cabal} and rebuild}
 
@@ -57,7 +70,7 @@ reruns \texttt{ghc-cabal} and stops, as generated files are not changed.
 
 \subsubsection{Change a command line in the build system and rebuild}
 
-\make{} doesn't track such changes. Shake reruns only necessary rules.
+Make doesn't track such changes. Shake reruns only necessary rules.
 Also show how changing a command line looks like in Make and in Shake.
 
 \subsubsection{Switch between \texttt{git} branches and rebuild}
@@ -113,6 +126,7 @@ equivalence is hard. Future work.
 & Nothing is rebuilt \hfill \checkmark
 & Nothing is rebuilt \hfill \checkmark
 \\
+\hline
 \textsf{U4:} Add comment: \textsf{libraries/base/Prelude.hs}
 & \textsf{Prelude.o}, \textsf{base} library, and all
 \newline dependent binaries are rebuilt
@@ -125,14 +139,15 @@ are rebuilt
 are rebuilt (40\% by time)
 \\
 \textsf{U6:} Add comment: \textsf{utils/ghc-cabal/Main.hs}
-& Almost everything is rebuilt, since \newline \textsf{package-data.mk} files
-are changed & All \textsf{ghc-cabal} rules are rerun (due \newline
+& Almost everything is rebuilt
+& All \textsf{ghc-cabal} rules are rerun (due \newline
 to non-deterministic GHC builds)
 \\
 \textsf{U7:} Modify code: \hspace{1.75mm}\textsf{utils/ghc-cabal/Main.hs}
 & Almost everything is rebuilt
 & Only the targets affected by the \hfill \checkmark \newline change are rebuilt
 \\
+\hline
 \textsf{U8:} Modify the build system: pass \textsf{-O2} when\newline
 $\textit{~~~~~~~}$compiling Stage2 GHC
 & Nothing is rebuilt, as build system
@@ -144,6 +159,7 @@ $\textit{~~~~~~~}$command line arguments of build tools
 & Nothing is rebuilt
 & Nothing is rebuilt
 \\
+\hline
 \textsf{U10:} Switch to a \textsf{git} branch and back
 & Some files are rebuilt
 & Nothing is rebuilt \hfill \checkmark
