@@ -324,7 +324,7 @@ algebraic data types including lists, tuples and booleans.
 file. GHC's build system has 6,677 non-file rules.
 \end{itemize}
  
-\subsection{Concurrency reduction}
+\subsection{Concurrency reduction\label{sec:concurrency-reduction}}
 
 Like most build systems, Shake can run independent rules concurrently.
 However, running too many rules in parallel can cause a computer to become overloaded,
@@ -384,7 +384,10 @@ excel <- newResource "Excel" 1
 Moreover, the build system will never block waiting for the resource if there
 are other rules that could be run. We use this approach to deal with the GHC
 package database, which only permits one writer or multiple readers,
-see~\S\ref{sec:ghc-pkg-resource}.
+see~\S\ref{sec:ghc-pkg-db}.
+
+The only other build system we are aware of that supports resources is
+\lst'Ninja' (\S\ref{sec:ninja}), which calls them \emph{pools}.
 
 \subsection{Tracking file contents\label{sec:file-contents}}
 

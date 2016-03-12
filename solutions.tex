@@ -1,58 +1,86 @@
-\section{Solutions\label{sec:solutions}}
+\section{Quick wins: from Make to Shake\label{sec:solutions}}
 
-The GHC build system stumbles into a number of nasty corners of \make{}. In this section we reflect on the challenges, and how they can be solved generically in our new system. We very much consider these \textit{unnecessary} complexities -- they are not consequences of our problem domain, merely weaknesses of \make{} on large projects. In general the problems can be divided into those due to the \make{} language (macros, variables etc.) and those due to the \make{} dependency features (lack of expressive dependencies). Consequently, we tackle these problems using functional programming for the language level, and Shake for the dependency level. After tackling these unnecessary complexities, we show how to construct a large build system \S\ref{sec:abstractions}.
+The GHC build system stumbles into a number of nasty corners of Make. In this
+section we reflect on the challenges, and how they can be solved generically in
+our new system. We very much consider these \textit{unnecessary} complexities --
+they are not consequences of our problem domain, merely weaknesses of Make on
+large projects. In general the problems can be divided into those due to the
+Make language (macros, variables, etc.) and those due to the Make features (lack
+of expressive dependencies). Consequently, we tackle these problems using
+functional programming for the language level, and Shake for the dependency
+level. After tackling these unnecessary complexities, we show how to construct a
+large build system in~\S\ref{sec:abstractions}.
 
 \subsection{Programming model}
 
-\make{}'s program state involves a global namespace of string variables which are spliced into the program. This model naturally causes challenges:
+Make's program state involves a global namespace of string variables which are
+spliced into the program. This model naturally causes challenges:
 
 \begin{itemize}
-\item Since all variables live in a single global namespace, there is limited encapsulation and implementation hiding. While macros introduce some level of scope, their use leads to different problems.
-\item Excessive freedom, implementing \lst"$$$$foo" to do multiple lookups. Such code is much like \lst"eval" in a scripting language, but it is unlikely any scripting language author would encourage such a level of indirection. Alas, without real data structures (associative maps, arrays) such tricks are necessary.
-\item Since the text is spliced into the resulting Makefile to be interpreted, certain characters can pose lots of problems -- notably space (which splits lexemes which might have been intended to be joined) and `:' (which declares rules, but often tends to be a Windows drive letter gone astray). Much like command line quoting, with sufficient care such issues can be avoided -- but it does require constant care.
-\item A string variable, such as \lst"$1_$2_$3_HC_OPTS", can be manipulated in many different files and it is very difficult to track the provenance of a specific command line argument that is eventually passed to a command line tool.
+\item Since all variables live in a single global namespace, there is limited
+encapsulation and implementation hiding. While macros introduce some level of
+scope, their use leads to different problems.
+\item Excessive freedom, implementing \lst"$$$$foo" to do multiple lookups. Such
+code is much like \lst"eval" in a scripting language, but it is unlikely any
+scripting language author would encourage such a level of indirection. Alas,
+without real data structures (associative maps, arrays) such tricks are
+necessary.
+\item Since the text is spliced into the resulting \lst'Makefile' to be
+interpreted, certain characters can pose lots of problems -- notably space (which splits
+lexemes which might have been intended to be joined) and `:' (which declares
+rules, but often tends to be a Windows drive letter gone astray). Much like
+command line quoting, with sufficient care such issues can be avoided -- but it
+does require constant care.
+\item A string variable, such as \lst'$1_$2_$3_HC_OPTS', can be
+manipulated in many different files and it is very difficult to track the provenance of a
+specific command line argument that is eventually passed to a command line tool.
 \end{itemize}
 
-The solution to the issue of encapsulation is a properly block-scoped language with separate units of implementation hiding, e.g. modules in Haskell. The solution to excessive freedom is types (not necessarily static). The solution to splicing is to separate values and program text, much like most programming languages do. By using Haskell, or indeed any other modern programming language, most of these issues are solve.
+The solution to the issue of encapsulation is a properly block-scoped language
+with separate units of implementation hiding, e.g. modules in Haskell. The
+solution to excessive freedom is types (not necessarily static). The solution to
+splicing is to separate values and program text, much like most programming
+languages do. By using Haskell, or indeed any other modern programming language,
+most of these issues are solved.
 
-An alternative solution would be to avoid putting complexity into the Makefile, and place it in a generator of a Makefile (much like the Ninja build system does). Alas, such a solution runs into problems if there is a dynamic call graph, as per \S?.
+An alternative solution would be to avoid putting complexity into the \lst'Makefile',
+and place it in a generator of a \lst'Makefile' (much like the \lst'Ninja' build
+system does). Alas, such a solution runs into problems if there is a dynamic call
+graph, as per~\S\ref{sec:dynamic-deps}.
 
-At this point it is worth remarking that many alternative build systems do indeed offer real programming language embedding, e.g. SCons (Python). We address the specific limitations that drove us away from them in later sections, and discuss all alternatives in \S?.
+At this point it is worth remarking that many alternative build systems do
+indeed offer real programming language embedding, e.g. SCons (Python). We
+address the specific limitations that drove us away from them
+in~\S\ref{section-review}.
 
 \subsection{Pattern/rule language\label{sec:pattern-rule-language}}
 
-A build system builds some output files from some input files. The fundamental unit of work in \make{} (and also Shake) is a rule that produces some output by running commands on some input. Consider the following pattern rule:
+A build system builds some output files from some input files. The fundamental
+unit of work in Make (and also Shake) is a rule that produces some output by
+running commands on some input. Consider the following Make pattern rule:
 
 \begin{lstlisting}
 %.o : %.hs
     ghc $HC_OPTS $<
 \end{lstlisting}
 
-\noindent It tells \make{} that object files \lst"*.o" can be produced from Haskell source files \lst"*.hs" by compiling them with \lst"ghc" command invoked with \lst"HC_OPTS" arguments. The notation is terse and works well for this simple case. Unfortunately, this simple formulation does not support numerous important features, for example:
+\noindent It tells Make that object files \lst"*.o" can be produced from Haskell
+source files \lst"*.hs" by compiling them with \lst"ghc" command invoked with
+\lst"HC_OPTS" arguments. The notation is terse and works well for this simple
+case. Unfortunately, this simple formulation does not support numerous important
+features, for example:
 
 \begin{itemize}
-\item What if we want the rule to match \lst"foo.o" and \lst"bar.o", but not \lst"baz.o"? It is impossible to do any non-trivial computation -- we are forced to rely on patterns whose expressive power is limited.
-\item What if \lst"HC_OPTS" depends on the file being compiled? At the moment it is a fixed global variable.
+\item What if we want the rule to match \lst"foo.o" and \lst"bar.o", but not
+\lst"baz.o"? It is impossible to do any non-trivial computation -- we are forced
+to rely on patterns whose expressive power is limited.
+\item What if \lst"HC_OPTS" should depends on the file being compiled?
 \end{itemize}
 
-\newsavebox{\exampleCode}
-\begin{lrbox}{\exampleCode}
-\begin{minipage}[t]{\columnwidth}
-Here is the code in full glory. We cannot go into details due to lack of
-space, but would like to point out that there are \$57 in three lines!
-\begin{lstlisting}[basicstyle=\footnotesize\sffamily,escapeinside={(*}{*)}]
-$1/$2/build/%.$$($3_osuf) : $1/$4/%.hs $$(LAX_DEPS_FOLLOW) \
-    $$$$($1_$2_HC_DEP) $$($1_$2_PKGDATA_DEP)
-  $$(call cmd,$1_$2_HC) $$($1_$2_$3_ALL_HC_OPTS) -c $$< -o \
-    $$@ $$(if $$(findstring YES,$$($1_$2_DYNAMIC_TOO)),-dyno \
-    $$(addsuffix .$$(dyn_osuf),$$(basename $$@)))
-  $$(call ohi(*-*)sanity(*-*)check,$1,$2,$3,$1/$2/build/$$*)
-\end{lstlisting}
-\end{minipage}
-\end{lrbox}
-
-The standard approach to overcome some of \make{}'s limitations is to use
-\emph{macros}. They provide some additional flexibility, but quickly become difficult to follow. As an example, here is a significantly simplified snippet\footnote{\usebox{\exampleCode}} from the GHC build system:
+The standard approach to overcome some of Make's limitations is to use
+\emph{macros}. They provide some additional flexibility, but quickly become
+difficult to follow. As an example, here is a rule derived from the example
+shown in~\S\ref{sec:challenges}:
 
 \begin{lstlisting}
 $1/$2/build/%.o : $1/$4/%.hs $$$$($1_$2_HC)
@@ -60,11 +88,11 @@ $1/$2/build/%.o : $1/$4/%.hs $$$$($1_$2_HC)
 \end{lstlisting}
 
 \noindent As before, the rule is responsible for compiling a Haskell source
-file into an object file. The plethora of dollars works rooughly like this:
+file into an object file. The plethora of dollars works like this:
 \begin{itemize}
-\item Arguments of the macro are (\lst"$1" to \lst"$4").
+\item Arguments of the macro are \lst"$1" to \lst"$4".
 
-\item GNU \make{} has a single global namespace for variables, and yet we
+\item GNU Make has a single global namespace for variables, and yet we
   have a single build system that encompasses many similar components.
   To keep things sane, we have to prefix all our variables with the
   directory name, and because we build multiple instances of things
@@ -73,10 +101,10 @@ file into an object file. The plethora of dollars works rooughly like this:
   \lst"$2", and \lst"$3".
 
   In this case we pick the right Haskell compiler \lst"$1_$2_HC"
-  and run it with appropriate command line arguments \lst"$1_$2_$3_HC_OPTS".
+  and run it with command line arguments \lst"$1_$2_$3_HC_OPTS".
 
 \item Expanding a variable before the variable is defined gives an
-  empty result.  Thus, if we're definiing a macro before the variables
+  empty result.  Thus, if we're defining a macro before the variables
   it refers to, we need to use a double dollar (\lst"$$") to delay the
   expansion until the macro is called.
 
@@ -85,90 +113,135 @@ file into an object file. The plethora of dollars works rooughly like this:
   Deciding how many dollars to use in any given place is hard.
 \end{itemize}
 
-Using Shake the simplest variant looks slightly more complex, because it
-must be expressed in Haskell syntax:
+\noindent Using Shake the simplest variant looks slightly more complex, because
+it must be expressed in Haskell syntax:
 
 \begin{lstlisting}
 "*.o" %> \out -> do
-    let hs = out -<.> ".hs"
+    let hs = out -<.> "hs"
     need [hs]
     cmd "ghc" hc_opts hs
 \end{lstlisting}
 \noindent
-However, as the complexity grows, so the build system scales properly. Making \lst"hc_opts" depend on the Haskell file requires the small and obvious change of:
+However, as the complexity grows, so the build system scales properly. Making
+\lst"hc_opts" depend on the Haskell file requires the small and obvious change of:
 
 \begin{lstlisting}
     cmd "ghc" (hc_opts hs) hs
 \end{lstlisting}
 \noindent
-To use richer pattern matching we can drop down to a lower level Shake operation. In Shake the definition of is \lst"%>" is itself defined in terms of \lst"?>", as:
+To use richer pattern matching we can drop down to a lower level Shake
+operation. In Shake the definition of is \lst"%>" is itself defined in terms of
+\lst"?>", as:
 
 \begin{verbatim}
 pat %> act = (pat ?==) ?> act
 \end{verbatim}
 \noindent
-So the wildcard pattern matching is just a special case, so we can use an arbitrary predicate to exert more precise control over where the match occurs. In both cases the generality of higher-order functions solves the problem.
+So the wildcard pattern matching is just a special case, and we can use an
+arbitrary predicate to exert more precise control over where the match occurs.
+In both cases the generality of higher-order functions solves the problem.
 
-\subsection{Multiple outputs}
+\subsection{Generating rules}
 
-\todo{Make supports multiple outputs. We need to be careful about what the rules are. Is this a genuine weakness or not? See Note [Blessed make target file] in utils/mkUserGuidePart/ghc.mk.}
+\todo{\textbf{Andrey}: Rewrite.}
 
-In the rule above, GHC actually produces two files: \lst"*.o" and \lst"*.hi". How do we express this?
+In any large build system, there are rules (how to build things), and then a
+very long list of corner cases. For example,
 
-Mostly by pretending the .hi file depends on the .o file, which is (mostly) true. But only really because we always touch the .o file.
+\begin{lstlisting}
+compiler_ALEX_OPTS = --latin1
+\end{lstlisting}
 
-Using Shake we can express this pattern directly (it actually turns out to be a consequence of the more powerful dependency model).
+While this is a concise way of representing it, it's inflexible. Rather than
+pattern matching on everything, we are pattern matching on two components (which
+package we are building and which tool we are running). Adding additional
+filters is impossible.
 
-\subsection{Reducing concurrency\label{sec:ghc-pkg-resource}}
+Implementing the DSL is a nightmare. It's really a configuration setting.
 
-Usually we want the build system to run as many steps as possible in parallel at
-any point. However, for some actions, executing multiple steps in parallel can
-cause problems. As one example, in GHC packages need to be registered by
-invoking the \prog{ghc-pkg} utility. This utility mutates the global state
-(package database) and hence at most one package can be registered at a time, or
-the database is corrupted. As another example, when using Microsoft Excel via
-the scripting API a hidden Excel process is spawned and used for communication.
-Running two programs against the scripting API can result in actions applying to
-the wrong instance.
+The question of provenance is particularly important in large multi-author build
+systems, but generally not something that is addressed anywhere - one of our key
+inovations in \S?. The encapsulation is provided by Haskell modules. The lack of
+freedom is provided by strong name binding. The problems related to `:' go away
+by manipulating values rather program text.
 
-In \make{}, the way to reduce concurrency is to introduce fake \emph{concurrency
-reduction} dependencies. In the GHC build system there are 25 packages that
-require registration, and they depend on each other in a chain, to ensure one
-completes before the next starts. This pattern works, but is inelegant.
+\subsection{Rules with multiple outputs\label{sec:multiple-outputs}}
 
-There are really three problems. By over-sequentialising things we limit other
-parallelism that may be available in the system. We cannot say that all pieces
-should be run single-threaded, we must over-constrain to give a precise order in
-which they can build. If one of the later pieces is available to build, we may
-stop it by waiting for another. Finally, it's easy to miss such dependencies as
-they are not centralised. By accidentally turning the distributed line into a
-tree we can end up with surprising failures.
+GHC produces object \lst"*.o" and interface \lst"*.hi" files when compiling 
+Haskell sources. How do we express this in a build rule?
 
-The solution is Shake is to use the \emph{resources} feature. This feature limits parallelism by declaring that a certain task requires some quantity of a global resource. For example:
+A typical Make appoach to this is to use two rules, one depending on the other.
+For example:
 
-\begin{lstlisting}[basicstyle=\ttfamily]
+\begin{lstlisting}
+%.o : %.hs
+    ghc $HC_OPTS $<
+#\vspace{-2mm}#
+%.hi : %.o ;
+\end{lstlisting}
+\noindent Here \lst';' is a no-op: it tells Make that an interface file can be
+produced simply by depending on the corresponding object file. Alas, this
+approach is fragile: if one deletes the interface file, but leaves the object
+file intact, Make will not rerun the \lst'*.o' rule, because the object file is
+up-to-date. Consequently, the build system will fail to restore the deleted
+interface file.
+
+In Shake we can express this rule directly using operator \lst'&%>',
+which defines a build rule with multiple outputs:
+
+%(it actually turns out to be a
+%consequence of the more powerful dependency model):
+
+\begin{lstlisting}
+["*.o", "*.hi"] &%> \[o, hi] -> do
+    let hs = o -<.> "hs"
+    need [hs]
+    cmd "ghc" hc_opts hs
+\end{lstlisting}
+
+\subsection{Reducing concurrency\label{sec:ghc-pkg-db}}
+
+As discussed in~\S\ref{sec:concurrency-reduction}, it is sometimes necessary to
+reduce concurrency in a build system. As one example, GHC packages need to
+be registered by invoking the \lst'ghc-pkg' utility. This utility mutates the
+global state (package database) and hence at most one package can be registered
+at a time, or the database is corrupted. 
+
+In Make, the solution is to introduce fake \emph{concurrency
+reduction} dependencies. There are 25 GHC packages that require registration,
+and in the old build system they all depended on each other in a chain, to
+ensure that no simultaneous registrations occur. This solution works, but is
+inelegant and inefficient.
+
+There are really three problems. By over-sequentialising things we sacrifice
+other parallelism that may be available in the system. We must over-constrain to
+give a precise order in which the rules can be built. If one of the later ones
+is available to build, we may need to stop it by waiting for another. Finally,
+it's easy to miss such dependencies as they are not centralised. By accidentally
+turning the chain into a tree we can end up with surprising failures.
+
+In Shake, the solution is to use the \emph{resources} feature:
+
+\begin{lstlisting}
 packageDb <- newResource "package-db" 1
 action $ withResource packageDb 1 $ cmd "ghc-pkg" ...
 \end{lstlisting}
 
 This snippet declares a global resource named \lst"packageDb" with quantity 1,
 then calls \lst"withResource" asking for a single quantity before running the
-program \prog{ghc-pkg}. Provided all \prog{ghc-pkg} calls are suitably wrapped,
-we will never run two instances in parallel. Furthermore, thanks to the
+\lst'ghc-pkg' utility. Provided all \lst'ghc-pkg' calls are suitably wrapped,
+we will never run two instances simultaneously. Furthermore, thanks to the
 availability of functions, we can abstract a function that executes
-\prog{ghc-pkg} and applies the resource automatically, see
-\S\ref{sec:abstraction} for how we do that.
+\lst'ghc-pkg' and applies the resource automatically, see
+\S\ref{sec:abstractions} for how we do that.
+% Note that build systems already schedule tasks to satisfy the implicit thread
+% resource, so having user defined resources is an obvious generalisation.
 
-Note that build systems already schedule tasks to satisfy the implicit thread
-resource, so having user defined resources is an obvious generalisation.
+\subsection{Dynamic dependencies\label{sec:dynamic-deps}}
 
-The only other build system we are aware of that contains resources is
-\prog{Ninja}, which calls them pools.
-
-\subsection{Dynamic dependencies}
-
-\make{}, in common with many other build systems, works by
-constructing a dependency graph and then executing it.  This approach
+Make, in common with many other build systems, works by
+constructing a dependency graph and then executing it. This approach
 has some benefits in that it is possible to analyse the graph ahead of
 time, but it is limiting in some important ways.  It's common to run
 into cases where parts of the dependency graph can only be known after
@@ -176,52 +249,50 @@ executing some other parts of the dependency graph.  Some examples of
 this that occur in the GHC build system:
 
 \begin{itemize}
-\item The build system includes Haskell packages which have metadata
-  specified in a \texttt{.cabal} file.  We need to extract the
-  metadata from the \texttt{.cabal} file and generate a \texttt{.mk}
-  file for the build system; this is done by a Haskell program called
-  \texttt{ghc-cabal}, which is built by the build system.  So we don't
-  know how to build the packages until we have built and run the
-  \texttt{ghc-cabal} tool.
+\item GHC contains Haskell packages which have metadata specified in
+  \lst'.cabal' files. We need to extract the metadata and generate
+  \lst'package-data.mk' files to be included into the build system; this
+  is done by a Haskell program called \lst'ghc-cabal', which is built by the
+  build system. Hence we do not know how to build the packages until we have
+  built and run the \lst'ghc-cabal' tool.
 
-  One ``solution'' to this problem is to generate the \texttt{.mk}
+  One ``solution'' to this problem is to generate the \lst'.mk'
   files and check them into the repository whenever they change, but
   checking in generated files is ugly and introduces more failure
   cases when the generated files get out of sync.
 
 \item The dependencies of a Haskell source file can be extracted by
-  running the compiler, much like using \texttt{gcc -M} on a C source
+  running the compiler, much like using \lst'gcc -M' on a C source
   file.  But the Haskell compiler is one of the things that we are
   building, so we cannot know the dependencies of many of the Haskell
   source files until we have built the stage 1 compiler.
 
 \item Source files processed by the C preprocessor using
-  \texttt{\#include} directives to include other files.  We can only
+  \lst'#include' directives to include other files.  We can only
   know what the dependencies are by running the C preprocessor to
   gather the set of filenames that were included.
 \end{itemize}
 
-There are several other cases of this kind of dependency in the build
-system.  Indeed, dynamic dependencies arise naturally even when
-building a simple C program, because the \texttt{\#include} files for
-a C source file aren't known until the source file is compiled or
-analysed by the C compiler, using something like \texttt{gcc -M}.
-Build systems that have a static dependency graph typically have
-special-case support for this---for example GNU \make{} will re-read
-Makefiles that change during building.  In the case of GNU \make{},
+There are several other cases of such \emph{dynamic dependencies} in the build
+system. Indeed, they arise naturally even when building a simple C program,
+because the \lst'#include' files for a C source file are not known until the
+source file is compiled or analysed by the C compiler, using something like
+\lst'gcc -M'. Build systems that have a static dependency graph typically have
+special-case support for this; for example, GNU Make will re-read
+\lst'Makefiles' that change during building.  In the case of GNU Make,
 this works for simple cases, but fails when there are dependencies
-between the generated Makefiles, which arises in more complex cases.
+between the generated \lst'Makefiles', which arises in more complex cases.
 
-The GHC build system works around this limitation of GNU \make{} by
+The GHC build system works around this limitation of GNU Make by
 dividing the build system into \emph{phases}, where each phase
 generates the parts of the build system that are required by
-subsequent phases.  We managed to reduce the number of phases to
-three, by carefully making use of GNU \make{}'s automatic restarting
-functionality where possible.  However, explicit phases are a terrible
+subsequent phases. We managed to reduce the number of phases to
+three, by carefully making use of GNU Make's automatic restarting
+functionality where possible. However, explicit phases are a terrible
 solution for several reasons:
 
 \begin{itemize}
-\item It reduces parallelism: we cannot start the next phase until
+\item Phases reduce concurrency: we cannot start the next phase until
   the previous one is complete.
 \item Knowing what targets to put in each phase requires a deep
   understanding of what the generated parts of the build system are
@@ -233,18 +304,21 @@ solution for several reasons:
   the phase boundary.  This means we have to work around slow
   incremental builds by having an explicit way for the user to say
   that they are sure nothing has changed that would require rebuilding
-  the early phases (\texttt{make fast}).  Obviously this is less than
+  the early phases (\lst'make fast').  Obviously this is less than
   ideal.
 \end{itemize}
 
 Shake supports dynamic dependencies natively, so these problems just
 go away.  The \lst"need" function can introduce new dependencies
-\emph{after observing the results of previous dependencies}.  This is
-exactly the functionality we need: for example, when building a
-Haskell package, we first \lst"need" the \texttt{ghc-cabal} tool,
-then we run it on the package's \texttt{.cabal} file to extract the
-package metadata, and then we consult the result to determine what needs
-to be done to build the package.
+\emph{after observing the results of previous dependencies}\footnote{It has been
+suggested that the dependency mechanism in Shake should rightly be called
+\emph{Monadic dependencies} to contrast with the \emph{Applicative dependencies}
+in Make. We agree. In an applicative computation the structure cannot depend on
+the values flowing through container. In a monadic computation the structure can
+depend on the values.}. For example, when building a Haskell package, we first
+\lst"need" the \lst'ghc-cabal' tool, then we run it on the package's \lst'.cabal' file to
+extract the package metadata, and then we consult the result to determine what
+needs to be done to build the package.
 
 The existence of \lst"need" means that Shake cannot construct the
 dependency graph ahead of time, because it doesn't know the full
@@ -253,53 +327,101 @@ limitation in practice (while the lack of dynamic dependencies really
 \emph{is} a limitation requiring painful workarounds).
 
 % SimonM: I wasn't really sure what this paragraph was trying to say
-% While the existence of the \lst"need" fundamentally alters the expressive power of Shake, for users it is merely a relaxation of an unnecessary rule (that \lst"need" must be the in a rule), so just makes things easier. At the build system level it requires many changes, the lack of a static dependency graph, termination checking as it executes, the ability to suspend partially executed rules etc. Fortunately, as users we do not need to care.
+% While the existence of the \lst"need" fundamentally alters the expressive
+% power of Shake, for users it is merely a relaxation of an unnecessary rule
+% (that \lst"need" must be the in a rule), so just makes things easier. At the
+% build system level it requires many changes, the lack of a static dependency
+% graph, termination checking as it executes, the ability to suspend partially
+% executed rules etc. Fortunately, as users we do not need to care.
 
-\textit{Aside/Footnote}: It has been suggested that the dependency mechanism in Shake should rightly be called Monadic dependencies to contrast with the Applicative dependencies in Make. We agree. In an applicative computation the structure cannot depend on the values flowing through container. In a monadic computation the structure can depend on the values.
+Note, Redo (\S\ref{sec:redo}) is the only other clearly monadic build
+system, while it can be encoded in SCons using the dependency rules.
 
-Note that Redo is the only other clearly monadic build system, while it can be encoded in SCons using the dependency rules.
+\subsection{Fine-grain dependencies\label{sec:fine-grain-deps}}
 
-\subsection{Splitting dependencies}
-
-There are many instances where an action depends on a subset of a file. As a compelling example in GHC, there are many indiviudal configuration flags provided in a file \lst"system.config", which reads:
-
-\todo{include an example}
+There are many instances where an action depends on a part of a file. As a
+compelling example in GHC, there are many configuration settings provided in a
+file \lst"system.config", which reads:
 
 \begin{lstlisting}
 system-ghc = /usr/bin/ghc
 system-gcc = /usr/bin/gcc
+...
 \end{lstlisting}
 
-When executing a command we typically depend on only a handful of lines in this large configuration file. However, using simple file dependencies, we have to depend on the whole file. As a result, we end up rebuilding more than is necessary.
+\vspace{-2mm}
+When executing a command we typically depend on only a handful of lines in this
+large configuration file. However, using simple file dependencies, we have to
+depend on the whole file. As a result, we end up rebuilding more than is
+necessary (see~\S\ref{sec:ghc}).
 
-One solution is to create a single file for each setting, but using \prog{configure} that is challenging. Since a single file is being generated, the next best solution is to chop up the file into multiple small files, to provide accurate fine-grained dependencies.
+One solution is to create a single file for each setting, but in GHC the whole
+\lst"system.config" file is generated by the \lst'configure' script, which makes
+this challenging. Since a single file is being generated, the next best solution
+is to chop it up into multiple small files, to provide accurate fine-grained
+dependencies.
 
-Taking this approach doesn't work in \make{}. We can produce individual files, but the individual files must depend on the large file, so they update appropriately. In the rule to generate the fragments, if we always generate the new file, then we do not break the dependencies -- everything still has an ultimate dependency on the whole file. If in a rule we chose to avoid generating the small file then the file always looks dirty (since its timestamp is older than the big file, which \make{} considers to signify dirty).
+This approach does not work in Make. We can produce individual
+files, but the individual files must all depend on \lst"system.config", so they
+update appropriately. In the rule to generate the fragments, if we always generate the
+new file, then we do not break the dependencies -- everything still has an
+ultimate dependency on the whole file. If in a rule we chose to avoid generating
+the small file then the file always looks dirty (since its timestamp is older
+than that of \lst"system.config", which Make considers to signify dirty).
 
-Fortunately, Shake has an \emph{unchanging files} feature which solves this problem. Using the same approach in Shake we can simply avoid writing out the small file if it has not changed. Shake considers a file to be rebuilt if the rule runs successfully, but only considers the file \emph{changed} if its value changed. As a result, Shake can start down a build tree and then later avoid that build tree. This feature is built into the core of Shake, and means that, unlike \make{}, we can split a single dependency into fine-grained dependencies successfully.
+Fortunately, Shake supports polymorphic dependencies that solve this problem,
+as discussed in~\S\ref{sec:polymorphic}. This brings dramatic improvements -- on
+real build systems we regularly see build times of a couple of seconds, which
+would have been minutes without this feature (e.g., see~\S\ref{sec:ghc}). This
+feature is also available in \lst'Tup' and \lst'Ninja', although in both cases
+requires explicitly enabling per rule.
 
-The results of such a change can be dramatic -- on certain real build systems we regularly see build times of a couple of seconds, which would have been minutes without this feature. This feature is also available in Tup and Ninja, although in both cases requires explicitly enabling per rule (using \texttt{stat} in Ninja, and \texttt{\^} in Tup).
+% (using \lst'stat' in \lst'Ninja', and \texttt{\^} in Tup).
 
-\subsection{Everything is a file}
+% Using the same approach in Shake we can simply avoid writing out the small file
+% if it has not changed. Shake considers a file to be rebuilt if the rule runs
+% successfully, but only considers the file \emph{changed} if its value changed.
+% As a result, Shake can start down a build tree and then later avoid that build
+% tree. This feature is built into the core of Shake, and means that, unlike
+% Make, we can split a single dependency into fine-grained dependencies
+% successfully.
 
-Once fine grained dependencies are available, they can quickly become pervasive. Using a build system based on filenames as keys and files as values we effectively reach the global store problem we criticised in \S? (particularly if we consider dyanmic dependencies from \S? to be \lst"$" dereferencing!). While not critical, Shake supports an Oracle feature, to allow us to make the keys and values arbitrary Haskell types, and store them in the main Shake database. Thanks to such a technique we can have an oracle per rule we create to track changing information, without necessarily doubling the number of files present in the build system. As an example:
+% \subsection{Everything is a file}
+% 
+% Once fine grained dependencies are available, they can quickly become
+% pervasive. Using a build system based on filenames as keys and files as values
+% we effectively reach the global store problem we criticised in \S? (particularly
+% if we consider dyanmic dependencies from \S? to be \lst"$" dereferencing!).
+% While not critical, Shake supports an Oracle feature, to allow us to make the
+% keys and values arbitrary Haskell types, and store them in the main Shake
+% database. Thanks to such a technique we can have an oracle per rule we create to
+% track changing information, without necessarily doubling the number of files
+% present in the build system. As an example:
+% 
+% \begin{lstlisting}
+% newtype ConfigKey = ConfigKey String
+%     deriving (Show,Typeable,Eq,Hashable,Binary,NFData)
+% rules = do
+%     addOracle $ \(ConfigKey x) -> do
+%         src <- readFile' "system.config"
+%         Map.lookup (parseFile src) x
+% 
+%     ... askOracle (ConfigKey x) ...
+% \end{lstlisting}
+% 
+% Here we define our own rule of type \lst"ConfigKey" which reads from the
+% configuration and stores just that one field. Since this also participates in
+% unchanging rules we automatically get rebuild avoidance if the value does not
+% change.
 
-\begin{lstlisting}
-newtype ConfigKey = ConfigKey String
-    deriving (Show,Typeable,Eq,Hashable,Binary,NFData)
-rules = do
-    addOracle $ \(ConfigKey x) -> do
-        src <- readFile' "system.config"
-        Map.lookup (parseFile src) x
+\subsection{Real code}
 
-    ... askOracle (ConfigKey x) ...
-\end{lstlisting}
-
-Here we define our own rule of type \lst"ConfigKey" which reads from the configuration and stores just that one field. Since this also participates in unchanging rules we automatically get rebuild avoidance if the value does not change.
-
-\subsubsection{Real code}
-
-Much of a build system is calling out to programs that execute real code, e.g. compilers. But there is some stuff that requires custom code, for example splitting command line arguments that exceed a certain size. In the existing build system we use xargs, which alas doesn't work consistently between different OS versions, and does both more than we want and less than we want. Fortunately, with Haskell at our disposal, we can write:
+Much of a build system is calling out to programs that execute real code, e.g.
+compilers. But there is some stuff that requires custom code, for example
+splitting command line arguments that exceed a certain size. In the old
+build system we used \lst'xargs', which alas does not work consistently between
+different OS versions, and does both more than we want and less than we want.
+Fortunately, with Haskell at our disposal, we can write:
 
 \begin{lstlisting}
 -- | @chunksOfSize size strings@ splits a given list of strings
@@ -311,52 +433,50 @@ chunksOfSize n = repeatedly $ \xs ->
     in splitAt (max 1 i) xs
 \end{lstlisting}
 
-Writing a small function is easy in Haskell, and even easier to test (we test this function using QuickCheck). Writing it in bash would be infeasible. Reducing the specific behaviours required from external tools leads to significantly less cross-platform concerns.
+\noindent Writing a small function is easy in Haskell, and even easier to test
+(we test this function using QuickCheck). Writing it in \lst'bash' would be infeasible.
+Reducing the specific behaviours required from external tools leads to
+significantly less cross-platform concerns.
 
-\subsection{Difficulty of building a DSL}
+\subsection{Summary}
 
-In any large build system, there are rules (how to build things), and then a very long list of corner cases. For example,
-
-\begin{lstlisting}
-compiler_ALEX_OPTS = --latin1
-\end{lstlisting}
-
-While this is a concise way of representing it, it's inflexible. Rather than pattern matching on everything, we are pattern matching on two components (which package we are building and which tool we are running). Adding additional filters is impossible.
-
-Implementing the DSL is a nightmare. It's really a configuration setting.
-
-
-The question of provenance is particularly important in large multi-author build systems, but generally not something that is addressed anywhere - one of our key inovations in \S?. The encapsulation is provided by Haskell modules. The lack of freedom is provided by strong name binding. The problems related to `:' go away by manipulating values rather program text.
-
-
-\subsection{The consequence of unnecessary complexities}
-
-These unnecessary complexities have a big consequence in terms of complexity and performance. They obscure the underlying real stuff in the build system. Simply removing these already gets us to a much better state.
+The unnecessary complexities described in this Section have a big consequence in
+terms of complexity and performance. They obscure the underlying real stuff in
+the build system. Simply removing these already gets us to a much better state.
 
 The main lessons we have learnt are:
 
 \begin{itemize}
-\item Abstraction is a powerful and necessary tool. Lack of good abstraction mechanisms is a significant cause of the complexity of previous attempts in \make{}. Functional programming provides good abstractions which in turn allow reducing the complexity at each level, while still obtaining a more powerful result. Marrying build systems and functional programming works well.
-\item Use a build system that can express the necessary dependencies. We make use of \textit{monadic dependencies} \S?, \textit{non-file dependencies} \S?, \textit{resources} \S?. While some of these features are only used in a few places (e.g. resources), their absence would require pervasive workarounds, and a significant increase in overall complexity.
+\item Abstraction is a powerful and necessary tool. Lack of good abstraction
+mechanisms is a significant cause of the complexity of previous attempts in
+Make. Functional programming provides good abstractions which in turn allow
+reducing the complexity at each level, while still obtaining a more powerful
+result. Marrying build systems and functional programming works well.
+\item Use a build system that can express the necessary dependencies. We make
+use of multiple outputs~\S\ref{sec:multiple-outputs},
+resources~\S\ref{sec:ghc-pkg-db}, dynamic dependencies~\S\ref{sec:dynamic-deps},
+fine-grain dependencies~\S\ref{sec:fine-grain-deps}. While some of these
+features are only used in a few places (e.g., resources), their absence would
+require pervasive workarounds, and a significant increase in the overall complexity.
 \end{itemize}
 
-\subsection{Abstracting over patterns of dependencies}
-
-\todo{This was moved from Section 5.}
-
-By embedding the build system in Haskell we get access to its rich abstraction
-facilities. Examples:
-\begin{itemize}
-  \item Use general predicates instead of file patterns. For example, several
-  files are built by calling \texttt{genprimopcode}, which can be captured by a
-  single build OR-rule:
-
-\begin{lstlisting}
-[ "autogen/GHC/Prim.hs"
-, "GHC/PrimopWrappers.hs"
-, "*.hs-incl" ] |%> \file -> do ...
-\end{lstlisting}
-
-  \item Build rules with multiple outputs (AND-rules)
-  \item Compute build arguments from target filename
-\end{itemize}
+% \subsection{Abstracting over patterns of dependencies}
+% 
+% \todo{This was moved from Section 5.}
+% 
+% By embedding the build system in Haskell we get access to its rich abstraction
+% facilities. Examples:
+% \begin{itemize}
+%   \item Use general predicates instead of file patterns. For example, several
+%   files are built by calling \texttt{genprimopcode}, which can be captured by a
+%   single build OR-rule:
+% 
+% \begin{lstlisting}
+% [ "autogen/GHC/Prim.hs"
+% , "GHC/PrimopWrappers.hs"
+% , "*.hs-incl" ] |%> \file -> do ...
+% \end{lstlisting}
+% 
+%   \item Build rules with multiple outputs (AND-rules)
+%   \item Compute build arguments from target filename
+% \end{itemize}

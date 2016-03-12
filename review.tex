@@ -1,5 +1,8 @@
 \section{Review of state-of-the-art in build systems\label{section-review}}
 
+\todo{\textbf{Neil}: we refer to SCons twice in the text, but it doesn't have a section.
+Shall we add one?}
+
 Comparison with \textsc{Make}, \textsc{cmake}, \textsc{Ninja},
 \textsc{Fabricate}, \textsc{Tup}.
 
@@ -9,11 +12,11 @@ New ones since the Shake paper. Jenga (Shake clone) and Pluto (Shake clone + oth
 
 Starting from the Shake related work...
 
-Build tools can be divided into two categories -- those which target single-language projects with fixed rules (e.g. \prog{ocamlbuild}, \prog{ghc --make}, Visual Studio projects), and those which allow user specified rules (e.g. \make{} and Shake). Focusing on the second category, the defacto standard is \make{}, but there are many \make{} competitors (notably Ant, CMake, Jam, Scons and Waf). Most of these tools read a list of rules, generate a dependency graph, then execute commands while traversing that graph.
+Build tools can be divided into two categories -- those which target single-language projects with fixed rules (e.g. \prog{ocamlbuild}, \prog{ghc --make}, Visual Studio projects), and those which allow user specified rules (e.g. \make{} and Shake). Focusing on the second category, the defacto standard is \make{}, but there are many \make{} competitors (notably Ant, CMake, Jam, SCons and Waf). Most of these tools read a list of rules, generate a dependency graph, then execute commands while traversing that graph.
 
 Since the number of build tools is vast, we focus on four build tools which take different approaches (Redo, Ninja, Tup and Fabricate). Interestingly, one thing all four systems have in common is that they require a database of build data, in addition to the rules and the file system. Unlike Shake, all these build systems are limited to files.
 
-\subsection{Redo}
+\subsection{Redo\label{sec:redo}}
 
 % https://github.com/apenwarr/redo
 
@@ -21,7 +24,7 @@ The Redo build system \cite{redo} has a similar dependency theory to Shake. Rule
 
 While Redo has similarities to Shake, the practical implementation is significantly different. Instead of a single rule store, Redo stores each rule in a separate file, and the script language is simply shell script (allowing \verb"#!" to change the interpreter). The advantage of separate files is that Redo is able to depend on the actual rule used to build a result, meaning that build system changes are properly tracked. However, separating build rules makes it harder to reason about the build system, and eliminates many potential uses of abstraction \cite{jonge:build_components}. Redo does not work on Windows, and has no support for unchanging files or multiple outputs.
 
-\subsection{Ninja}
+\subsection{Ninja\label{sec:ninja}}
 
 % http://martine.github.com/ninja/manual.html
 

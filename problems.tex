@@ -106,8 +106,11 @@ to develop large scale build systems using Make, it is clear that GHC developers
 have gone far beyond Make's scalability limits.
 
 % \begin{enumerate}
-% \item The programming language is complex. This macro expands through multiple levels, so \lst"$$$$($1_$2_HC_DEP)" looks up in the environment two stages later.
-% \item The dependency on \lst"$1_$2_PKGDATA_DEP" is only to reduce parallelism, to ensure too many commands do not run in parallel.
+% \item The programming language is complex. This macro expands through multiple
+% levels, so \lst"$$$$($1_$2_HC_DEP)" looks up in the environment two stages
+% later.
+% \item The dependency on \lst"$1_$2_PKGDATA_DEP" is only to reduce parallelism,
+% to ensure too many commands do not run in parallel.
 % \end{enumerate}
 
 % \subsection{The GHC build system}
