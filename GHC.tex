@@ -3,8 +3,19 @@
 In this section we report on our experience on applying the techniques presented
 so far to building a large-scale software project: the Glasgow Haskell Compiler.
 
-\subsection{Limitations\label{sec:limitations}}
-\todo{Andrey: list current limitations.}
+\subsection{Current limitations\label{sec:limitations}}
+
+We implemented a new build system for GHC using Shake and our
+abstractions~\S\ref{sec:abstractions}. The current implementation can build
+\lst'Stage2' GHC, but has the following limitations:
+\begin{itemize}
+  \item We only build \lst'vanilla' and \lst'profiling' way.
+  \item We reuse GHC testing infrastructure of the old build system.
+  \item Only HTML documentation can be built.
+  \item Not all build flavours and command line flags are supported.
+  \item Cross-compilation is not implemented.
+  \item Installation or binary/source distribution are not supported.
+\end{itemize}
 
 \subsection{Qualitative analysis}
 
