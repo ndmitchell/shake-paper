@@ -166,6 +166,27 @@ inovations in \S?. The encapsulation is provided by Haskell modules. The lack of
 freedom is provided by strong name binding. The problems related to `:' go away
 by manipulating values rather program text.
 
+
+As we develop more Shake-based build systems, patterns have started to emerge.
+Typically 90\% of a build system can be captured in some simple DSL, taking
+advantage of conventions, and 10\% cannot. As an example, a large build system
+might build 100 C++ libraries, each with similar flags and file layout, but
+taking the source files from different directories. It may also minify a
+Javascript file, and build an installer -- both one-off tasks. Using a
+fully-powerful system such as Shake, it is possible to engineer robust
+abstractions, and then define the majority of the build system using only these
+abstractions. The end result is that most edits to the build system involve only
+the DSL, and can be performed by a large number of individuals.
+
+After dealing with the DSL, there are usually a few pieces left over, and these
+can be implemented in Shake, as normal. Thanks to the power of Shake you can
+interpret the DSL and combine it with the custom pieces. In our experience by
+providing an \emph{escape hatch} where fully-powerful code an be expressed it
+removes the temptation to shoehorn more advanced features in the DSL, and thus
+avoids turning it into an ad-hoc scripting language. Instead, should enough
+pieces be required in the escape hatch, they can be abstracted in the
+traditional ways - perhaps even combining two DSLs in one build system.
+
 \subsection{Rules with multiple outputs\label{sec:multiple-outputs}}
 
 GHC produces object \lst"*.o" and interface \lst"*.hi" files when compiling 

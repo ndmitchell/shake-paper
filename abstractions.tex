@@ -20,7 +20,7 @@ need first-class representation, not merely strings.
 \item The code should permit debugging. There are lots of obscure configuration
 operations inherent in any large system, and the build system is the place where
 such knowledge should live. As an example, when running the \lst'Alex'
-program over one particular file we need to pass the \texttt{--latin1} flag. We
+program over one particular file we need to pass the \lst'--latin1' flag. We
 want users to be able to determine what flags were used and where specifically
 that decision was made.
 \item The code should permit configuration. Many GHC users work with GHC in
@@ -41,7 +41,7 @@ package compiler ?
 #\hspace{7.3mm}#builder Alex ? arg "--latin1"
 \end{lstlisting}
 
-\noindent The expression adds the \texttt{--latin1} argument to the command line
+\noindent The expression adds the \lst'--latin1' argument to the command line
 of the \lst'Alex' program when building the \lst'compiler' package.
 
 \newcommand{\itab}[1]{\hspace{0em}\rlap{#1}}
@@ -135,8 +135,8 @@ GHC source code is split into logical units, or \emph{packages}. We model
 packages with the \lst'Package' type, see Fig.~\ref{fig:abstractions}
 (the \emph{Build types} subfigure). A package is identified by a unique
 \lst'PackageName' and a \lst'FilePath' pointing to its location in the source
-tree. A GHC package can be a library (e.g., \texttt{array}) or a program (e.g.,
-\texttt{genprimopcode}), which is captured by \lst'PackageType'. There are 32
+tree. A GHC package can be a library (e.g., \lst'array') or a program (e.g.,
+\lst'genprimopcode'), which is captured by \lst'PackageType'. There are 32
 libraries and 18 programs (the latter includes the GHC itself and various
 utilities).
 
@@ -148,7 +148,7 @@ possible way), \lst'profiling' (with profiling information), \lst'debug'
 ways can be combined, e.g., \lst'debugProfiling'; however, not all combinations
 are allowed or currently supported. By making \lst'Way' opaque we make it easier
 to add new ways or change their internal representation, something that would be
-impossible to achieve in \make{}, where no information hiding is possible. 
+impossible to achieve in Make, where no information hiding is possible. 
 
 In addition to different build ways, each package can be built by several
 versions of GHC, which leads to the notion of \emph{stages}.
@@ -166,8 +166,8 @@ should be the same.
 rule, such as \lst'compilePackage', depends on the context as follows: it
 uses an appropriate compiler version (e.g., the bootstrap compiler in
 \lst'Stage0'), produces object files with different extensions (e.g., vanilla
-\texttt{"*.o"} or profiled \texttt{"*.p\_o"} object files), puts build artefacts
-into an appropriate directory (e.g., \texttt{"stage1/libraries/base"}), etc.
+\lst'*.o' or profiled \lst'*.p_o' object files), puts build artefacts
+into an appropriate directory (e.g., \lst'stage1/libraries/base'), etc.
 There are $4 \times 40 \times 18 = 2880$ different possible contexts.
 
 A typical build system invokes several build tools, or \emph{builders}, such as
@@ -207,10 +207,10 @@ a list of output files. 3748 targets are built when building \lst'Stage2' GHC
 with documentation (with vanilla and profiled libraries). Consider the following
 invocation of builder \lst'Alex' as an example:
 
-\begin{verbatim}
+\begin{lstlisting}
 alex -g --latin1 compiler/parser/Lexer.x
-              -o compiler/stage1/build/Lexer.hs
-\end{verbatim}
+                -o compiler/stage1/build/Lexer.hs
+\end{lstlisting}
 
 \noindent The corresponding \lst'Target' is:
 
@@ -223,14 +223,14 @@ lexerTarget = Target
 \end{lstlisting}
 
 \noindent By examining \lst'lexerTarget' it is possible to compute the full
-command line for building \texttt{compiler/stage1/build/Lexer.hs}:
+command line for building \lst'compiler/stage1/build/Lexer.hs':
 \begin{itemize}
   \item The builder is \lst'Alex'. We lookup the right command
-  \texttt{alex} in the configuration file \texttt{system.config}, and use the
-  following command line expression: \texttt{-g <input> -o <output>}.
+  \lst'alex' in the configuration file \lst'system.config', and use the
+  following command line expression: \lst'-g <input> -o <output>'.
   \item The package is \lst'compiler'. We know that we need to add
-  flag \texttt{--latin1} to the above expression.
-  \item We know how to substitute \texttt{<input>} and \texttt{<output>} in the
+  flag \lst'--latin1' to the above expression.
+  \item We know how to substitute \lst'<input>' and \lst'<output>' in the
   above expression.
   \item We ignore \lst'stage' and \lst'way' because they are not relevant
   in this particular case. However, we record them in the build log.
@@ -263,7 +263,7 @@ alexArgs = do
 \end{lstlisting}
 
 There is a room for improvement of the \lst'alexArgs' expression. For
-example, conditional arguments like \texttt{--latin1} are very common in build
+example, conditional arguments like \lst'--latin1' are very common in build
 systems and a better way to express them is clearly desirable. We use Boolean
 \emph{predicates} of type \lst'Expr Bool' to achieve this, see
 Fig.~\ref{fig:abstractions} (the \emph{Predicates} subfigure). In particular, we
@@ -275,7 +275,8 @@ package.
 Operator \lst'(?) :: Monoid a => Predicate -> Expr a -> Expr a' is a
 convenient shortcut for applying a predicate to an expression that computes a monoidal value, such
 as \lst'[String]'. For example, the following expression returns
-\texttt{--latin1} when the current target belongs to the compiler package and an empty expression otherwise:
+\lst'--latin1' when the current target belongs to the compiler package and an
+empty expression otherwise:
 
 \begin{lstlisting}
 latin1 :: Expr [String]
@@ -380,21 +381,21 @@ build target@Target {..} = do
 \begin{itemize}
   \item Firstly, \lst'builderPath :: Builder -> Action FilePath' determines the
   path to the builder depending on its provenance and the contents of the
-  \texttt{system.config} file.
+  \lst'system.config' file.
   \item We \lst'interpret' the \lst'allArgs' expression w.r.t. to the
   \lst'target', and obtain the list of \lst'String' arguments to be passed to
   the builder. See Fig.~\ref{fig:abstractions} for the implementation of
   \lst'interpret'.
   \item We \lst'need' the builder to make sure it is up-to-date. Some builders
-  are built by the build system, e.g. \texttt{genprimopcode},
-  \texttt{ghc-cabal}, stage1 GHC, so it is important to rebuild them (as well as
+  are built by the build system, e.g. \lst'genprimopcode',
+  \lst'ghc-cabal', stage1 GHC, so it is important to rebuild them (as well as
   all dependent targets) if need be.
   \item Function \lst'checkArgsHash :: Target -> Action ()' checks whether the
   \lst'target' needs to be rebuilt because the command line computed from
   \lst'allArgs' expression has changed since the previous build. If it changed,
   the target is rebuilt even if all its dependencies are up-to-date. This tracks
-  changes both in the environment and in the build system itself. \todo{Explain
-  how checkArgsHash works?}
+  changes both in the environment and in the build system itself.
+  \todo{\textbf{Andrey}: Explain how checkArgsHash works?}
   \item Finally, we invoke the builder with appropriate arguments using Shake's
   \lst'cmd' function.
 \end{itemize}
@@ -404,7 +405,7 @@ build target@Target {..} = do
 Fig.~\ref{fig:example-abstractions} shows a simple build system that uses the
 abstractions introduced in this section.
 
-\todo{Add description of the example (0.5 columns).}
+\todo{\textbf{Andrey}: Add description of the example (0.5 columns).}
 
 \newcommand{\tabx}[1]{\hspace{.106\textwidth}\rlap{#1}}
 \newcommand{\taby}[1]{\hspace{.103\textwidth}\rlap{#1}}
@@ -486,27 +487,3 @@ main = shake shakeOptions $ do
 \end{lstlisting}
 \caption{Example of a build system\label{fig:example-abstractions}}
 \end{figure}
-
-\subsection{Design pattern: DSL + escape hatch}
-
-\todo{Shall we move it to the beginning of the section?}
-
-As we develop more Shake-based build systems, patterns have started to emerge.
-Typically 90\% of a build system can be captured in some simple DSL, taking
-advantage of conventions, and 10\% cannot. As an example, a large build system
-might build 100 C++ libraries, each with similar flags and file layout, but
-taking the source files from different directories. It may also minify a
-Javascript file, and build an installer -- both one-off tasks. Using a
-fully-powerful system such as Shake, it is possible to engineer robust
-abstractions, and then define the majority of the build system using only these
-abstractions. The end result is that most edits to the build system involve only
-the DSL, and can be performed by a large number of individuals.
-
-After dealing with the DSL, there are usually a few pieces left over, and these
-can be implemented in Shake, as normal. Thanks to the power of Shake you can
-interpret the DSL and combine it with the custom pieces. In our experience by
-providing an \textit{escape hatch} where fully-powerful code an be expressed it
-removes the temptation to shoehorn more advanced features in the DSL, and thus
-avoids turning it into an ad-hoc scripting language. Instead, should enough
-pieces be required in the escape hatch, they can be abstracted in the
-traditional ways - perhaps even combining two DSLs in one build system.
