@@ -29,16 +29,16 @@ Make and similar build systems (\S\ref{sec:challenges} and
 no fewer than four major versions of GHC's build system; it improved each
 time, but the result is still manifestly inadequate.
 
-\item We describe Shake, an embedded domain specfic language (or library)
+\item We describe Shake, an embedded domain specific language (or library)
 in Haskell that directly addresses the challenges we identify
 in~\S\ref{sec:shake}.
 Although Shake has been introduced before~\cite{shake}, we describe here
 several key features that were mentioned only in passing if at all, notably:
-post-use and order-only dependencies; polymorphic dependencies and oracles;
+post-use and order-only dependencies; how to use polymorphic dependencies;
 resources; and content hashes.
 
 \item We show in some detail how Shake's built-in abstractions address
-many of the scalabilty challenges that have been causing us such pain over
+many of the scalability challenges that have been causing us such pain over
 two decades (\S\ref{sec:solutions}).
 
 \item A huge benefit of using an embedded DSL as a build system is that
@@ -51,10 +51,10 @@ to support it.
 
 \item To validate our claims, we have completely re-implemented GHC's
 build system, for the fifth and final time.  We replaced 10,000 lines
-of (utterly incomphrehensible) makefile code spead over 200 files, with
-6,000 lines of (beatuifully modular) Haskell code spread over 90 files.
+of (utterly incomprehensible) makefile code spread over 200 files, with
+6,000 lines of (beautifully modular) Haskell code spread over 90 files.
 Not only that, but the resulting system has much better behaviour in many
-common use-cases, as we disuss in~\S\ref{sec:ghc}. \todo{\textbf{SDM}: would
+common use-cases, as we discuss in~\S\ref{sec:ghc}. \todo{\textbf{SDM}: would
 you like to reword this to shift the focus from the line count comparison?}
 \end{itemize}
 None of this is fundamentally new; we review related work
