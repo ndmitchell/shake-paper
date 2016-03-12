@@ -1,5 +1,39 @@
 \section{Review of state-of-the-art in build systems\label{section-review}}
 
+This paper is about writing build systems at scale, a subject we have been unable to find much literature about, beyond \citet{miller:recursive_make}. When \citet{mcintosh:build_maintenance_effort} studied the impact of build systems they found that build systems can take up to 27\% of development effort, and furthermore than improvements to the build system rapidly paid off. Recently \citet{martin:make_it_simple, martin:maintenance_complexity_makefiles} has both surveyed which Make features are used, and classified them by complexity.
+
+
+, so advice to reduce that should be welcome. There has been some work investigating which features of Make are used \cite{martin:make_it_simple} and which features produce most complexity \cite{martin:maintenance_complexity_makefiles}, but as yet these results have not been combined. In the remainder of this section we focus on some of the features found in other build syustem
+
+Therefore we instead review build systems that have features that might be desirable in large build systems, all of which are provided by some build system, but none which is provided by all. We have skipped single-language projects with fixed rules (e.g. \lst'ocamlbuild', \lst'ghc --make', Visual Studio projects). Build tools can be divided into two categories -- those which target single-language projects with fixed rules (e.g. \prog{ocamlbuild}, \prog{ghc --make}, Visual Studio projects), and those which allow user specified rules (e.g. \make{} and Shake). Focusing on the second category, the defacto standard is \make{}, but there are many \make{} competitors (notably Ant, CMake, Jam, SCons and Waf). Most of these tools read a list of rules, generate a dependency graph, then execute commands while traversing that graph.
+
+\subsection{Embedded language}
+
+The input to a build system can either be a file of metadata 
+
+
+We have found that an embedded language, complete with the full power of abstractions, lets us develop at a much higher level. Many languages have been used in embedded systems, e.g Bash in redo, Java in Pluto, Python in Scons, OCaml in Jenga etc. For a project which is big and has lots of diversity, a language seems like a good idea.
+
+There are a surprisingly large number of Haskell libraries implementing a dependency aware build system -- we know of ten in addition to Shake (Abba, Blueprint, Buildsome, Coadjute, Cake $\times$ 2, Hake, Hmk, Nemesis, OpenShake and Zoom). Of these, the two Cake libraries and OpenShake are based on an early presentation of the principles behind Shake, before the source code was available.
+
+\subsection{Advanced dependencies}
+
+We have found that more powerful dependencies might only be used in a few places, but there effect is pervasive. A few other build systems support resources (e.g. Ninja), and several support monadic dependencies (e.g. Redo, Jenga, Pluto, SCons). A few support features more powerful than Shake, for example Pluto supports rules that reach fixed-points, build rules whose output is unknown and custom rebuilding.
+
+\subsection{Automatic dependency management}
+
+They can only do needed, apart from Fabricate which is forward driven so ends up doing more. Specifically Tup, Buildsome.
+
+\subsection{Build clusters} Bazel and Buck.
+
+
+
+In the end, the choice of Shake is because its Haskell, has been shown to scale to projects of a similar size, and has the features needed. We see no reason that a system with similar features could not be implemented in an alternative system like Jenga or Pluto, and suspect many of our insights would transfer.
+
+
+Fabricate stands alone
+
+
 \todo{\textbf{Neil}: we refer to SCons twice in the text, but it doesn't have a section.
 Shall we add one?}
 
