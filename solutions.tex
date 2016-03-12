@@ -218,6 +218,8 @@ availability of functions, we can abstract a function that executes
 
 \subsection{Dynamic dependencies\label{sec:dynamic-deps}}
 
+\todo{\textbf{Andrey}: Rewrite.}
+
 Make, in common with many other build systems, works by
 constructing a dependency graph and then executing it. This approach
 has some benefits in that it is possible to analyse the graph ahead of
@@ -312,9 +314,6 @@ limitation in practice (while the lack of dynamic dependencies really
 % graph, termination checking as it executes, the ability to suspend partially
 % executed rules etc. Fortunately, as users we do not need to care.
 
-Note, Redo (\S\ref{sec:redo}) is the only other clearly monadic build
-system, while it can be encoded in SCons using the dependency rules.
-
 % \subsection{Fine-grain dependencies\label{sec:fine-grain-deps}}
 %
 % There are many instances where an action depends on a part of a file. As a
@@ -392,13 +391,13 @@ system, while it can be encoded in SCons using the dependency rules.
 % unchanging rules we automatically get rebuild avoidance if the value does not
 % change.
 
-\subsection{Real code\label{sec:real_code}}
+\subsection{Real computation\label{sec:real_code}}
 
-Much of a build system is calling out to programs that execute real code, e.g.
-compilers. But there is some stuff that requires custom code, for example
-splitting command line arguments that exceed a certain size. In the old
-build system we used \lst'xargs', which alas does not work consistently between
-different OS versions, and does both more than we want and less than we want.
+Build systems typically spend most of their time calling out to external
+processes, e.g. compilers. But sometimes it is useful to replace external processes
+with direct functions. As an example, the Make build system used \lst'xargs' to
+split command line arguments that exceed a certain size, but that did not work
+consistently across OS versions, requiring lots of conditional logic. 
 Fortunately, with Haskell at our disposal, we can write:
 
 \begin{lstlisting}
@@ -434,7 +433,7 @@ result. Marrying build systems and functional programming works well.
 use of multiple outputs~\S\ref{sec:multiple-outputs},
 resources~\S\ref{sec:ghc-pkg-db}, dynamic dependencies~\S\ref{sec:dynamic-deps},
 fine-grain dependencies~\S\ref{sec:fine-grain-deps}. While some of these
-features are only used in a few places (e.g., resources), their absence would
+features are only used in a few places (e.g. resources), their absence would
 require pervasive workarounds, and a significant increase in the overall complexity.
 \end{itemize}
 
