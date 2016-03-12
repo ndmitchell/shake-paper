@@ -189,7 +189,7 @@ traditional ways - perhaps even combining two DSLs in one build system.
 
 \subsection{Rules with multiple outputs\label{sec:multiple-outputs}}
 
-GHC produces object \lst"*.o" and interface \lst"*.hi" files when compiling 
+GHC produces object \lst"*.o" and interface \lst"*.hi" files when compiling
 Haskell sources. How do we express this in a build rule?
 
 A typical Make appoach to this is to use two rules, one depending on the other.
@@ -227,7 +227,7 @@ As discussed in~\S\ref{sec:concurrency-reduction}, it is sometimes necessary to
 reduce concurrency in a build system. As one example, GHC packages need to
 be registered by invoking the \lst'ghc-pkg' utility. This utility mutates the
 global state (package database) and hence at most one package can be registered
-at a time, or the database is corrupted. 
+at a time, or the database is corrupted.
 
 In Make, the solution is to introduce fake \emph{concurrency
 reduction} dependencies. There are 25 GHC packages that require registration,
@@ -408,7 +408,7 @@ requires explicitly enabling per rule.
 % successfully.
 
 % \subsection{Everything is a file}
-% 
+%
 % Once fine grained dependencies are available, they can quickly become
 % pervasive. Using a build system based on filenames as keys and files as values
 % we effectively reach the global store problem we criticised in \S? (particularly
@@ -418,7 +418,7 @@ requires explicitly enabling per rule.
 % database. Thanks to such a technique we can have an oracle per rule we create to
 % track changing information, without necessarily doubling the number of files
 % present in the build system. As an example:
-% 
+%
 % \begin{lstlisting}
 % newtype ConfigKey = ConfigKey String
 %     deriving (Show,Typeable,Eq,Hashable,Binary,NFData)
@@ -426,16 +426,16 @@ requires explicitly enabling per rule.
 %     addOracle $ \(ConfigKey x) -> do
 %         src <- readFile' "system.config"
 %         Map.lookup (parseFile src) x
-% 
+%
 %     ... askOracle (ConfigKey x) ...
 % \end{lstlisting}
-% 
+%
 % Here we define our own rule of type \lst"ConfigKey" which reads from the
 % configuration and stores just that one field. Since this also participates in
 % unchanging rules we automatically get rebuild avoidance if the value does not
 % change.
 
-\subsection{Real code}
+\subsection{Real code\label{sec:real_code}}
 
 Much of a build system is calling out to programs that execute real code, e.g.
 compilers. But there is some stuff that requires custom code, for example
@@ -482,22 +482,22 @@ require pervasive workarounds, and a significant increase in the overall complex
 \end{itemize}
 
 % \subsection{Abstracting over patterns of dependencies}
-% 
+%
 % \todo{This was moved from Section 5.}
-% 
+%
 % By embedding the build system in Haskell we get access to its rich abstraction
 % facilities. Examples:
 % \begin{itemize}
 %   \item Use general predicates instead of file patterns. For example, several
 %   files are built by calling \texttt{genprimopcode}, which can be captured by a
 %   single build OR-rule:
-% 
+%
 % \begin{lstlisting}
 % [ "autogen/GHC/Prim.hs"
 % , "GHC/PrimopWrappers.hs"
 % , "*.hs-incl" ] |%> \file -> do ...
 % \end{lstlisting}
-% 
+%
 %   \item Build rules with multiple outputs (AND-rules)
 %   \item Compute build arguments from target filename
 % \end{itemize}
