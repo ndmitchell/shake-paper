@@ -119,7 +119,7 @@ Mostly by pretending the .hi file depends on the .o file, which is (mostly) true
 
 Using Shake we can express this pattern directly (it actually turns out to be a consequence of the more powerful dependency model).
 
-\subsection{Reducing concurrency}
+\subsection{Reducing concurrency\label{sec:ghc-pkg-resource}}
 
 Usually we want the build system to run as many steps as possible in parallel at
 any point. However, for some actions, executing multiple steps in parallel can

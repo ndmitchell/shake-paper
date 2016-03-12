@@ -306,33 +306,70 @@ Now the \lst'*.o' rule will have the \emph{value} of the
 % 
 % Using oracles we are freed from defining our own \lst'Rule' instance and can use a type-safe version of \lst'apply' tailored to our particular oracle. The definition of oracles is only a handful of lines long, but sharply decreases the number of Shake concepts that must be understood to define non-file rules following the typical pattern. All non-file rules in GHC are implemented using oracles.
 
-The use of non-file rule types is common in large build systems, occurring ten times in our implementation of GHC's build system in \S\ref{sec:ghc}. Polymorphic dependencies do not give any fundamental additional expressive power over file rules, but they do provide:
+The use of non-file rule types is common in large build systems, occurring ten
+times in our implementation of GHC's build system in \S\ref{sec:ghc}.
+Polymorphic dependencies do not give any fundamental additional expressive power
+over file rules, but they do provide:
 
 \begin{itemize}
-\item An easy way to get unique keys, by allowing use of a freshly defined type. While two unrelated parts of the build system might both define \lst'config-key-cc.txt' rules and clash, any two definitions of \lst'ConfigKey' will either be distinct via their qualified name, or will result in a compile error.
-\item Additional structure for keys and values, instead of hierarchical filenames and binary content files. In particular keys can contain full algebraic data types including lists, tuples and booleans.
-\item Greater granularity, by not forcing each rule to be backed by a separate file. GHC's build system has 6,677 non-file rules.
+\item An easy way to get unique keys, by allowing use of a freshly defined type.
+While two unrelated parts of the build system might both define
+\lst'config-key-cc.txt' rules and clash, any two definitions of \lst'ConfigKey'
+will either be distinct via their qualified name, or will result in a compile
+error.
+\item Additional structure for keys and values, instead of hierarchical
+filenames and binary content files. In particular keys can contain full
+algebraic data types including lists, tuples and booleans.
+\item Greater granularity, by not forcing each rule to be backed by a separate
+file. GHC's build system has 6,677 non-file rules.
 \end{itemize}
  
-\subsection{Limiting Parallelism}
+\subsection{Concurrency reduction}
 
-Like most build systems, Shake can run multiple rules in parallel. However, running too many rules in parallel can cause a computer to become overloaded, spending much of its time switching between tasks instead of executing them. Most build systems take an argument to set the maximum number of rules that can be run simultaneously (Shake has \lst'shakeThreads'), and typically that number is based on the number of available CPUs. However, there are other instances where certain rules should not be run in parallel:
+Like most build systems, Shake can run independent rules concurrently.
+However, running too many rules in parallel can cause a computer to become overloaded,
+spending much of its time switching between tasks instead of executing them.
+Most build systems take an argument to set the maximum number of rules that can
+be run in parallel (Shake has \lst'shakeThreads'), and typically that number
+is based on the number of available CPUs. Note that some rules may appear to be
+independent while they actually are not:
 
-\begin{enumerate}
-\item Some APIs are global in nature. If you run two programs that access the Excel API simultaneously things start to fail.
-\item Many people have large numbers of CPUs, but only one slow rotating hard-drive. Running many disk-heavy linker processes simultaneously can overload the hard-drive.
-\item Some proprietary software has licenses which limit the number of concurrent processes, for example ModelSim.
-\end{enumerate}
+% However, there are other instances
+% where certain rules should not be run in parallel:
 
-Build systems typically obey such constraints using one of the following approaches:
+\begin{itemize}
+\item Some APIs are global in nature. If you run two programs that access the
+\lst'Excel' API simultaneously things start to fail.
+\item Many people have large numbers of CPUs, but only one slow rotating
+hard-drive. Running many disk-heavy linker processes simultaneously can overload
+the hard-drive.
+\item Some proprietary software has licenses which limit the number of
+concurrent processes, for example \lst'ModelSim'.
+\end{itemize}
 
-\begin{enumerate}
-\item Limit the maximum number of simultaneous rules. For example a user with 24 CPUs might limit the build system to 8 simultaneous rules so that linking is not problematic. This solution wastes CPU resources, leaving CPUs idling.
-\item Add locks to suspend jobs that are competing for a shared resource. For example any rule using the Excel API could check for the existence of a lock file before continuing, and keep a lock file while executing. This approach still wastes CPU resources, causing them to block instead of executing other rules.
-\item Use fake dependencies to serialise the rules into a linear order, ensuring only one rule using the resource can run at a time. This approach reduces available parallelism and requires a global ordering on the build rules.
-\end{enumerate}
+\noindent Rules using such limited \emph{resources} should not be run in
+parallel even though they do not have explicit dependencies between them. Build systems
+typically obey such constraints using one of the following approaches:
 
-In Shake this problem can be solved directly using the \lst'Resource' type, which represents a finite resource that multiple build rules can use. Resource values are created with \lst'newResource' and used by \lst'withResource'. As an example, only one set of calls to the Excel API can occur at once, therefore Excel is a finite resource of quantity 1. We can write:
+\begin{itemize}
+\item Limit the maximum number of simultaneous rules. For example a user with
+24 CPUs might limit the build system to 8 simultaneous rules so that linking is
+not problematic. This solution wastes CPU resources, leaving CPUs idling.
+\item Add locks to suspend jobs that are competing for a shared resource. For
+example any rule using the \lst'Excel' API could check for the existence of a lock
+file before continuing, and keep a lock file while executing. This approach
+still wastes CPU resources, causing them to block instead of executing other
+rules.
+\item Use fake dependencies to serialise the rules, ensuring
+only one rule using the resource can run at a time. This approach reduces
+concurrency and requires a global ordering on the build rules.
+\end{itemize}
+
+In Shake this problem can be solved directly using the \lst'Resource' type,
+which represents a finite resource that multiple build rules can use. \lst'Resource'
+values are created with \lst'newResource' and used by \lst'withResource'. As an
+example, only one set of calls to the \lst'Excel' API can occur at once, therefore
+\lst'Excel' is a finite resource of quantity 1. We can write:
 
 \begin{lstlisting}
 want ["a.xls","b.xls"]
@@ -341,19 +378,70 @@ excel <- newResource "Excel" 1
     withResource excel 1 $ cmd "excel" out ...
 \end{lstlisting}
 
-We create a new resource named \lst'excel' of quantity one, then when using Excel we call \lst'withResource excel 1', to indicate we use one Excel resource. Now we will never run two copies of Excel simultaneously, regardless of the \lst'shakeThreads' setting. Moreover, the build system will never block waiting for the resource if there are other rules that could be run. We use this approach to deal with the \lst'ghc-pkg' tool, which only permits one writer or multiple readers, see \S?.
+\noindent We create a new resource \lst'excel' of quantity 1, and then we call
+\lst'withResource excel 1' to use it. Now we will never run two copies of
+\lst'Excel' simultaneously, regardless of the \lst'shakeThreads' setting.
+Moreover, the build system will never block waiting for the resource if there
+are other rules that could be run. We use this approach to deal with the GHC
+package database, which only permits one writer or multiple readers,
+see~\S\ref{sec:ghc-pkg-resource}.
 
-\subsection{Tracking File Contents\label{sec:file-contents}}
+\subsection{Tracking file contents\label{sec:file-contents}}
 
-Build systems run actions on files, skipping the actions if the files have not changed. An important part of that process involves determining if a file has changed. As we saw in \S\ref{sec:shake_intro}, \make{} uses modification time to check outputs are newer than inputs, while Shake uses modification time as a proxy for file contents and rebuilds on any change. However, there are two common cases where a file can change modification time without changing its contents:
+Build systems run actions on files, skipping the actions if the files have not
+changed. An important part of that process is determining if a file has
+changed. As we saw in~\S\ref{sec:shake_intro}, Make uses modification time to
+check outputs are newer than inputs, while Shake uses modification time as a
+proxy for file contents and rebuilds on any change. However, there are two
+common cases where a file can change modification time without changing its
+contents:
 
 \begin{itemize}
-\item When running a deterministic program that consumes a textual format, there are often many changes that can be made to the input without changing the generated output. For example, when generating a C source file from an XML input file, whitespace around XML tags is typically ignored as are XML comments. In such instances the generator can arrange to avoid rewriting the output file, or the build rule can write to a separate location and copy the file over if there are differences. However, such accommodation needs to be made for many actions.
-\item When working on two \texttt{git} branches, both of which are based on a common \texttt{master} branch, a typical pattern is to switch from one branch to another. If the first branch was recently synced with \texttt{master}, but the second has not been for a while, the typical workflow is to switch to the second branch and then merge with \texttt{master}. Assuming the differences between the two branches are small, the number of changed files is also likely to be small. However, if \texttt{master} changes regularly, any files that changed in \texttt{master} since the second branch was last synced will have a new modification time, despite having the same contents.
+\item When running a deterministic program that consumes a textual format, there
+are often many changes that can be made to the input without changing the
+generated output. For example, when generating a C source file from an XML input
+file, whitespace around XML tags is typically ignored as are XML comments. In
+such instances the generator can arrange to avoid rewriting the output file, or
+the build rule can write to a separate location and copy the file over if there
+are differences. However, such accommodation needs to be made for many actions.
+\item When working on two \lst'git' branches, both of which are based on a
+common \lst'master' branch, a typical pattern is to switch from one branch to
+another. If the first branch was recently synced with \lst'master', but the
+second has not been for a while, the typical workflow is to switch to the second
+branch and then merge with \lst'master'. Assuming the differences between the
+two branches are small, the number of changed files is also likely to be small.
+However, if \lst'master' changes regularly, any files that changed in
+\lst'master' since the second branch was last synced will have a new
+modification time, despite having the same contents.
 \end{itemize}
 
-Shake could solve these problems by simply making the value of a file rule the contents of that file, instead of the modification time. In the remainder of this section we discuss how to efficiently implement something approximating that simple scheme. Since Shake rules are polymorphic it is easy to provide multiple types of coexisting file rules, although for simplicity we instead provide the option of which file value type to use as a field of \lst'ShakeOptions'.
+Shake could solve these problems by simply making the value of a file rule the
+contents of that file, instead of the modification time. In the remainder of
+this section we discuss how to efficiently implement something approximating
+that simple scheme. Since Shake rules are polymorphic it is easy to provide
+multiple types of coexisting file rules, although for simplicity we instead
+provide the option of which file value type to use as a field of
+\lst'ShakeOptions'.
 
-The obvious problem with simply storing the entire contents of all files is that it will result in a huge Shake database. Instead, we store the result of applying a hash function to the file contents, where the hash changing indicates the file contents have changed. There is a remote risk that the file will change without its hash changing, but unless the build system users are actively hostile, that is unlikely. The disadvantage of content hashes over modification times is that hashes are expensive to compute, requiring a full scan of the file. In particular, after a rule finishes Shake must scan the file it just built, and on startup Shake must scan all files. Scanning all files can cause rebuilds where no actions are required to take minutes instead of less than a second.
+The obvious problem with simply storing the entire contents of all files is that
+it will result in a huge Shake database. Instead, we store the result of
+applying a hash function to the file contents, where the hash changing indicates
+the file contents have changed. There is a remote risk that the file will
+change without its hash changing, but unless the build system users are actively
+hostile, that is unlikely. The disadvantage of content hashes over modification
+times is that hashes are expensive to compute, requiring a full scan of the
+file. In particular, after a rule finishes Shake must scan the file it just
+built, and on startup Shake must scan all files. Scanning all files can cause
+rebuilds where no actions are required to take minutes instead of less than a
+second.
 
-As an optimisation, Shake stores the modification time, file size and hash of the contents. After a rule completes all the information is computed and stored. When checking if a file has changed, first the modification time is checked, and if that matches, the contents are assumed to have not changed. If the modification time has changed, and the file size has also changed, then the file has definitely changed. Only in the case where the modification time has changed but the size has not do we compute the actual hash. If that hash is equal to the previously recorded hash we store a new modification time, so that future checks will avoid computing the hash. These optimisations give most of the benefits of storing the file contents, but with significantly reduced costs.
+As an optimisation, Shake stores the modification time, file size and hash of
+the contents. After a rule completes all the information is computed and stored.
+When checking if a file has changed, first the modification time is checked, and
+if that matches, the contents are assumed to have not changed. If the
+modification time has changed, and the file size has also changed, then the file
+has definitely changed. Only in the case where the modification time has changed
+but the size has not do we compute the actual hash. If that hash is equal to the
+previously recorded hash we store a new modification time, so that future checks
+will avoid computing the hash. These optimisations give most of the benefits of
+storing the file contents, but with significantly reduced costs.
