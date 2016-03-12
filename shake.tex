@@ -21,7 +21,7 @@ main = shake shakeOptions $ do
     want ["foo.o"]
 
     "*.o" %> \out -> do
-        let src = replaceExtension out "c"
+        let src = out -<.> "c"
         need [src]
         cmd "gcc -o" out "-c" src
 \end{lstlisting}
@@ -37,8 +37,7 @@ Haskell libraries and Haskell abstractions (functions, modules, packages,
 the functions and types in Shake. Some of the Shake API is given in
 Figure~\ref{fig:shake-api}.
 \item[Line 3] imports the \lst'System.FilePath' module, which in this example
-provides the \lst'replaceExtension' function (we could have also used Shake's
-convenient alias: \lst'let src = out -<.> "c"').
+provides the \lst'-<.>' function to replace a files extension.
 \item[Lines 6] declares the \lst'main' function, which calls \lst'shake'. The
 \lst'shake' function takes some options (parallelism settings, etc.), along with
 a set of \lst'Rules', and executes the necessary rules.
@@ -49,8 +48,7 @@ end with the extension \lst'.o'. The \lst'%>' operator produces a rule of type
 \lst'Rules' which takes a pattern on the left, and an \lst'Action' on the
 right. The variable \lst'out' will be bound to the actual file being produced,
 namely \lst'foo.o' in this example.
-\item[Line 10] computes the name of the source file, in our case
-\lst'src = foo.c'.
+\item[Line 10] computes the name of the source file, in our case \lst'src = foo.c'.
 \item[Line 11] uses \lst'need' to ensure \lst'foo.c' has been built before
 continuing, and to introduce a dependency that if \lst'foo.c' changes then this
 rule will require rerunning.
@@ -107,23 +105,6 @@ orderOnly :: [FilePath] -> Action ()
 \todo{\textbf{Neil}: Include everything we use in the paper}
 \caption{Shake API\label{fig:shake-api}}
 \end{figure}
-
-% \todo{Include everything we use in the paper}
-% \caption{Shake generic API\label{fig:shake_generic_api}}
-% \end{figure}
-%
-% \begin{figure}
-% \begin{lstlisting}
-% type FilePattern = String
-% (%>) :: FilePattern -> (FilePath -> Action ()) -> Rules ()
-% (?>) :: (FilePath -> Bool) -> (FilePath -> Action ()) -> Rules ()
-% want :: [FilePath] -> Rules ()
-% need :: [FilePath] -> Action ()
-% needed :: [FilePath] -> Action ()
-% orderOnly :: [FilePath] -> Action ()
-% \end{lstlisting}
-% \caption{Shake file-specific API\label{fig:shake_file_api}}
-% \end{figure}
 
 On the first execution, this example will start running the \lst'*.o' rule to
 produce \lst'foo.o'. When execution gets to \lst'need [src]' this rule will stop
@@ -312,16 +293,12 @@ Polymorphic dependencies do not give any fundamental additional expressive power
 over file rules, but they do provide:
 
 \begin{itemize}
-\item An easy way to get unique keys, by allowing use of a freshly defined type.
-While two unrelated parts of the build system might both define
-\lst'config-key-cc.txt' rules and clash, any two definitions of \lst'ConfigKey'
-will either be distinct via their qualified name, or will result in a compile
-error.
+\item An easy way to get distinct keys, by using use of a freshly defined type.
 \item Additional structure for keys and values, instead of hierarchical
 filenames and binary content files. In particular keys can contain full
-algebraic data types including lists, tuples and booleans.
+algebraic data types.
 \item Greater granularity, by not forcing each rule to be backed by a separate
-file. GHC's build system has 6,677 non-file rules.
+file. GHC's build system uses 6,677 non-file rules.
 \end{itemize}
 
 \subsection{Concurrency reduction\label{sec:concurrency-reduction}}
@@ -331,11 +308,8 @@ However, running too many rules in parallel can cause a computer to become overl
 spending much of its time switching between tasks instead of executing them.
 Most build systems take an argument to set the maximum number of rules that can
 be run in parallel (Shake has \lst'shakeThreads'), and typically that number
-is based on the number of available CPUs. Note that some rules may appear to be
-independent while they actually are not:
-
-% However, there are other instances
-% where certain rules should not be run in parallel:
+is based on the number of available CPUs. However, some rules may not be
+independent:
 
 \begin{itemize}
 \item Some APIs are global in nature. If you run two programs that access the
@@ -349,21 +323,10 @@ concurrent processes, for example \lst'ModelSim'.
 
 \noindent Rules using such limited \emph{resources} should not be run in
 parallel even though they do not have explicit dependencies between them. Build systems
-typically obey such constraints using one of the following approaches:
-
-\begin{itemize}
-\item Limit the maximum number of simultaneous rules. For example a user with
-24 CPUs might limit the build system to 8 simultaneous rules so that linking is
-not problematic. This solution wastes CPU resources, leaving CPUs idling.
-\item Add locks to suspend jobs that are competing for a shared resource. For
-example any rule using the \lst'Excel' API could check for the existence of a lock
-file before continuing, and keep a lock file while executing. This approach
-still wastes CPU resources, causing them to block instead of executing other
-rules.
-\item Use fake dependencies to serialise the rules, ensuring
-only one rule using the resource can run at a time. This approach reduces
-concurrency and requires a global ordering on the build rules.
-\end{itemize}
+typically obey such constraints by setting an artifically low CPU limit, pausing rules
+competing for the resource, or adding fake dependencies to seralise the rules.
+All these solutions fail to make best use of the available CPUs, and the fake
+dependencies are also fragile and tricky to implement.
 
 In Shake this problem can be solved directly using the \lst'Resource' type,
 which represents a finite resource that multiple build rules can use. \lst'Resource'
@@ -386,9 +349,6 @@ are other rules that could be run. We use this approach to deal with the GHC
 package database, which only permits one writer or multiple readers,
 see~\S\ref{sec:ghc-pkg-db}.
 
-The only other build system we are aware of that supports resources is
-\lst'Ninja' (\S\ref{sec:ninja}), which calls them \emph{pools}.
-
 \subsection{Tracking file contents\label{sec:file-contents}}
 
 Build systems run actions on files, skipping the actions if the files have not
@@ -400,13 +360,9 @@ common cases where a file can change modification time without changing its
 contents:
 
 \begin{itemize}
-\item When running a deterministic program that consumes a textual format, there
-are often many changes that can be made to the input without changing the
-generated output. For example, when generating a C source file from an XML input
-file, whitespace around XML tags is typically ignored as are XML comments. In
-such instances the generator can arrange to avoid rewriting the output file, or
-the build rule can write to a separate location and copy the file over if there
-are differences. However, such accommodation needs to be made for many actions.
+\item When generating source code, e.g. C code from a Yacc/Bison parser generator,
+most trivial whitespace changes to the parser input will probably result in
+identical output.
 \item When working on two \lst'git' branches, both of which are based on a
 common \lst'master' branch, a typical pattern is to switch from one branch to
 another. If the first branch was recently synced with \lst'master', but the
