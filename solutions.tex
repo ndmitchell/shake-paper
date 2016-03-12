@@ -1,57 +1,46 @@
 \section{Quick wins: from Make to Shake\label{sec:solutions}}
 
 The GHC build system stumbles into a number of nasty corners of Make. In this
-section we reflect on the challenges, and how they can be solved generically in
-our new system. We very much consider these \textit{unnecessary} complexities --
+section we reflect on the challenges, and how they can be solved in
+our new system. We consider these \empty{unnecessary} complexities --
 they are not consequences of our problem domain, merely weaknesses of Make on
-large projects. In general the problems can be divided into those due to the
-Make language (macros, variables, etc.) and those due to the Make features (lack
-of expressive dependencies). Consequently, we tackle these problems using
+large projects. The problems can be divided into those caused by the
+Make language (macros, variables, etc.) and those caused by a lack of expressive
+power when describing dependencies. We tackle these problems using
 functional programming for the language level, and Shake for the dependency
-level. After tackling these unnecessary complexities, we show how to construct a
+level. After tackling these unnecessary complexities, we show how to structure a
 large build system in~\S\ref{sec:abstractions}.
 
 \subsection{Programming model}
 
-Make's program state involves a global namespace of string variables which are
+Make's program state involves a global namespace of mutable string variables which are
 spliced into the program. This model naturally causes challenges:
 
 \begin{itemize}
-\item Since all variables live in a single global namespace, there is limited
-encapsulation and implementation hiding. While macros introduce some level of
-scope, their use leads to different problems.
-\item Excessive freedom, implementing \lst"$$$$foo" to do multiple lookups. Such
-code is much like \lst"eval" in a scripting language, but it is unlikely any
-scripting language author would encourage such a level of indirection. Alas,
-without real data structures (associative maps, arrays) such tricks are
-necessary.
-\item Since the text is spliced into the resulting \lst'Makefile' to be
-interpreted, certain characters can pose lots of problems -- notably space (which splits
-lexemes which might have been intended to be joined) and `:' (which declares
-rules, but often tends to be a Windows drive letter gone astray). Much like
-command line quoting, with sufficient care such issues can be avoided -- but it
-does require constant care.
-\item A string variable, such as \lst'$1_$2_$3_HC_OPTS', can be
-manipulated in many different files and it is very difficult to track the provenance of a
-specific command line argument that is eventually passed to a command line tool.
+\item Since variables live in a single global namespace, there is limited
+encapsulation and implementation hiding.
+\item Since variables are strings, arrays and associatve maps are typically
+encoded using computed variable names, which is error-prone.
+\item Since variables are mutable, the time at which they are expanded needs
+to be carefully controlled, resulting in constructs such as \lst'$$$$foo' to
+delay expansion until after interpretation by two macros.
+\item Since variable references are spliced into the Makefile contents
+and interpretted, certain special characters can cause problems --
+notably space (which splits lexemes) and colon (which declares rules, but is
+also used in Windows drive letters).
 \end{itemize}
 
-The solution to the issue of encapsulation is a properly block-scoped language
-with separate units of implementation hiding, e.g. modules in Haskell. The
-solution to excessive freedom is types (not necessarily static). The solution to
+The solution to encapsulation is a properly block-scoped language with implementation
+hiding, e.g. modules in Haskell. The solution to excessive
+freedom is types (not necessarily static). The solution to
 splicing is to separate values and program text, much like most programming
 languages do. By using Haskell, or indeed any other modern programming language,
-most of these issues are solved.
+most of these issues are eliminated.
 
-An alternative solution would be to avoid putting complexity into the \lst'Makefile',
-and place it in a generator of a \lst'Makefile' (much like the \lst'Ninja' build
-system does). Alas, such a solution runs into problems if there is a dynamic call
-graph, as per~\S\ref{sec:dynamic-deps}.
-
-At this point it is worth remarking that many alternative build systems do
-indeed offer real programming language embedding, e.g. SCons (Python). We
-address the specific limitations that drove us away from them
-in~\S\ref{section-review}.
+An alternative solution is to generate the Makefile, either using a tool such as
+Automake or a full programming language. However, a generator cannot interact with the
+build system after generation, resulting in problems with dynamic dependecies
+(\S\ref{sec:dynamic-deps}).
 
 \subsection{Pattern/rule language\label{sec:pattern-rule-language}}
 
@@ -358,44 +347,44 @@ limitation in practice (while the lack of dynamic dependencies really
 Note, Redo (\S\ref{sec:redo}) is the only other clearly monadic build
 system, while it can be encoded in SCons using the dependency rules.
 
-\subsection{Fine-grain dependencies\label{sec:fine-grain-deps}}
-
-There are many instances where an action depends on a part of a file. As a
-compelling example in GHC, there are many configuration settings provided in a
-file \lst"system.config", which reads:
-
-\begin{lstlisting}
-system-ghc = /usr/bin/ghc
-system-gcc = /usr/bin/gcc
-...
-\end{lstlisting}
-
-\vspace{-2mm}
-When executing a command we typically depend on only a handful of lines in this
-large configuration file. However, using simple file dependencies, we have to
-depend on the whole file. As a result, we end up rebuilding more than is
-necessary (see~\S\ref{sec:ghc}).
-
-One solution is to create a single file for each setting, but in GHC the whole
-\lst"system.config" file is generated by the \lst'configure' script, which makes
-this challenging. Since a single file is being generated, the next best solution
-is to chop it up into multiple small files, to provide accurate fine-grained
-dependencies.
-
-This approach does not work in Make. We can produce individual
-files, but the individual files must all depend on \lst"system.config", so they
-update appropriately. In the rule to generate the fragments, if we always generate the
-new file, then we do not break the dependencies -- everything still has an
-ultimate dependency on the whole file. If in a rule we chose to avoid generating
-the small file then the file always looks dirty (since its timestamp is older
-than that of \lst"system.config", which Make considers to signify dirty).
-
-Fortunately, Shake supports polymorphic dependencies that solve this problem,
-as discussed in~\S\ref{sec:polymorphic}. This brings dramatic improvements -- on
-real build systems we regularly see build times of a couple of seconds, which
-would have been minutes without this feature (e.g., see~\S\ref{sec:ghc}). This
-feature is also available in \lst'Tup' and \lst'Ninja', although in both cases
-requires explicitly enabling per rule.
+% \subsection{Fine-grain dependencies\label{sec:fine-grain-deps}}
+% 
+% There are many instances where an action depends on a part of a file. As a
+% compelling example in GHC, there are many configuration settings provided in a
+% file \lst"system.config", which reads:
+% 
+% \begin{lstlisting}
+% system-ghc = /usr/bin/ghc
+% system-gcc = /usr/bin/gcc
+% ...
+% \end{lstlisting}
+% 
+% \vspace{-2mm}
+% When executing a command we typically depend on only a handful of lines in this
+% large configuration file. However, using simple file dependencies, we have to
+% depend on the whole file. As a result, we end up rebuilding more than is
+% necessary (see~\S\ref{sec:ghc}).
+% 
+% One solution is to create a single file for each setting, but in GHC the whole
+% \lst"system.config" file is generated by the \lst'configure' script, which makes
+% this challenging. Since a single file is being generated, the next best solution
+% is to chop it up into multiple small files, to provide accurate fine-grained
+% dependencies.
+% 
+% This approach does not work in Make. We can produce individual
+% files, but the individual files must all depend on \lst"system.config", so they
+% update appropriately. In the rule to generate the fragments, if we always generate the
+% new file, then we do not break the dependencies -- everything still has an
+% ultimate dependency on the whole file. If in a rule we chose to avoid generating
+% the small file then the file always looks dirty (since its timestamp is older
+% than that of \lst"system.config", which Make considers to signify dirty).
+% 
+% Fortunately, Shake supports polymorphic dependencies that solve this problem,
+% as discussed in~\S\ref{sec:polymorphic}. This brings dramatic improvements -- on
+% real build systems we regularly see build times of a couple of seconds, which
+% would have been minutes without this feature (e.g., see~\S\ref{sec:ghc}). This
+% feature is also available in \lst'Tup' and \lst'Ninja', although in both cases
+% requires explicitly enabling per rule.
 
 % (using \lst'stat' in \lst'Ninja', and \texttt{\^} in Tup).
 
