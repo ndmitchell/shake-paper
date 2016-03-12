@@ -1,105 +1,21 @@
 \section{Review of state-of-the-art in build systems\label{section-review}}
 
-This paper is about writing build systems at scale, a subject we have been unable to find much literature about, beyond \citet{miller:recursive_make}. When \citet{mcintosh:build_maintenance_effort} studied the impact of build systems they found that build systems can take up to 27\% of development effort, and furthermore than improvements to the build system rapidly paid off. Recently \citet{martin:make_it_simple, martin:maintenance_complexity_makefiles} has both surveyed which Make features are used, and classified them by complexity.
-
-
-, so advice to reduce that should be welcome. There has been some work investigating which features of Make are used \cite{martin:make_it_simple} and which features produce most complexity \cite{martin:maintenance_complexity_makefiles}, but as yet these results have not been combined. In the remainder of this section we focus on some of the features found in other build syustem
-
-Therefore we instead review build systems that have features that might be desirable in large build systems, all of which are provided by some build system, but none which is provided by all. We have skipped single-language projects with fixed rules (e.g. \lst'ocamlbuild', \lst'ghc --make', Visual Studio projects). Build tools can be divided into two categories -- those which target single-language projects with fixed rules (e.g. \prog{ocamlbuild}, \prog{ghc --make}, Visual Studio projects), and those which allow user specified rules (e.g. \make{} and Shake). Focusing on the second category, the defacto standard is \make{}, but there are many \make{} competitors (notably Ant, CMake, Jam, SCons and Waf). Most of these tools read a list of rules, generate a dependency graph, then execute commands while traversing that graph.
+This paper is about writing build systems at scale, a subject without much literature since \citet{miller:recursive_make}. When \citet{mcintosh:build_maintenance_effort} studied software maintenance they found that build systems can take up to 27\% of development effort, and that improvements to the build system rapidly paid off. Recently \citet{martin:make_it_simple, martin:maintenance_complexity_makefiles} has both surveyed which Make features are used, and classified them by complexity -- unsurprisingly they found that as Makefiles grow, their complexity increases, and that the features required for hand written Makefiles are those which are most complex. In the remainder of this section we focus on some of the features found in other build systems which could be useful at large scale.
 
 \subsection{Embedded language}
 
-The input to a build system can either be a file of metadata 
+A build system can either be specified using structured metadata (e.g. Bazel \cite{bazel}), or embedded into a language -- for example SCons uses Python \cite{scons}, Pluto uses Java \cite{pluto} and Jenga uses OCaml \cite{jenga}. We make essential use of custom code throughout (\S\ref{sec:real_code}, \S\ref{sec:abstractions}), which essentially allows us to write most of our build system in our own metadata tailored to our specific project. While we are particularly fond of functional languages, such an approach could equally be taken in non-functional languages.
 
-
-We have found that an embedded language, complete with the full power of abstractions, lets us develop at a much higher level. Many languages have been used in embedded systems, e.g Bash in redo, Java in Pluto, Python in Scons, OCaml in Jenga etc. For a project which is big and has lots of diversity, a language seems like a good idea.
-
-There are a surprisingly large number of Haskell libraries implementing a dependency aware build system -- we know of ten in addition to Shake (Abba, Blueprint, Buildsome, Coadjute, Cake $\times$ 2, Hake, Hmk, Nemesis, OpenShake and Zoom). Of these, the two Cake libraries and OpenShake are based on an early presentation of the principles behind Shake, before the source code was available.
+Even sticking to Haskell as the embedded language, there are a surprisingly large number of libraries implementing a dependency aware build system -- we know of eleven in addition to Shake (Abba, Blueprint, Buildsome, Coadjute, Cake $\times$ 2, Hake, Hmk, Nemesis, OpenShake and Zoom). Of these, the two Cake libraries and OpenShake are based on an early presentation of the principles behind Shake.
 
 \subsection{Advanced dependencies}
 
-We have found that more powerful dependencies might only be used in a few places, but there effect is pervasive. A few other build systems support resources (e.g. Ninja), and several support monadic dependencies (e.g. Redo, Jenga, Pluto, SCons). A few support features more powerful than Shake, for example Pluto supports rules that reach fixed-points, build rules whose output is unknown and custom rebuilding.
+We have found that while powerful dependencies might only be used in a few places, if they are missing the workarounds can be pervasive (\S\ref{sec:dynamic-deps}). A few other build systems support resources (e.g. Ninja \cite{ninja}), and several support monadic dependencies (Redo \cite{redo}, Jenga, Pluto, SCons). A few build systems directly support dependency features more powerful than Shake, for example Pluto supports rules that run until a fixed-point and rules whose output is not known in advance. These features can be encoded in Shake, but are not present natively.
 
 \subsection{Automatic dependency management}
 
-They can only do needed, apart from Fabricate which is forward driven so ends up doing more. Specifically Tup, Buildsome.
+In both Shake and Make, all dependencies must be declared explicitly. However, in build systems such as Tup \cite{tup} and Buildsome \cite{buildsome} dependencies are automatically detected by monitoring the system, albeit only after the dependency has been used (as per \lst'needed' in \S\ref{sec:needed}). The Fabricate tool \cite{fabricate} takes a unique approach to defining build systems, providing a series of steps run sequentially and are skipped if their inputs have not changed, again relying on automatically detecting dependencies. Since no cross-platform APIs are available to detect accessed dependencies, such tools tend to have portability concerns.
 
-\subsection{Build clusters} Bazel and Buck.
+\subsection{Build clusters}
 
-
-
-In the end, the choice of Shake is because its Haskell, has been shown to scale to projects of a similar size, and has the features needed. We see no reason that a system with similar features could not be implemented in an alternative system like Jenga or Pluto, and suspect many of our insights would transfer.
-
-
-Fabricate stands alone
-
-
-\todo{\textbf{Neil}: we refer to SCons twice in the text, but it doesn't have a section.
-Shall we add one?}
-
-Comparison with \textsc{Make}, \textsc{cmake}, \textsc{Ninja},
-\textsc{Fabricate}, \textsc{Tup}.
-
-Also discuss \textsc{Bazel} and \textsc{Buck}.
-
-New ones since the Shake paper. Jenga (Shake clone) and Pluto (Shake clone + other stuff)
-
-Starting from the Shake related work...
-
-Build tools can be divided into two categories -- those which target single-language projects with fixed rules (e.g. \prog{ocamlbuild}, \prog{ghc --make}, Visual Studio projects), and those which allow user specified rules (e.g. \make{} and Shake). Focusing on the second category, the defacto standard is \make{}, but there are many \make{} competitors (notably Ant, CMake, Jam, SCons and Waf). Most of these tools read a list of rules, generate a dependency graph, then execute commands while traversing that graph.
-
-Since the number of build tools is vast, we focus on four build tools which take different approaches (Redo, Ninja, Tup and Fabricate). Interestingly, one thing all four systems have in common is that they require a database of build data, in addition to the rules and the file system. Unlike Shake, all these build systems are limited to files.
-
-\subsection{Redo\label{sec:redo}}
-
-% https://github.com/apenwarr/redo
-
-The Redo build system \cite{redo} has a similar dependency theory to Shake. Rules are run starting at the target. A rule may call \textsf{redo-ifchange} (similar to |need|) to ensure that this rule is repeated if any of the file arguments change. A rule can build either a specific named file, or a set of files ending with a particular extension.
-
-While Redo has similarities to Shake, the practical implementation is significantly different. Instead of a single rule store, Redo stores each rule in a separate file, and the script language is simply shell script (allowing \verb"#!" to change the interpreter). The advantage of separate files is that Redo is able to depend on the actual rule used to build a result, meaning that build system changes are properly tracked. However, separating build rules makes it harder to reason about the build system, and eliminates many potential uses of abstraction \cite{jonge:build_components}. Redo does not work on Windows, and has no support for unchanging files or multiple outputs.
-
-\subsection{Ninja\label{sec:ninja}}
-
-% http://martine.github.com/ninja/manual.html
-
-The Ninja build system \cite{ninja} is designed as a two-stage build system -- users specify their build rules in a high-level manner, which is then translated to a set of Ninja build rules. As a result, the Ninja build system is not designed to be general purpose and configuration choices are expected to be resolved by the first level. The Ninja target language supports three dependency features beyond \make{}. Firstly, a rule can depend on the list of files contained in another file, allowing additional dependencies at build time. Secondly, the command line for each rule is tracked, resulting in a rebuild if the rule itself changes. Thirdly, a rule can generate multiple outputs, which are properly tracked.
-
-\subsection{Tup}
-
-% http://gittup.org/tup/build_system_rules_and_algorithms.pdf
-
-The Tup build system \cite{tup} is designed as an incremental build system. Tup has a similar dependency structure to \make{}, but a significantly different implementation. Instead of scanning all dependencies, it expects the operating system to supply a list of changed files, avoiding the overhead of checking which files have changed. For large build systems the result can be a significant speed improvement when rebuilding only a few files. We believe a similar implementation strategy could be applied to Shake.
-
-Another difference from \make{} is the treatment of dead build results. If a rule to build \texttt{foo} is deleted from the rule list, then Tup automatically deletes the file \texttt{foo}. The problem of dead build results is serious, resulting in builds succeeding that should have failed, and that will fail as soon as a clean build is performed (to reduce this risk, we suggest an overnight build which starts from scratch). However, it is often useful to have build modes which generate skeleton files which are then modified by the user -- deleting these files would be most unwelcome. It would be easy to add support for deleting dead build results to Shake, but we choose not to.
-
-\subsection{Fabricate}
-
-% http://code.google.com/p/fabricate/
-
-The key innovation in the Fabricate build system \cite{fabricate} is that dependencies do not need to be stated explicitly. A build system is a Python program, which primarily executes system commands in order. While executing the commands, Fabricate uses system tracing (strace on Linux) to record which files are accessed. In future runs, if the same system command is reached but none of the files it used have changed, the command is skipped. The resulting build systems are simple, and avoid the difficulties of correctly specifying dependencies.
-
-There are two inherent difficulties for build systems without explicit dependencies. Firstly, the system tracing mechanisms on different platforms are varied, and on Windows are somewhat fragile (see \S\ref{sec:lint}). Secondly, parallelism cannot be inferred automatically -- Fabricate requires explicit grouping annotations to use parallelism.
-
-\subsection{Extending Make Dependencies}
-\label{sec:make_hacks}
-
-Specifying additional dependencies while building is critical for many projects. As a result, a number of techniques have been developed to specify additional dependencies in \make{}. Most of these techniques rely on \textit{generating} some portion of the \make{} rules file, either before \make{} starts, or invoking \make{} multiple times. Taking the example from \S\ref{sec:introduction}, we can write it with \make{} as:
-
-\begin{verbatim}
-result.tar : list.txt $(shell cat list.txt)
-    cat list.txt | xargs tar -cf result.tar
-\end{verbatim}
-
-Here \make{} is executing commands in two distinct phases -- the first phase generates the rules file, the second runs it. In many large projects, the first phase becomes expensive or complex, resulting in specific commands such as @make depends@ to update the dependencies (as required in \S\ref{sec:profiling_comparison} and \S\ref{sec:evaluation}). Another approach is for \make{} to restart itself partway through the build, after modifying the build rules. However, multiple phases have many problems:
-
-\begin{itemize}
-\item There is no limit to the number of build phases required, especially when files are generated by the build system. Shake was originally designed after determining a particular build system required seven phases.
-\item The introduction of phases breaks compositionality, requiring build system authors to globally separate rules by phase. The above rule for \texttt{result.tar} fails if \texttt{list.txt} is itself built by the build system, whereas the Shake rule in \S\ref{sec:introduction} works in all cases.
-\item These approaches require generating \make{} rules as text, which is then reinterpreted by \make{}. As a result, while the Shake rule from \S\ref{sec:introduction} can handle spaces in file names, the \make{} rule cannot.
-% Fortunately, many compilers already support generating well-formed \make{} rules for their dependencies.
-\item If all phases are run every time then there is overhead due to restarting \make{}, rechecking previously checked rules and reducing parallelism opportunities. If different phases are invoked manually then the user has to be aware what has changed.
-\end{itemize}
-
-\subsection{Haskell Build Libraries}
-
-There are a surprisingly large number of Haskell libraries implementing a dependency aware build system -- we know of ten in addition to Shake (Abba, Blueprint, Coadjute, Cake $\times$ 2, Hake, Hmk, Nemesis, OpenShake and Zoom). Of these, the two Cake libraries and OpenShake are based on an early presentation of the principles behind Shake, before the source code was available. The primary difference from the Cake libraries is that this paper allows multiple types of build rule, while the Cake libraries only allow file rules. Compared to OpenShake \cite{openshake}, we have opted to have |rule|/|apply| based on dynamic types, and then use sugared versions to regain static guarantees of type safety. In contrast, OpenShake uses type functions \cite{schrijvers:type_functions} to statically track the available rule types, making serialisation simpler (\S\ref{sec:dynamically_typed}), but complicating the rest of the library.
+The build systems Bazel and Buck \cite{buck} are used at Google and Facebook respectively, both operating at sizes significantly beyond that of the GHC build system (reportedly billions of lines of code). Both systems take a metadata approach, with statements such as \lst'cxx_binary' which given the C++ source code and output, does all building. The disadvantage of such an approach is that the available rules are static, making it difficult to encode something like a bootstrapping compiler. Generated source code is not really supported -- a problem typically solved by checking in generated files. Both features also support build clusters which build code once and share the resulting objects to everyone without recompiling locally, an essential feature at such scales.
