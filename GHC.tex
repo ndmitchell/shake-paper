@@ -5,6 +5,12 @@ so far to building a large-scale software project: the Glasgow Haskell Compiler.
 
 \todo{Andrey: list current limitations.}
 
+\subsection{Qualitative analysis}
+
+In this part we say how they both behave in different circumstances. In addition Shake gives us profiling reports, both from GHC and Shake itself.
+
+\todo{Q: Drop full and zero from the table? These are a different type of analysis, and covered in benchmark}
+
 \subsection{Analysis of common use-cases}
 \begin{table*}[t]
 \centering
@@ -17,13 +23,13 @@ so far to building a large-scale software project: the Glasgow Haskell Compiler.
 \hline
 \hline
 1 & Full clean build
-& Everything is built, N sec \hfill \checkmark
-& Everything is built, M sec \hfill \checkmark
+& Everything is built, 1266 sec \hfill \checkmark
+& Everything is built, 737 M sec \hfill \checkmark
 \\
 \hline
 2 & Zero build \hspace{6.4mm}
-& Nothing is rebuilt, 12.3 sec \hfill \checkmark
-& Nothing is rebuilt, 3.7 sec \hfill \checkmark
+& Nothing is rebuilt, 18.4 sec \hfill \checkmark
+& Nothing is rebuilt, 2.1 sec \hfill \checkmark
 \\
 \hline
 3 & Add comment: \textsf{libraries/base/Prelude.hs}
@@ -34,9 +40,9 @@ so far to building a large-scale software project: the Glasgow Haskell Compiler.
 \hline
 4 & Modify code: \hspace{1.75mm}\textsf{libraries/base/Prelude.hs}
 & \textsf{Prelude.o} and all its dependencies \hfill \checkmark \newline
-are rebuilt (almost everything)
+are rebuilt
 & \textsf{Prelude.o} and all its dependencies \hfill \checkmark \newline
-are rebuilt (almost everything)
+are rebuilt (40\% by time)
 \\
 \hline
 5 & Add comment: \textsf{utils/ghc-cabal/Main.hs}
@@ -61,7 +67,7 @@ tools
 & Nothing is rebuilt
 \\
 \hline
-9 & Switch to a \textsf{git} branch and back 
+9 & Switch to a \textsf{git} branch and back
 & Some files are rebuilt
 & Nothing is rebuilt \hfill \checkmark
 \\
@@ -72,7 +78,7 @@ tools
 \\
 \end{tabular}
 \caption{Comparison of GHC build systems on common use cases
-(using \textsf{quick} build flavour). Checkmarks \checkmark indicate expected
+(using \textsf{quick} build flavour with 4 CPUs). Checkmarks \checkmark indicate expected
 behaviour.}
 \label{tab:use-cases}
 \end{table*}
@@ -148,22 +154,9 @@ equivalence is hard. Future work.
 
 \subsection{Benchmarks\label{sec:benchmarks}}
 
-\todo{Neil: your profiling results can go here}
+When building from scratch, ignoring the initial boot/configure steps which are shared, the Make system takes 1266 seconds and the Shake one takes 737 seconds. These were tested in as similar configurations as we could manage, but due to the complexity of the build system, there are almost certain minor differences. For the build where nothing has changed, Make takes 18.4 seconds and Shake takes 2.1 seconds. \todo{optimise Shake}
 
-Quantitative results: benchmarking, profiling, achieved parallelism.
-
-We used parallelism to speed up some phases. Show profiles showing ghc-cabal was
-a bottleneck.
-
-\subsection{Things lint spotted}
-
-\todo{Neil: I think I have only one good example: result of getDirectoryFiles
-changed. Do we want to discuss it here? Maybe somewhere in the Shake section
-instead?}
-
-Most useful one is if two people whack the same output. Other thing is where
-doing all .hs files in a dir, and then you generate one. Should this go
-somewhere else? Perhaps in S5.
+Since Shake and Haskell both provide profiling and analysis tools, we have already used these features to optimise the Shake build, resulting in modest gains sofar and several opportunities we have yet to exploit. Looking at the full build number of Shake, it takes 737 seconds, the longest single task is building the GMP library (315 seconds), and total amount of single threaded computation is 2206 seconds, of which 2099 is calling out to external processes. The critical dependency path has 378 steps on it, and requires 463 seconds -- a lower bound on the time even if we have an unlimited number of processors.
 
 \subsection{Summary}
 
@@ -176,24 +169,4 @@ dependencies?}
 say this? Can we say that the new build system works in more environments,
 because we have fewer dependencies?}
 
-
-\subsection{Performance notes}
-
-Zero build Shake
-
-\begin{lstlisting}
-shakeArgsWith                        0.001s    0%
-Function shake                       0.156s    4%  =
-Database read                        0.329s   10%  ===
-With database                        0.021s    0%
-Running rules                        2.502s   77%  =========================
-Pool finished (7639 threads, 8 max)  0.001s    0%
-Lint checking                        0.202s    6%  ==
-Total                                3.211s  100%
-Build completed in 0:04m
-
-real    0m3.700s
-\end{lstlisting}
-
-Zero build with Make, real    0m12.342s
 
