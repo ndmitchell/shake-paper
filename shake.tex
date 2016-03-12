@@ -111,7 +111,7 @@ orderOnly :: [FilePath] -> Action ()
 % \todo{Include everything we use in the paper}
 % \caption{Shake generic API\label{fig:shake_generic_api}}
 % \end{figure}
-% 
+%
 % \begin{figure}
 % \begin{lstlisting}
 % type FilePattern = String
@@ -169,7 +169,7 @@ does not need to update its output to avoid future rebuilds. The final point is
 often worked around in Make by using \emph{stamp files} to provide a modification
 time but having no actual content -- Shake simplifies this common use-case.
 
-\subsection{Post-use dependencies}
+\subsection{Post-use dependencies\label{sec:needed}}
 
 Looking at our first example, the object gets recompiled if the C source file
 changes. But C files may \lst'#include' any number of header files, and changes
@@ -291,19 +291,19 @@ Now the \lst'*.o' rule will have the \emph{value} of the
 \lst'cc' key as a dependency, and if that value changes, all \lst'*.o' files will rebuild.
 
 % \todo{Do we need to explain oracles? Just polymorphic rules aren't that much harder}
-% 
+%
 % The use of non-file rule types is common in large build systems, occurring ten times in our implementation of GHC's build system in \S\ref{sec:ghc}. To simplify such uses we define an oracle abstraction, allowing us to write:
-% 
+%
 % \begin{lstlisting}
 % configKey <- addOracle $ \(ConfigKey key) -> do
 %     src <- readFile' "config.file"
 %     return $ parseConfig src Map.! key
-% 
+%
 % "*.o" %> \out -> do
 %     cc <- configKey $ ConfigKey key
 %     ...
 % \end{lstlisting}
-% 
+%
 % Using oracles we are freed from defining our own \lst'Rule' instance and can use a type-safe version of \lst'apply' tailored to our particular oracle. The definition of oracles is only a handful of lines long, but sharply decreases the number of Shake concepts that must be understood to define non-file rules following the typical pattern. All non-file rules in GHC are implemented using oracles.
 
 The use of non-file rule types is common in large build systems, occurring ten
@@ -323,7 +323,7 @@ algebraic data types including lists, tuples and booleans.
 \item Greater granularity, by not forcing each rule to be backed by a separate
 file. GHC's build system has 6,677 non-file rules.
 \end{itemize}
- 
+
 \subsection{Concurrency reduction\label{sec:concurrency-reduction}}
 
 Like most build systems, Shake can run independent rules concurrently.
