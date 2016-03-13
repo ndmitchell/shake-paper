@@ -416,22 +416,18 @@ significantly less cross-platform concerns.
 
 \subsection{Summary}
 
-The unnecessary complexities described in this Section have a big consequence in
-terms of complexity and performance. They obscure the underlying real stuff in
-the build system. Simply removing these already gets us to a much better state.
-
-The main lessons we have learnt are:
+The unnecessary complexities described in this section have a big impact on
+the overall complexity of the build system. The main lessons we have learnt are:
 
 \begin{itemize}
 \item Abstraction is a powerful and necessary tool. Lack of good abstraction
 mechanisms is a significant cause of the complexity of previous attempts in
-Make. Functional programming provides good abstractions which in turn allow
-reducing the complexity at each level, while still obtaining a more powerful
-result. Marrying build systems and functional programming works well.
-\item Use a build system that can express the necessary dependencies. We make
-use of multiple outputs~\S\ref{sec:multiple-outputs},
-resources~\S\ref{sec:ghc-pkg-db}, dynamic dependencies~\S\ref{sec:dynamic-deps},
-fine-grain dependencies~\S\ref{sec:fine-grain-deps}. While some of these
+Make. Functional programming provides excellent abstractions --
+marrying build systems and functional programming works well.
+\item Expressive dependencies are important; we use
+multiple outputs~\S\ref{sec:multiple-outputs},
+resources~\S\ref{sec:ghc-pkg-db} and dynamic dependencies~\S\ref{sec:dynamic-deps}.
+While some of these
 features are only used in a few places (e.g. resources), their absence would
 require pervasive workarounds, and a significant increase in the overall complexity.
 \end{itemize}
