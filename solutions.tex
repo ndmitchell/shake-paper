@@ -103,9 +103,9 @@ In both cases the generality of higher-order functions solves the problem.
 In any large-scale build system, there are rules that tell how to build targets,
 and then there is a very long list of special cases, listing targets that need
 to be treated specially, under certain circumstances, in a congirurable way.
-Writing a separate rule for each special case by hand is impractical and
-error-prone, hence build rules are typically generated. In Make, this is done by
-using macros:
+Writing a separate rule for each special case by hand is impractical, hence
+build rules are typically generated. In Make, this is done by using macros, for
+example:
 
 \begin{lstlisting}
 WAY_p_HC_OPTS = -static -prof
@@ -116,14 +116,14 @@ $1_$2_$3_HC_OPTS = $$($1_$2_HC_OPTS) \
 \end{lstlisting}
 
 This tells that when building targets with GHC in the \emph{profiling way}
-(i.e. with the profiling information enabled), we need to add command line
-arguments \lst'-static -prof' to the command line.
+\lst'p' (i.e. with the profiling information enabled), we need to add command
+line arguments \lst'-static -prof' to the command line.
 
 \lst'WAY_p_HC_OPTS = -static -prof' is concise, but is inflexible. For example,
 if we do not want to pass \lst'-prof' flag when building one particular file, we
-will have to either add another component (\lst'WAY_p_file_HC_OPTS'), or
-conditionally filter out the \lst'-prof' flag from \lst'HC_OPTS' once it is
-constructed.
+will have to either add another component to the name,
+\lst'WAY_p_filename_HC_OPTS', or conditionally filter out the \lst'-prof' flag from
+\lst'HC_OPTS' once it is constructed and the file being build is known.
 
 \todo{\textbf{Andrey}: finilise.}
 
