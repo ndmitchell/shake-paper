@@ -6,23 +6,24 @@
 % \end{itemize}
 
 In the previous section we covered how Shake helps us sidestep the unnecessary
-complexities inherent in a large scale build system. In this section we focus on
-the remaining complexities, how to engineer a successful build system. Before
+complexities inherent in a large-scale build system. In this section we focus on
+the remaining complexities on the way to a successful build system. Before
 starting, it is useful to explain our goals. We want the resulting system to be
-maintainable, in addition to being fast and correct. For maintainability on such
-a large system there are really several aspects:
+maintainable, in addition to being fast and correct. The following
+aspects are particularly important for maintainability of a large-scale build
+system:
 
 \begin{itemize}
 \item The code should be simple and direct, talking about concepts familiar to
-developers. In particular that means files that are produced, tools that are
-used to produce them, and their configuration settings. These concepts
-need first-class representation, not merely strings.
-\item The code should permit debugging. There are lots of obscure configuration
-operations inherent in any large system, and the build system is the place where
-such knowledge should live. As an example, when running the \lst'Alex'
-program over one particular file we need to pass the \lst'--latin1' flag. We
-want users to be able to determine what flags were used and where specifically
-that decision was made.
+developers, such as files that are built, tools that are used to build
+them, and their configuration settings. These concepts need first-class
+representation, not merely strings.
+\item The code should permit debugging. There are many obscure configuration
+options inherent in any large software project, and the build system is where
+such knowledge usually lives. As an example, to include profiling information
+when compiling a Haskell source file with GHC we need to pass the \lst'-prof' flag.
+We want users to be able to easily determine what flags were used, as well
+as why and where specifically that decision was made.
 \item The code should permit configuration. Many GHC users work with GHC in
 different modes and in different environments. Common configuration settings
 include turning on/off documentation, choosing different sets of optimisation flags,
@@ -30,19 +31,19 @@ etc.
 \end{itemize}
 
 The solution was not obvious to us at first, but we ended up building a DSL for
-expressions, and an interpreter that evaluates it to run the build. Where the
-DSL would be unnecessarily complex we opt for a direct implementation. The
-configuration language is tracked (if it changes the affected build rules are
-rerun), has provenance (using the new \lst'?location :: Location' feature in
+expressions, and an interpreter that evaluates it to run the build.
+% Where the DSL would be unnecessarily complex we opt for a direct
+% implementation.
+The configuration language is tracked (if it changes the affected build rules
+are rerun), has provenance (using the new \lst'?location :: Location' feature in
 GHC) and permits easy configuration, for example:
 
 \begin{lstlisting}
-package compiler ?
-#\hspace{7.3mm}#builder Alex ? arg "--latin1"
+builder Ghc ? way profiling ? arg "-prof"
 \end{lstlisting}
 
-\noindent The expression adds the \lst'--latin1' argument to the command line
-of the \lst'Alex' program when building the \lst'compiler' package.
+\noindent The expression adds the \lst'-prof' argument to the command line when
+building a file with GHC in the \lst'profiling' way.
 
 \newcommand{\itab}[1]{\hspace{0em}\rlap{#1}}
 \newcommand{\tab}[1]{\hspace{.1\textwidth}\rlap{#1}}
@@ -132,7 +133,7 @@ predicate ? expr = do
 \subsection{Programming model}
 
 GHC source code is split into logical units, or \emph{packages}. We model
-packages with the \lst'Package' type, see Fig.~\ref{fig:abstractions}
+packages with the \lst'Package' type, see Figure~\ref{fig:abstractions}
 (the \emph{Build types} subfigure). A package is identified by a unique
 \lst'PackageName' and a \lst'FilePath' pointing to its location in the source
 tree. A GHC package can be a library (e.g., \lst'array') or a program (e.g.,
@@ -245,7 +246,7 @@ describe them. After experimenting with several abstractions, we converged on
 
 An expression \lst'Expr a' is a computation that produces a value of type
 \lst'Action a' and can read the current build \lst'Target', as shown in
-Fig.~\ref{fig:abstractions} (see the \emph{Expressions} subfigure). For example,
+Figure~\ref{fig:abstractions} (see the \emph{Expressions} subfigure). For example,
 the following expression computes command line arguments for invoking \lst'Alex':
 
 \newcommand{\altab}[1]{\hspace{.05\textwidth}\rlap{#1}}
@@ -266,7 +267,7 @@ There is a room for improvement of the \lst'alexArgs' expression. For
 example, conditional arguments like \lst'--latin1' are very common in build
 systems and a better way to express them is clearly desirable. We use Boolean
 \emph{predicates} of type \lst'Expr Bool' to achieve this, see
-Fig.~\ref{fig:abstractions} (the \emph{Predicates} subfigure). In particular, we
+Figure~\ref{fig:abstractions} (the \emph{Predicates} subfigure). In particular, we
 use \lst'package :: Package -> Predicate' to check whether a particular package
 is currently being built. For example, predicate \lst'package compiler'
 returns \lst'True' when the current target belongs to the \lst'compiler'
@@ -413,7 +414,7 @@ main = shake shakeOptions $ do
 We are now ready to introduce \lst'Args', a type of expressions for
 constructing command line arguments in the build system. In addition to the
 above generic functions (whose specialised versions are shown in
-Fig.~\ref{fig:abstractions}), it is equipped with function
+Figure~\ref{fig:abstractions}), it is equipped with function
 \lst'arg :: String -> Args' for injecting simple \lst'String' arguments into
 \lst'Args'. With these abstractions in place, we can construct command line
 arguments for \lst'Alex' as follows:
@@ -465,7 +466,7 @@ build target@Target {..} = do
   \lst'system.config' file.
   \item We \lst'interpret' the \lst'allArgs' expression w.r.t. to the
   \lst'target', and obtain the list of \lst'String' arguments to be passed to
-  the builder. See Fig.~\ref{fig:abstractions} for the implementation of
+  the builder. See Figure~\ref{fig:abstractions} for the implementation of
   \lst'interpret'.
   \item We \lst'need' the builder to make sure it is up-to-date. Some builders
   are built by the build system, e.g. \lst'genprimopcode',
@@ -483,7 +484,7 @@ build target@Target {..} = do
 
 \subsection{A simple build system example}
 
-Fig.~\ref{fig:example-abstractions} shows a simple build system that uses the
+Figure~\ref{fig:example-abstractions} shows a simple build system that uses the
 abstractions introduced in this section.
 
 \todo{\textbf{Andrey}: Add description of the example (0.5 columns).}
