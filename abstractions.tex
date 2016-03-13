@@ -7,42 +7,38 @@
 
 In the previous section we covered how Shake helps us sidestep the unnecessary
 complexities inherent in a large-scale build system. In this section we focus on
-the remaining complexities on the way to a successful build system. Before
-starting, it is useful to explain our goals. We want the resulting system to be
-maintainable, in addition to being fast and correct. The following
-aspects are particularly important for maintainability of a large-scale build
-system:
+the complexities that remain. We want the build system to be maintainable, correct
+and fast, but also:
 
 \begin{itemize}
 \item The code should be simple and direct, talking about concepts familiar to
 developers, such as files that are built, tools that are used to build
 them, and their configuration settings. These concepts need first-class
-representation, not merely strings.
-\item The code should permit debugging. There are many obscure configuration
-options inherent in any large software project, and the build system is where
-such knowledge usually lives. As an example, to include profiling information
-when compiling a Haskell source file with GHC we need to pass the \lst'-prof' flag.
-We want users to be able to easily determine what flags were used, as well
-as why and where specifically that decision was made.
+representation.
 \item The code should permit configuration. Many GHC users work with GHC in
 different modes and in different environments. Common configuration settings
 include turning on/off documentation, choosing different sets of optimisation flags,
 etc.
+\item The code should permit debugging. There are many obscure configuration
+options inherent in any large software project, and the build system is where
+such knowledge usually lives. As an example, to include profiling information
+when compiling a Haskell source file with GHC we need to pass the \lst'-prof' flag.
+We want users to be able to easily determine what flags were used and why.
 \end{itemize}
 
-The solution was not obvious to us at first, but we ended up building a DSL for
+A solution was not obvious to us at first, but we ended up building a DSL for
 expressions, and an interpreter that evaluates it to run the build.
 % Where the DSL would be unnecessarily complex we opt for a direct
 % implementation.
 The configuration language is tracked (if it changes the affected build rules
-are rerun), has provenance (using the new \lst'?location :: Location' feature in
-GHC~\todo{Reference?}) and permits easy configuration, for example:
+are rerun), can have provenance (using the new \lst'?location :: Location' feature in
+GHC~\todo{Reference?}) and permits easy configuration. As an example:
 
 \begin{lstlisting}
 builder Ghc ? way profiling ? arg "-prof"
 \end{lstlisting}
 
-\noindent The expression adds the \lst'-prof' argument to the command line when
+\noindent This expression adds the \lst'-prof' argument to the command line when
 building a file with GHC in the \lst'profiling' way.
 
 \newcommand{\itab}[1]{\hspace{0em}\rlap{#1}}
@@ -153,11 +149,10 @@ possible way), \lst'profiling' (with profiling information), \lst'debug'
 ways can be combined, e.g., \lst'debugProfiling'; however, not all combinations
 are allowed or currently supported. By making \lst'Way' opaque we make it easier
 to add new ways or change their internal representation, something that would be
-impossible to achieve in Make, where no information hiding is possible. 
+impossible to achieve in Make, where no information hiding is possible.
 
 In addition to different build ways, each package can be built by several
 versions of GHC, which leads to the notion of \emph{stages}.
-
 In \lst'Stage0' we use the \emph{bootstrap} GHC, i.e. the one that is
 installed in the system. During this stage we build \lst'Stage1' GHC, an
 intermediate compiler that still lacks many features. It is used during the
@@ -169,42 +164,40 @@ should be the same.
 \lst'Stage', \lst'Package' and \lst'Way' form a GHC-specific
 \emph{build context} represented by type \lst'Context'. A typical GHC build
 rule, such as \lst'compilePackage', depends on the context as follows: it
-uses an appropriate compiler version (e.g., the bootstrap compiler in
-\lst'Stage0'), produces object files with different extensions (e.g., vanilla
+uses an appropriate compiler version (e.g. the bootstrap compiler in
+\lst'Stage0'), produces object files with different extensions (e.g. vanilla
 \lst'*.o' or profiled \lst'*.p_o' object files), puts build artefacts
-into an appropriate directory (e.g., \lst'stage1/libraries/base'), etc.
+into an appropriate directory (e.g. \lst'stage1/libraries/base'), etc.
 There are $4 \times 40 \times 18 = 2880$ different possible contexts.
 
 \subsection{General abstractions}
 
 A typical build system invokes several build tools, or \emph{builders}, such as
-compilers, linkers, archivers, etc., some of which may also be built by the
+compilers, linkers, archivers, etc., some of which may be built by the
 build system itself. The builders are captured by the \lst'Builder' type. It
 is useful to distinguish \emph{internal} and \emph{external} builders, i.e.
-those that are build by the build system and those which are installed in the
-system, respectively. Function \lst'builderProvenance' returns the stage
+those that are built by the build system and those which are installed on the
+system, respectively. The function \lst'builderProvenance' returns the stage
 during which an internal builder is built, the way it is built, and the package
 containing the sources (all captured by a \lst'Context'); \lst'Nothing' is
 known about the provenance of external builders.
 
 \begin{lstlisting}
 builderProvenance :: Builder -> Maybe Context
-builderProvenance = \case
+builderProvenance x = case x of
     GenPrimopCode -> Just $
         Context Stage0 genprimopcode vanilla
-    Ghc stage ->
-        if stage == Stage0 then Nothing
-        else Just $ Context (pred stage) ghc vanilla
-    Haddock -> Just $
-        Context $ Stage2 haddock vanilla
+    Ghc Stage0 -> Nothing
+    Ghc stage -> Just $ Context (pred stage) ghc vanilla
+    Haddock -> Just $ Context $ Stage2 haddock vanilla
     ...
     _ -> Nothing
 \end{lstlisting}
 
-In particular, one can see that \lst'Ghc Stage0' is an external builder,
+In particular, we can see that \lst'Ghc Stage0' is an external builder,
 \lst'Ghc Stage1' is an internal one built from package \lst'ghc'
 during \lst'Stage0', \lst'Haddock' is built in \lst'Stage2', etc. There are
-27 builders and 16 of them are internal. Furthermore, some builders are
+27 builders, 16 of which are internal. Furthermore, some builders are
 \emph{optional}, e.g., \lst'HsColour', which (if installed) is used to
 colourise Haskell code when building documentation.
 
@@ -356,7 +349,7 @@ args = mconcat #\todo{\textbf{Andrey}: move to a separate figure?}#
     [ builder Ghc ? mconcat
         [ arg "-O2"
         , way Profiling ? arg "-prof"
-        , arg "-c", arg =<< getInput 
+        , arg "-c", arg =<< getInput
         , arg "-o", arg =<< getOutput ]
 
     , builder Ar ? mconcat
@@ -364,7 +357,7 @@ args = mconcat #\todo{\textbf{Andrey}: move to a separate figure?}#
         , arg =<< getOutput
         , append =<< getInputs ]
 
-    , file "//base/GHC/IO.*" ? arg "-funbox-strict-fields" 
+    , file "//base/GHC/IO.*" ? arg "-funbox-strict-fields"
 
     , builder Ghc ? package Array ? arg "-Wall" ]
 #\vspace{-5mm}#

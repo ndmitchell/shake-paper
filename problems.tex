@@ -1,9 +1,9 @@
 \section{Challenges of large-scale build systems\label{sec:challenges}}
 
-Many existing build systems work just fine for small projects, or
+Many existing build systems work well for small projects, or
 projects that follow a common pattern.  For example, building a single
 executable or library from single-language source files is a
-well-supported common case covered by virtually all build systems.  A
+well-supported in virtually all build systems.  A
 lot of projects fit into this category, and so never run into the
 limits of existing build systems.
 
@@ -13,11 +13,11 @@ show up:
 \item The project has a large number of components (libraries or
   executables), using multiple languages, with complex
   interdependencies.  Executables depending on libraries, for example,
-  or tools generate inputs for other parts of the build system.
+  or tools generating inputs for other parts of the build system.
 \item Many components follow similar patterns, so there is a need for
   abstractions that allow common functionality to be shared between
   different parts of the build system.
-\item Parts of the build system are not static and are generated,
+\item Parts of the build system are not static but are generated,
   perhaps by running tools that are built by the same build system.
 \item The build system has complex configuration, with aspects of its
   behaviour being controlled by a variety of different sources:
@@ -25,7 +25,7 @@ show up:
   configuration files, and so on.
 \end{itemize}
 The GHC build system includes all of the above. To illustrate the
-consequences, here is one rule in GHC's current build system, which
+consequences, here is one rule from GHC's current build system, which
 is based on Make:
 \begin{lstlisting}[basicstyle=\footnotesize\sffamily,escapeinside={(*}{*)}]
 $1/$2/build/%.$$($3_osuf) : \
@@ -59,16 +59,16 @@ problems that arose:
   The syntax was difficult to get right, and the need to constantly
   \lst"make Makefiles" when working on the build system was tiresome.  GNU
   Make came along which had built-in support for \lst'include' files and
-  other features, and this meant that GHC build system could do away with the C
+  other features, meaning the GHC build system could do away with the C
   preprocessor. The build system was rewritten to use GNU Make, and
   simulated macros with include files (GNU Make didn't have macros at
   the time).
 
-\item Then there were several large changes to the GHC build system
+\item Next there were several large changes to the GHC build system
   that didn't amount to complete rewrites.  First, the build system started
   to build multiple bootstrap \emph{stages} in a single build tree; that is,
   build the compiler (stage~1) and then build the compiler again using the
-  stage~1 compiler (stage~2). Previously this had required two separte builds.
+  stage~1 compiler (stage~2). Previously this process had required two separate builds.
 
   Around this time the library ecosystem of Haskell was exploding, and
   the Cabal build system for Haskell libraries emerged. The GHC build system was
@@ -79,20 +79,19 @@ problems that arose:
 %   build, but without duplicating the Cabal metadata or build logic for
 %   those packages.  So we integrated our build system with Cabal,
 
-\item The build system in its current form had grown unweildy, and had
+\item The build system in its current form had grown unwieldy, and had
   many idiosyncrasies. The root of many of the problems was that the
-  build system was constructed as a set of \lst'Makefiles' that recursively
+  build system was constructed as a set of Makefiles that recursively
   invoked each other. Recursive Make is considered harmful
   for very good reasons~\cite{miller:recursive_make}; it is not possible to
   accurately track dependencies when the build system is constructed
   of separate components that invoke each other.
 
   So in the next rewrite of the build system it was made non-recursive.
-  However, in doing so GNU Make was stretched to its absolute
+  However, in doing so, GNU Make was stretched to its absolute
   limits, as the example above illustrates. Every part of the rule is
   there for a good reason, but the cumulative effect of solving all
-  the problems that arise in a complex build system using a tool that
-  is not equipped to cope with it, is impenetrable.
+  the problems that arise in a complex build system is impenetrable.
 \end{itemize}
 \noindent
 By carefully employing a set of
@@ -114,23 +113,23 @@ have gone far beyond Make's scalability limits.
 % \end{enumerate}
 
 % \subsection{The GHC build system}
-% 
+%
 % Build systems need to evolve quickly with the projects they support. While it is
 % \textit{possible} to develop large scale systems in \make, it is not
 % \textit{pleasant} -- resulting in heroic efforts where straight-forward
 % simplicity should be preferred.
-% 
+%
 % The GHC build system is a complex multi-language build system. The system is a
 % bootstrapping compiler, where the GHC compiler is built using a system compiler,
 % then recompiled using built compiler and recompiled system libraries. This
 % pattern naturally contains repeated patterns, but capturing them in \make{} is
 % hard.
-% 
+%
 % We focus on the GHC build system for two reasons. Firstly, it is the coal-face
 % at which many of us work, so improvements to it will bring real improvements to
 % our daily development. Secondly, the GHC build system has many complex features
 % that test the limits of existing build systems:
-% 
+%
 % \begin{itemize}
 % \item GHC is cross-language, including large amounts of both C and Haskell code.
 % It also generates user manuals from docbook, which can be viewed as another
@@ -147,10 +146,10 @@ have gone far beyond Make's scalability limits.
 % Solaris, BSD flavours etc.
 % \item The system is in constant flux as new features are added to the system.
 % \end{itemize}
-% 
+%
 % Writing such a build system remains a challenging engineering undertaking, but
 % one we now hope not to have to repeat. This is the fifth version, and interestingly, perhaps the most user friendly. Applying all the guidelines in Recursive Make Considered Harmful we have gone through the following stages.
-% 
+%
 % \begin{enumerate}
 %   \item jmake - cpp + make clone of X11 imake
 %   \item GNU make - drop cpp, recursive make, manual stages
