@@ -103,8 +103,10 @@ In both cases the generality of higher-order functions solves the problem.
 
 In any large-scale build system, there are rules that tell how to build targets,
 and then there is a very long list of special cases, listing targets that need
-to be treated specially, under certain circumstances, in a congirurable way. For
-example: 
+to be treated specially, under certain circumstances, in a congirurable way.
+Writing a separate rule for each special case by hand is impractical and
+error-prone, hence build rules are typically generated. In Make, this is done by
+using macros:
 
 \begin{lstlisting}
 WAY_p_HC_OPTS = -static -prof
@@ -118,12 +120,13 @@ This tells that when building targets with GHC in the \emph{profiling way}
 (i.e. with the profiling information enabled), we need to add command line
 arguments \lst'-static -prof' to the command line.
 
-While this is a concise way of representing it, it's inflexible. Rather than
-pattern matching on everything, we are pattern matching on two components (which
-package we are building and which tool we are running). Adding additional
-filters is impossible.
+\lst'WAY_p_HC_OPTS = -static -prof' is concise, but is inflexible. For example,
+if we do not want to pass \lst'-prof' flag when building one particular file, we
+will have to either add another component (\lst'WAY_p_file_HC_OPTS'), or
+conditionally filter out the \lst'-prof' flag from \lst'HC_OPTS' once it is
+constructed.
 
-Implementing the DSL is a nightmare. It's really a configuration setting.
+\todo{\textbf{Andrey}: finilise.}
 
 The question of provenance is particularly important in large multi-author build
 systems, but generally not something that is addressed anywhere - one of our key
