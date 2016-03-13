@@ -4,7 +4,7 @@ In 1998 Peter Miller published his famously influential paper
 \emph{``Recursive Make Considered Harmful''}~\cite{miller:recursive_make}.
 He made a compelling case that, when designing the build system for
 a large project, it is far better to ensure that Make can see
-the entire dependency graph rather that a series of fragments.
+the entire dependency graph rather than a series of fragments.
 
 Miller was right about that.  But he then went on to say ```\emph{But, but, but}'
 I hear you cry.  `\emph{A single makefile is too big, it's unmaintainable,
@@ -31,22 +31,22 @@ no fewer than four major versions of GHC's build system; it improved each
 time, but the result is still manifestly inadequate.
 
 \item We describe Shake, an embedded domain specific language (or library)
-in Haskell that directly addresses the challenges we identify
+in Haskell that directly addresses these challenges
 in~\S\ref{sec:shake}.
-Although Shake has been introduced before~\cite{shake}, we describe here
+Although Shake has been introduced before~\cite{shake}, here we describe
 several key features that were mentioned only in passing if at all, notably:
 post-use and order-only dependencies; how to use polymorphic dependencies;
 resources; and content hashes.
 
 \item We show in some detail how Shake's built-in abstractions address
-many of the scalability challenges that have been causing us such pain over
+many of the scalability challenges that have caused the GHC developers such pain over
 two decades (\S\ref{sec:solutions}).
 
 \item A huge benefit of using an embedded DSL as a build system is that
 we can use the facilities of the host language (Haskell) to build
-abstractions on top of Shake, to fit it for the particular use case.
-This sort of claim is easier to make than to substantiate; so we present
-in~\S\ref{sec:abstractions} an overview of the new build system we have
+abstractions on top of Shake, to fit it for our particular use case.
+This sort of claim is easier to make than to substantiate; so
+in~\S\ref{sec:abstractions} we present an overview of the new build system we have
 developed for GHC, and the new abstractions (not part of Shake) that we built
 to support it.
 
