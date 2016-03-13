@@ -187,7 +187,7 @@ which defines a build rule with multiple outputs:
 \subsection{Reducing concurrency\label{sec:ghc-pkg-db}}
 
 As discussed in~\S\ref{sec:concurrency-reduction}, it is sometimes necessary to
-reduce concurrency in a build system. As one example, GHC packages need to
+reduce concurrency in a build system. As an example, GHC packages need to
 be registered by invoking the \lst'ghc-pkg' utility. This utility mutates the
 global state (package database) and hence at most one package can be registered
 at a time, or the database is corrupted.
@@ -195,30 +195,23 @@ at a time, or the database is corrupted.
 In Make, the solution is to introduce fake \emph{concurrency
 reduction} dependencies. There are 25 GHC packages that require registration,
 and in the old build system they all depended on each other in a chain, to
-ensure that no simultaneous registrations occur. This solution works, but is
-inelegant and inefficient.
-
-There are really three problems. By over-sequentialising things we sacrifice
-other parallelism that may be available in the system. We must over-constrain to
-give a precise order in which the rules can be built. If one of the later ones
-is available to build, we may need to stop it by waiting for another. Finally,
-it's easy to miss such dependencies as they are not centralised. By accidentally
-turning the chain into a tree we can end up with surprising failures.
+ensure no simultaneous registrations occur. This solution works, but is
+fragile (easy to get wrong) and inefficient (reduces available parallelism).
 
 In Shake, the solution is to use the \emph{resources} feature:
 
 \begin{lstlisting}
 packageDb <- newResource "package-db" 1
+
 action $ withResource packageDb 1 $ cmd "ghc-pkg" ...
 \end{lstlisting}
 
 This snippet declares a global resource named \lst"packageDb" with quantity 1,
-then calls \lst"withResource" asking for a single quantity before running the
+then later calls \lst"withResource" asking for a single quantity of the resource before running the
 \lst'ghc-pkg' utility. Provided all \lst'ghc-pkg' calls are suitably wrapped,
 we will never run two instances simultaneously. Furthermore, thanks to the
-availability of functions, we can abstract a function that executes
-\lst'ghc-pkg' and applies the resource automatically, see
-\S\ref{sec:abstractions} for how we do that.
+availability of functions, we can abstract a function that both executes
+\lst'ghc-pkg' and applies the resource.
 % Note that build systems already schedule tasks to satisfy the implicit thread
 % resource, so having user defined resources is an obvious generalisation.
 
