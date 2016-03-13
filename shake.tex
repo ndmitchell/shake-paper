@@ -63,9 +63,9 @@ do any \lst'IO' operation at this point.
 #\vspace{-7mm}#
 #\line(1,0){240}#
 newtype Rules a = ... #\hspace{36.5mm}\textbf{\emph{Generic API}}#
-   deriving (Monoid, Functor, Applicative, Monad)
+   deriving#\,#(Monoid,#\,#Functor,#\,#Applicative,#\,#Monad)
 newtype Action a = ...
-   deriving (Functor, Applicative, Monad, MonadIO)
+   deriving#\,#(Functor,#\,#Applicative,#\,#Monad,#\,#MonadIO)
 
 data ShakeOptions = ShakeOptions {shakeThreads :: Int, ...}
 shakeOptions :: ShakeOptions
