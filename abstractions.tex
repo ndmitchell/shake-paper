@@ -467,10 +467,10 @@ build target@Target {..} = do
   as all dependent targets) if need be.
   \item Function \lst'checkArgsHash :: Target -> Action ()' checks whether the
   \lst'target' needs to be rebuilt because the command line computed from
-  \lst'args' expression has changed since the previous build. If it changed,
-  the target is rebuilt even if all its dependencies are up-to-date. This tracks
-  changes both in the environment and in the build system itself.
-  \todo{\textbf{Andrey}: Explain how checkArgsHash works?}
+  \lst'args' expression has changed since the previous build. If it has,
+  the target is rebuilt even if it is up-to-date. This tracks changes both in
+  the environment and in the build system itself. We implemented this feature
+  by tracking command line hashes using polymorphic dependencies~\S\ref{sec:polymorphic}.
   \item We \lst'interpret' the \lst'args' expression w.r.t. to the
   \lst'target', and obtain the list \lst'argList :: [String]' of arguments to be
   passed to the builder. See Figure~\ref{fig:abstractions} for the implementation of
@@ -498,6 +498,8 @@ set way-specific extensions for object and archive files, lookup
 dependencies of a source file, and compute a list of source files for a given
 library. Command line arguments are specified as a single expression~\lst'args',
 which makes use of package-, way-, builder-, and file-specific arguments.
+\todo{\textbf{Andrey}: Mention that there is a parallel between contexts and CI
+matrices?}
 
 The \lst'main' function is straightforward: for each possible \lst'Context'
 we request the corresponding library to be built using \lst'want', as well as

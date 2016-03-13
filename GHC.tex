@@ -161,6 +161,7 @@ In \lst'U11' we modify the build environment, by changing the path to \lst'gcc'
 in the configuration files. As in \lst'U6-U7', the old build system rebuilds
 almost everything since depending on a single configuration setting is not
 supported. The new build system correctly reruns only affected rules.
+\todo{\textbf{Andrey}: Add \lst'U12', edit cabal.in case.}
 
 In summary, the new build system correctly handles most use cases, whereas
 the old one performs a lot of unnecessary rebuilds in all but simple cases. In
