@@ -100,14 +100,22 @@ In both cases the generality of higher-order functions solves the problem.
 
 \subsection{Generating rules}
 
-\todo{\textbf{Andrey}: Rewrite using GHC profiling example.}
-
-In any large build system, there are rules (how to build things), and then a
-very long list of corner cases. For example,
+In any large-scale build system, there are rules that tell how to build targets,
+and then there is a very long list of special cases, listing targets that need
+to be treated specially, under certain circumstances, in a congirurable way. For
+example: 
 
 \begin{lstlisting}
-compiler_ALEX_OPTS = --latin1
+WAY_p_HC_OPTS = -static -prof
+...
+$1_$2_$3_HC_OPTS = $$($1_$2_HC_OPTS) \
+#\hspace{34.3mm}#$$(WAY_$3_HC_OPTS) \
+#\hspace{34.3mm}#... plus 30 more special cases
 \end{lstlisting}
+
+This tells that when building targets with GHC in the \emph{profiling way}
+(i.e. with the profiling information enabled), we need to add command line
+arguments \lst'-static -prof' to the command line.
 
 While this is a concise way of representing it, it's inflexible. Rather than
 pattern matching on everything, we are pattern matching on two components (which
