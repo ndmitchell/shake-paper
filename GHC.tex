@@ -1,3 +1,5 @@
+\newcommand{\checkedbox}{\makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}}
+\newcommand{\uncheckedbox}{\makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.92em}}}
 \begin{table*}[t]
 \centering
 \begin{tabular}{p{60mm} || p{50mm} | p{50mm}}
@@ -7,56 +9,56 @@
 \\
 \hline
 \textsf{U1:} Fully-featured GHC build
-& Everything is built \hfill \checkmark
-& Not all features supported, see~\S\ref{sec:limitations}
+& Everything is built \hfill \checkedbox
+& Not all features supported, see~\S\ref{sec:limitations} \hfill \uncheckedbox
 \\
 \textsf{U2:} Clean build
-& Everything is built \hfill \checkmark
-& Everything is built \hfill \checkmark
+& Everything is built \hfill \checkedbox
+& Everything is built \hfill \checkedbox
 \\
 \textsf{U3:} Zero build \hspace{6.4mm}
-& Nothing is rebuilt \hfill \checkmark
-& Nothing is rebuilt \hfill \checkmark
+& Nothing is rebuilt \hfill \checkedbox
+& Nothing is rebuilt \hfill \checkedbox
 \\
 \hline
 \textsf{U4:} Add comment: \textsf{libraries/base/Prelude.hs}
-& \textsf{Prelude.o}, \textsf{base} library, and all
-\newline dependent binaries are rebuilt
-& Only \textsf{Prelude.o} is rebuilt \hfill \checkmark
+& \textsf{Prelude.o}, \textsf{base} library, and all \hfill \uncheckedbox
+\newline dependent binaries are rebuilt 
+& Only \textsf{Prelude.o} is rebuilt \hfill \checkedbox
 \\
 \textsf{U5:} Modify code: \hspace{1.75mm}\textsf{libraries/base/Prelude.hs}
-& \textsf{Prelude.o} and all its dependencies \hfill \checkmark \newline
+& \textsf{Prelude.o} and all its dependencies \hfill \checkedbox \newline
 are rebuilt
-& \textsf{Prelude.o} and all its dependencies \hfill \checkmark \newline
+& \textsf{Prelude.o} and all its dependencies \hfill \checkedbox \newline
 are rebuilt
 \\
 \textsf{U6:} Add comment: \textsf{utils/ghc-cabal/Main.hs}
-& Almost everything is rebuilt
-& All \textsf{ghc-cabal} rules are rerun
+& Almost everything is rebuilt \hfill \uncheckedbox
+& All \textsf{ghc-cabal} rules are rerun \hfill \uncheckedbox
 \\
 \textsf{U7:} Modify code: \hspace{1.75mm}\textsf{utils/ghc-cabal/Main.hs}
-& Almost everything is rebuilt
-& Only the targets affected by the \hfill \checkmark \newline change are rebuilt
+& Almost everything is rebuilt \hfill \uncheckedbox
+& Only the targets affected by the \hfill \checkedbox \newline change are rebuilt
 \\
 \hline
-\textsf{U8:} Modify the build system: pass \textsf{-O2} when\newline
+\textsf{U8:} Modify the build system: pass \textsf{-O2} when \newline
 $\textit{~~~~~~~}$compiling Stage2 GHC
-& Nothing is rebuilt
-& Stage2 GHC and its dependencies \hfill \checkmark \newline are rebuilt
+& Nothing is rebuilt \hfill \uncheckedbox
+& Stage2 GHC and its dependencies \hfill \checkedbox \newline are rebuilt
 \\
 \textsf{U9:} Modify the build system without changing \newline
 $\textit{~~~~~~~}$command line arguments of build tools
-& Nothing is rebuilt
-& Nothing is rebuilt
+& Nothing is rebuilt \hfill \uncheckedbox
+& Nothing is rebuilt \hfill \uncheckedbox
 \\
 \hline
 \textsf{U10:} Switch to a \textsf{git} branch and back
-& Some files are rebuilt
-& Nothing is rebuilt \hfill \checkmark
+& Some files are rebuilt \hfill \uncheckedbox
+& Nothing is rebuilt \hfill \checkedbox
 \\
 \textsf{U11:} Change path to \textsf{gcc}
-& Everything is rebuilt
-& Files depending on \textsf{gcc} are rebuilt \hfill \checkmark
+& Everything is rebuilt \hfill \uncheckedbox
+& Files depending on \textsf{gcc} are rebuilt \hfill \checkedbox
 \\
 \end{tabular}
 \caption{Comparison of GHC build systems on common use cases. Checkmarks
