@@ -36,7 +36,7 @@ expressions, and an interpreter that evaluates it to run the build.
 % implementation.
 The configuration language is tracked (if it changes the affected build rules
 are rerun), has provenance (using the new \lst'?location :: Location' feature in
-GHC) and permits easy configuration, for example:
+GHC~\todo{Reference?}) and permits easy configuration, for example:
 
 \begin{lstlisting}
 builder Ghc ? way profiling ? arg "-prof"
@@ -65,9 +65,9 @@ data Package = Package
 #\itab{~~~~,} \ctab{pkgPath} \ptab{:: FilePath}#
 #\itab{~~~~,} \ctab{pkgType} \ptab{:: PackageType \}}#
 
-data Stage = Stage0 | Stage1 | Stage2 | Stage3 deriving#\,#Enum
-
 newtype Way = ... deriving Eq
+
+data Stage = Stage0 | Stage1 | Stage2 | Stage3 deriving#\,#Enum
 
 data Context = Context
 #\itab{~~~~\{} \ctab{stage} \cotab{:: Stage}#
@@ -130,16 +130,20 @@ predicate ? expr = do
 \caption{GHC build system abstractions\label{fig:abstractions}}
 \end{figure}
 
-\subsection{Programming model}
+\subsection{GHC-specific abstractions}
+
+We start by describing GHC-specific build types, which form our \emph{build
+context}. By abstracting over the context in the subsequent sections we derive a
+set of generally useful build abstractions that are applicable to many build
+systems.
 
 GHC source code is split into logical units, or \emph{packages}. We model
-packages with the \lst'Package' type, see Figure~\ref{fig:abstractions}
-(the \emph{Build types} subfigure). A package is identified by a unique
-\lst'PackageName' and a \lst'FilePath' pointing to its location in the source
-tree. A GHC package can be a library (e.g., \lst'array') or a program (e.g.,
-\lst'genprimopcode'), which is captured by \lst'PackageType'. There are 32
-libraries and 18 programs (the latter includes the GHC itself and various
-utilities).
+packages with the \lst'Package' type, see
+Figure~\ref{fig:abstractions}~(Build types). A package is identified by a
+unique \lst'PackageName' and a \lst'FilePath' pointing to its location in the
+source tree. A GHC package can be a library (e.g., \lst'array') or a program
+(e.g., \lst'genprimopcode'), which is captured by \lst'PackageType'. There are
+32 libraries and 18 programs (the latter includes the GHC itself and various utilities).
 
 A package can be built multiple \emph{ways}, for example, to produce a library
 with or without profiling information. This is captured by an opaque
@@ -170,6 +174,8 @@ uses an appropriate compiler version (e.g., the bootstrap compiler in
 \lst'*.o' or profiled \lst'*.p_o' object files), puts build artefacts
 into an appropriate directory (e.g., \lst'stage1/libraries/base'), etc.
 There are $4 \times 40 \times 18 = 2880$ different possible contexts.
+
+\subsection{General abstractions}
 
 A typical build system invokes several build tools, or \emph{builders}, such as
 compilers, linkers, archivers, etc., some of which may also be built by the
@@ -206,35 +212,36 @@ Each invocation of a builder is fully described by a \lst'Target', which
 comprises a build \lst'Context', a \lst'Builder', a list of input and
 a list of output files. 3748 targets are built when building \lst'Stage2' GHC
 with documentation (with vanilla and profiled libraries). Consider the following
-invocation of builder \lst'Alex' as an example:
+invocation of builder \lst'Ghc Stage1' as an example:
 
 \begin{lstlisting}
-alex -g --latin1 compiler/parser/Lexer.x
-                -o compiler/stage1/build/Lexer.hs
+inplace/bin/ghc-stage1 -O2 -prof -c libraries/base/Prelude.hs
+    -o build/stage1/libraries/base/Prelude.p_o
 \end{lstlisting}
 
 \noindent The corresponding \lst'Target' is:
 
 \begin{lstlisting}
-lexerTarget = Target
-#\itab{~~~~\{} \ctab{context} \ttab{= Context Stage1 compiler vanilla}#
-#\itab{~~~~,} \ctab{builder} \ttab{= Alex}#
-#\itab{~~~~,} \ctab{inputs} \ttab{= ["compiler/parser/Lexer.x"]}#
-#\itab{~~~~,} \ctab{outputs} \ttab{= ["compiler/stage1/build/Lexer.hs"] \}}#
+preludeTarget = Target
+#\itab{~~~~\{} \ctab{context} \ttab{= Context Stage1 base profiling}#
+#\itab{~~~~,} \ctab{builder} \ttab{= Ghc Stage1}#
+#\itab{~~~~,} \ctab{inputs} \ttab{= ["libraries/base/Prelude.hs"]}#
+#\itab{~~~~,} \ctab{outputs} \ttab{= ["build/stage1/libraries/base/Prelude.p\_o"] \}}#
 \end{lstlisting}
 
-\noindent By examining \lst'lexerTarget' it is possible to compute the full
-command line for building \lst'compiler/stage1/build/Lexer.hs':
+\noindent By examining \lst'preludeTarget' it is possible to compute the full
+command line for building \lst'build/stage1/libraries/base/Prelude.p_o':
 \begin{itemize}
-  \item The builder is \lst'Alex'. We lookup the right command
-  \lst'alex' in the configuration file \lst'system.config', and use the
-  following command line expression: \lst'-g <input> -o <output>'.
-  \item The package is \lst'compiler'. We know that we need to add
-  flag \lst'--latin1' to the above expression.
+  \item The builder is \lst'Ghc Stage1'. We lookup the right command
+  \lst'inplace/bin/ghc-stage1' with help of \lst'builderProvenance', and use it
+  in the following command line expression:\vspace{1mm}\\
+  \centerline{\!\!\!\!\!\lst'<command> -O2 -c <input> -o <output>'}
+  \item The way is \lst'profiling'. We know that we need to add
+  flag \lst'-prof' to the above expression.
   \item We know how to substitute \lst'<input>' and \lst'<output>' in the
   above expression.
-  \item We ignore \lst'stage' and \lst'way' because they are not relevant
-  in this particular case. However, we record them in the build log.
+  \item We ignore \lst'package' because it is not relevant in this particular
+  case. However, we record it in the build log.
 \end{itemize}
 
 \noindent A build system typically contains many such computations (at least one
