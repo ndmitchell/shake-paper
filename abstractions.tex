@@ -352,7 +352,7 @@ remove xs = return . Diff $ filter (`notElem` xs)
 #\vspace{-5mm}#
 #\line(1,0){240}#
 args :: Args#\hspace{33mm}\textbf{\emph{Command~line~arguments}}#
-args = mconcat
+args = mconcat #\todo{\textbf{Andrey}: move to a separate figure?}#
     [ builder Ghc ? mconcat
         [ arg "-O2"
         , way Profiling ? arg "-prof"
