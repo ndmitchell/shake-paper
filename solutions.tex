@@ -1,6 +1,6 @@
 \section{Quick wins: from Make to Shake\label{sec:solutions}}
 
-The GHC build system stretches \make{} beyond its limits.
+The GHC build system stretches Make beyond its limits.
 In this section we illustrate, from our experience with GHC's build system,
 some of these challenges, how they can be solved in our new system.
 These problems can be divided into two groups: those caused by the
@@ -109,7 +109,7 @@ arbitrary predicate to exert more precise control over what matches.
 
 \subsection{Generating rules}
 
-In any large-scale build system, there are rules that tell how to build targets,
+In any large-scale build system, there are rules that say how to build targets,
 and then there is a very long list of special cases, listing targets that need
 to be treated specially, under certain circumstances, in a configurable way.
 Writing a separate rule for each special case by hand is impractical, hence
@@ -263,8 +263,8 @@ constructing a dependency graph and then executing it. This approach
 makes it possible to analyse the graph ahead of
 time, but it is limiting in some fundamental ways.  Specifically,
 it is common that parts of the dependency graph can be known only after
-executing some other parts of the dependency graph.  Some examples of
-this that occur in the GHC build system:
+executing some other parts of the dependency graph.  Here are some examples of
+this pattern from the GHC build system:
 
 \begin{itemize}
 \item GHC contains Haskell packages which have metadata specified in
@@ -296,7 +296,7 @@ system. Indeed, they arise naturally even when building a simple C program,
 because the \lst'#include' files for a C source file are not known until the
 source file is compiled or analysed by the C compiler, using something like
 \lst'gcc -M'. Build systems that have a static dependency graph typically have
-special-case support for this; for example, GNU Make will re-read
+special-case support for changing dependencies; for example, GNU Make will re-read
 Makefiles that change during building.  In the case of GNU Make,
 this works for simple cases, but fails when there are dependencies
 between the generated Makefiles, which arises in more complex cases.
@@ -318,10 +318,10 @@ solution for several reasons:
   Diagnosing problems is particularly hard.
 \item Even when doing an incremental build we have to perform all the
   phases, because explicit phases preclude dependency tracking across
-  the phase boundary.  This is so slow that we were forced to allow
+  the phase boundary.  The result is so slow that we were forced to allow
   the user to short-circuit the earlier phases, by promising
   that nothing has changed that would require rebuilding
-  the early phases (\lst'make fast').  Obviously this is less than
+  the early phases (\lst'make fast').  This solution is less than
   ideal.
 \end{itemize}
 
@@ -341,7 +341,7 @@ needs to be done to build the package.
 The existence of \lst"need" means that Shake cannot construct the
 dependency graph ahead of time, because it doesn't know the full
 dependency graph until the build has completed.  But this is not a
-limitation in practice, whereas while the lack of dynamic dependencies really
+limitation in practice, whereas the lack of dynamic dependencies really
 \emph{is} a limitation requiring painful workarounds.
 
 % SimonM: I wasn't really sure what this paragraph was trying to say
@@ -433,7 +433,7 @@ limitation in practice, whereas while the lack of dynamic dependencies really
 
 Build systems typically spend most of their time calling out to external
 processes, e.g. compilers. But sometimes it is useful to replace external processes
-with direct functions. As an example, the Make build system used \lst'xargs' to
+with direct functions. As an example, the Make system used \lst'xargs' to
 split command line arguments that exceed a certain size, but that did not work
 consistently across OS versions, requiring lots of conditional logic.
 Fortunately, with Haskell at our disposal, we can write:
@@ -444,8 +444,8 @@ Fortunately, with Haskell at our disposal, we can write:
 -- impossible, it uses singleton chunks.
 chunksOfSize :: Int -> [String] -> [[String]]
 chunksOfSize n = repeatedly $ \xs ->
-    let#\,#i = length $ takeWhile#\,#(<=#\,#n) $ scanl1#\,#(+) $ map#\,#length#\,#xs
-    in splitAt (max 1 i) xs
+    let#\,#ys = takeWhile#\,#(<=#\,#n) $ scanl1#\,#(+) $ map#\,#length#\,#xs
+    in splitAt (max 1 $ length ys) xs
 \end{lstlisting}
 
 \noindent Writing a small function is easy in Haskell, and even easier to test
@@ -467,8 +467,8 @@ marrying build systems and functional programming works well.
 multiple outputs~\S\ref{sec:multiple-outputs},
 resources~\S\ref{sec:ghc-pkg-db} and dynamic dependencies~\S\ref{sec:dynamic-deps}.
 While some of these
-features are only used in a few places (e.g. resources), their absence would
-require pervasive workarounds, and a significant increase in the overall complexity.
+features are only used in a few places (e.g. resources), their absence
+requires pervasive workarounds, and a significant increase in the overall complexity.
 \end{itemize}
 
 % \subsection{Abstracting over patterns of dependencies}

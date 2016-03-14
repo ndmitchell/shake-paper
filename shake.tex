@@ -1,11 +1,11 @@
 \section{Background about Shake\label{sec:shake}}
 
 Many of the issues raised in~\S\ref{sec:challenges} stem from the fact
-that \make{} was never designed to be a programming language.  A
-promising appoarch is, therefore, abandon \make{} in favour of an
+that Make was never designed to be a programming language.  A
+promising approach is, therefore, abandon Make in favour of an
 embedded domain-specfic language (DSL), so that we have access to the full
 static typing and abstraction facilities of the host language.
-We did exactly this with GHC's build system, replacing \make{} with
+We did exactly that with GHC's build system, replacing Make with
 Shake, a DSL embedded in Haskell~\cite{shake}. In this section we
 recap the key ideas behind Shake, and also describe some of the additional
 features provided by Shake, but not covered in the original paper. These
@@ -15,7 +15,7 @@ system.
 \subsection{Introduction\label{sec:shake_intro}}
 
 As an example of a complete
-small Shake build system, let us compile a C file into an object file:
+Shake build system, let us compile a C file into an object file:
 
 \begin{lstlisting}[numbers=left,xleftmargin=2em,framexleftmargin=1.5em]
 module Main(main) where
@@ -54,7 +54,7 @@ end with the extension \lst'.o'. The \lst'%>' operator produces a rule of type
 \lst'Rules' which takes a pattern on the left, and an \lst'Action' on the
 right. The variable \lst'out' will be bound to the actual file being produced,
 namely \lst'foo.o' in this example.
-\item[Line 10] computes the name of the source file, in our case \lst'src = foo.c'.
+\item[Line 10] computes the name of the source file, in our case \lst'src' is \lst'foo.c'.
 \item[Line 11] uses the Shake function \lst'need' to ensure \lst'foo.c' has been built before
 continuing, and to introduce a dependency that if \lst'foo.c' changes then this
 rule will require rerunning.
@@ -81,14 +81,11 @@ action :: Action a -> Rules ()
 
 type ShakeValue a =
     (Show#\,#a, Typeable#\,#a, Eq#\,#a, Hashable#\,#a, Binary#\,#a, NFData#\,#a)
-data EqualCost = EqualCheap | EqualExpensive | NotEqual
 
 class (ShakeValue key, ShakeValue value) =>
         Rule key value where
     storedValue :: ShakeOptions ->
         key -> IO (Maybe value)
-    equalValue :: ShakeOptions ->
-        key -> value -> value -> EqualCost
 
 rule :: Rule key value =>
     (key -> Maybe (Action value)) -> Rules ()
@@ -108,7 +105,6 @@ orderOnly :: [FilePath] -> Action ()
 (?>) :: (FilePath -> Bool)#\,#->#\,#(FilePath -> Action#\,#())#\,#->#\,#Rules#\,#()
 \end{lstlisting}
 
-\todo{\textbf{Neil}: Include everything we use in the paper}
 \caption{Shake API\label{fig:shake-api}}
 \end{figure}
 
@@ -118,14 +114,6 @@ and the rule for \lst'foo.c' will be run. Shake provides a default rule for
 files that do not match any other rules, which simply checks the file already
 exists. After completing this simple rule, Shake will resume running the
 \lst'*.o' rule, executing \lst'gcc' to build \lst'foo.o'.
-
-The major source of Shake's expressive power is that in Shake a \lst'need' can
-come at any point during a rule's \lst'Action'. In particular, we can perform
-arbitrary computation including I/O, running system commands and examining files
-produced by a previous \lst'need' before deciding which future \lst'need' to
-perform. In contrast, in most build systems, all dependencies of a rule must be
-given before the rule starts executing. We make extensive use of this additional
-power throughout \S\ref{sec:abstractions}.
 
 \subsection{Parsimonious rebuilding}
 
@@ -146,9 +134,9 @@ generally, if either file changes contents, see
 \S\ref{sec:file-contents}).
 \end{itemize}
 \noindent
-Shake achieves this result by storing the inputs and outputs after a rule
+Shake achieves this result by storing information about inputs and outputs after a rule
 completes in a per-project database, and rerunning a rule if anything has
-changed (and thus the result could be expected to change). The Shake's approach
+changed (and thus the result could be expected to change). The Shake approach
 has a number of advantages: (1) we can track things that aren't files as in
 \S\ref{sec:polymorphic}; (2) we can depend on a more refined measure than
 modification time as in \S\ref{sec:file-contents}; (3) we are robust to system
@@ -157,18 +145,17 @@ does not need to update its output to avoid future rebuilds. The final point is
 often worked around in Make by using \emph{stamp files} to provide a modification
 time but having no actual content -- Shake simplifies this common use-case.
 
-In fact, by decoupling dependencies from modification times, Shake allows
-a richer notion ``dependency'', which turns out to be very useful in practice
-as we now review.
-
 \subsection{Pre-use dependencies: \lst'need'\label{sec:need}}
 
 The call \lst'need [src]' on line 11 tells Shake that \lst'foo.c' is needed
-to build \lst'foo.o'. But note that this dependency need only be announced
-when Shake decides to run the rule to built \lst'foo.c'; and that the
-build system author is free to use arbitary I/O actions to find which files
-are needed. This is much more dynamic than \make{}'s static dependencies,
-a feature that turns out be extremely important in practice (\S\ref{sec:dynamic-deps}).
+to build \lst'foo.o'. But note that this dependency is only announced
+after Shake has started to run the rule building \lst'foo.c'.
+In particular, we can perform
+arbitrary computation including I/O, running system commands and examining files
+produced by a previous \lst'need' before deciding to perform a future \lst'need'.
+In contrast, in most build systems (Make included), all dependencies of a rule must be
+declared before the rule starts executing. The power to add additional dependencies
+while running a rule turns out be extremely important in practice (\S\ref{sec:dynamic-deps}).
 
 \subsection{Post-use dependencies: \lst'needed'\label{sec:needed}}
 
@@ -189,19 +176,19 @@ need $ makefileDepends makefile
 \end{lstlisting}
 
 \noindent We use \lst'Stdout' to capture the output of \lst'cmd', then
-\lst'makefileDepends' to parse the \lst'Makefile' and return all dependencies
+\lst'makefileDepends' to parse the Makefile and return all dependencies
 \footnote{Using the \lst'parseMakefile' helper function in Shake we can define
 \lst'makefileDepends = concatMap snd . parseMakefile'.}. After obtaining the
 list of dependencies we \lst'need' them, making them inputs to this rule, and
 ensuring that if a header changes the object will be rebuilt.
 
-\simon{I have rewritten this paragraph; Neil pls check.}
-There is something a bit fishy here: \emph{after} building \lst'foo.o' we
+There is something a bit fishy here: \emph{after} compiling \lst'foo.o' we
 announce that its \emph{pre-requisites} are \lst'bar.h' and \lst'wibble.h'.
-That is certainly useful if \lst'bar.h' is a source file because
-then Shake will know to re-build \lst'foo.o' if the user edits \lst'bar.h'.
-But if \lst'bar.h' is itself built by the build system from something else,
-we have told Shake ``too late''.
+There is no issue if \lst'bar.h' is a source file, and now
+Shake will know to re-build \lst'foo.o' if the user edits \lst'bar.h'.
+But if \lst'bar.h' is itself generated by the build system,
+we have told Shake ``too late'', and Shake may now regenerate the file
+\emph{after} the compilation has used it.
 
 % However, for this use case, the \lst'need' function is actually a little
 % \emph{too} powerful. The \lst'need' will cause Shake to suspend the \lst'*.o'
@@ -347,7 +334,7 @@ Polymorphic dependencies do not give any fundamental additional expressive power
 over file rules, but they do provide:
 
 \begin{itemize}
-\item An easy way to get distinct keys, by using use of a freshly defined type.
+\item An easy way to get distinct keys, by using a freshly defined type.
 \item Additional structure for keys and values, instead of hierarchical
 filenames and binary content files. In particular keys can contain full
 algebraic data types.
@@ -372,7 +359,7 @@ independent:
 hard-drive. Running many disk-heavy linker processes simultaneously can overload
 the hard-drive.
 \item Some proprietary software has licenses which limit the number of
-concurrent processes, for example \lst'ModelSim'.
+concurrent processes, for example ModelSim.
 \end{itemize}
 
 \noindent Rules using such limited \emph{resources} should not be run in
@@ -400,7 +387,7 @@ excel <- newResource "Excel" 1
 \lst'Excel' simultaneously, regardless of the \lst'shakeThreads' setting.
 Moreover, the build system will never block waiting for the resource if there
 are other rules that could be run. We use this approach to deal with the GHC
-package database, which only permits one writer or multiple readers,
+package database, which only permits one writer at a time,
 see~\S\ref{sec:ghc-pkg-db}.
 
 \subsection{Tracking file contents\label{sec:file-contents}}

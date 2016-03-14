@@ -15,10 +15,7 @@ longer a problem, because
 ``the physical memory of modern computers exceeds 10MB''.  Indeed!}.
 Here, however, he is wrong.  Using
 Make for large projects really \emph{is} unmaintainable, and the rules really
-\emph{are} too hard to write. \todo{\textbf{SLPJ}:
-Shall we say that (Non-Recursive) Make still dominates the world of build
-systems, so Peter Miller's paper is still relevant? In other words, are our
-paper and claim in the title important?} \simon{I think it is fine as-is}.
+\emph{are} too hard to write.
 
 In this paper we substantiate this claim, and offer a solution,
 making the following contributions:
@@ -46,7 +43,7 @@ two decades (\S\ref{sec:solutions}).
 
 \item A huge benefit of using an embedded DSL as a build system is that
 we can use the facilities of the host language (Haskell) to build
-abstractions on top of Shake, to fit it for our particular use case.
+abstractions on top of Shake, to fit our particular use case.
 This sort of claim is easier to make than to substantiate; so
 in~\S\ref{sec:abstractions} we present an overview of the new build system we have
 developed for GHC, and the new abstractions (not part of Shake) that we built
@@ -54,7 +51,7 @@ to support it.
 
 \item To validate our claims, we have completely re-implemented GHC's
 build system, for the fifth and final time.  The new version is
-only a little shorter than the old -- \make{} is already extremely terse.
+only a little shorter than the old -- Make is already extremely terse.
 Much more importantly, while the original was hard to comprehend and
 almost impossible to modify safely, the replacement is beautifully
 modular, statically typed, and extensible.  Not only that, but the
