@@ -248,9 +248,8 @@ dependencies.
 This polymorphic API, and the file-specific API built on top
 of it, are presented in corresponding sections of Figure~\ref{fig:shake-api}.
 
-As an example of a new type of rules, let us imagine that the actual compiler
-name (\lst'gcc') is obtained from a configure script that p
-roduces a
+As an example of a new type of rule, let us imagine that the actual compiler
+name (\lst'gcc') is obtained from a configure script that produces a
 configuration file containing many key/value pairs. The \lst'*.o' rule could
 \lst'need' the configuration file, and parse it to extract the compiler name,
 but that would be wildly over-conservative: \emph{any} change to the
@@ -261,40 +260,53 @@ updated if that key changes, but that might result in thousands of files.
 Instead, we can define a rule to map from configuration keys to values.
 
 \begin{lstlisting}
-newtype ConfigKey = ConfigKey String deriving
-    (Show#\,#a, Typeable#\,#a, Eq#\,#a, Hashable#\,#a, Binary#\,#a, NFData#\,#a)
+newtype ConfigMap = ConfigMap FilePath deriving ...
+instance Rule ConfigMap (Map String String)
 
-instance Rule ConfigKey String where
-    storedValue _ _ = return Nothing
+newtype ConfigKey = ConfigKey String deriving ...
+instance Rule ConfigKey String
 
 main = shake shakeOptions $ do
+    rule $ \(ConfigMap file) -> Just $ do
+        src <- readFile' file
+        return $ parseConfig src
+
     rule $ \(ConfigKey key) -> Just $ do
-        src <- readFile' "config.file"
-        return $ parseConfig src Map.! key
+        [mp] <- apply [ConfigMap "config.file"]
+        return $ mp Map.! key
 
     "*.o" %> \out -> do
-        cc <- apply [ConfigKey "cc"]
+        [cc] <- apply [ConfigKey "cc"]
         ...
         cmd cc "-o" out "-c" src
 
 parseConfig :: String -> Map String String
+parseConfig = ...
 \end{lstlisting}
-\simon{This code is hard to understand.}
-\simon{It looks as though the config file will be parsed once for each key.  Is that right?}
-We use two new functions, \lst'rule' and \lst'apply', whose types are given in
-Figure~\ref{fig:shake-api}:
+\noindent We define two new types of rule. We define a rule from configuration
+file to the key/value pairs it contains, using the \lst'ConfigMap' type. Next we
+define a rule from a single key in the configuration file to the associated value,
+using the \lst'ConfigKey' type. We define \lst'Rule' instances to declare these
+new rule types to Shake, allowing us to use \lst'rule' and \lst'apply' from
+Figure~\ref{fig:shake-api}.
+
 \begin{itemize}
-\item \lst'rule' takes a function that, for any given key, tells how to get its value
-(ignore the \lst'Maybe' in the type for now), and stores the function in Shake's database.
-In our example, the function reads the config file, parses it to get a finite map, and
-looks the key up in that map.
-\item \lst'apply' takes a key and looks up the corresponding value. \simon{Why a list of keys?}
+\item We declare rules using \lst'rule', which takes a function that for a given key,
+says how to compute its value. We use \lst'Just' to indicate both rules apply to all
+keys of the appropriate type. In the first \lst'rule' we read the file and parse it,
+producing an associative map.
+\item We use rules with \lst'apply', which takes a list of rule keys and computes the
+corresponding values. Here we use \lst'apply' with singletons, but in general \lst'apply'
+operates on list of keys which can be computed in parallel. When defining the rule
+for \lst'ConfigKey' we use the value of \lst'ConfigMap'. When defining \lst'*.o',
+we use the value of \lst'ConfigKey "cc"'.
 \end{itemize}
-Crucially, Shake treats these computation incrementally: it parses the
-file only once, regardless of the number of uses of \lst'apply'; and
+
+Crucially, Shake treats these computation incrementally: it parses each
+configuration file only once, regardless of the number of uses of \lst'apply'; and
 it re-runs rules that look up key \lst'ConfigKey "cc"' only if the
 name of the C compiler actually changes.  So if file \lst'config.file' changes,
-Shake will re-run the rule installed by the call to `rule`, but if \lst'cc' does
+Shake will re-run the \lst'ConfigMap' rule, but if \lst'cc' does
 not change, the \lst'*.o' rule will not re-run.
 
 % This code defines a fresh type \lst'ConfigKey' to serve as the key for the rule.
@@ -328,18 +340,18 @@ not change, the \lst'*.o' rule will not re-run.
 %
 % Using oracles we are freed from defining our own \lst'Rule' instance and can use a type-safe version of \lst'apply' tailored to our particular oracle. The definition of oracles is only a handful of lines long, but sharply decreases the number of Shake concepts that must be understood to define non-file rules following the typical pattern. All non-file rules in GHC are implemented using oracles.
 
-The use of non-file rule types is common in large build systems, occurring ten
-times in our implementation of GHC's build system in \S\ref{sec:ghc}.
+The use of non-file rule types is common in large build systems, we use ten
+different types in our implementation of GHC's build system in \S\ref{sec:ghc}.
 Polymorphic dependencies do not give any fundamental additional expressive power
 over file rules, but they do provide:
 
 \begin{itemize}
 \item An easy way to get distinct keys, by using a freshly defined type.
 \item Additional structure for keys and values, instead of hierarchical
-filenames and binary content files. In particular keys can contain full
-algebraic data types.
+filenames and binary content files. In particular they can contain full
+algebraic data types or associative maps.
 \item Greater granularity, by not forcing each rule to be backed by a separate
-file. GHC's build system uses 6,677 non-file rules.
+file. GHC's build system uses 6,677 non-file rule values.
 \end{itemize}
 
 \subsection{Concurrency reduction\label{sec:concurrency-reduction}}
