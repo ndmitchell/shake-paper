@@ -258,8 +258,6 @@ availability of functions, we can abstract a function that both executes
 
 \subsection{Dynamic dependencies\label{sec:dynamic-deps}}
 
-\todo{\textbf{Andrey}: Rewrite.}
-
 Make, in common with many other build systems, works by
 constructing a dependency graph and then executing it. This approach
 has some benefits in that it is possible to analyse the graph ahead of
@@ -299,9 +297,9 @@ because the \lst'#include' files for a C source file are not known until the
 source file is compiled or analysed by the C compiler, using something like
 \lst'gcc -M'. Build systems that have a static dependency graph typically have
 special-case support for this; for example, GNU Make will re-read
-\lst'Makefiles' that change during building.  In the case of GNU Make,
+Makefiles that change during building.  In the case of GNU Make,
 this works for simple cases, but fails when there are dependencies
-between the generated \lst'Makefiles', which arises in more complex cases.
+between the generated Makefiles, which arises in more complex cases.
 
 The GHC build system works around this limitation of GNU Make by
 dividing the build system into \emph{phases}, where each phase
@@ -315,10 +313,9 @@ solution for several reasons:
 \item Phases reduce concurrency: we cannot start the next phase until
   the previous one is complete.
 \item Knowing what targets to put in each phase requires a deep
-  understanding of what the generated parts of the build system are
-  and their dependencies, and this area of our build system is
-  notoriously difficult to work on.  Diagnosing problems is
-  particularly hard.
+  understanding of generated parts of the build system and their dependencies,
+  and this area of our build system is notoriously difficult to work on. 
+  Diagnosing problems is particularly hard.
 \item Even when doing an incremental build we have to perform all the
   phases, because explicit phases preclude dependency tracking across
   the phase boundary.  This means we have to work around slow
