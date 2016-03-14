@@ -126,7 +126,7 @@ predicate ? expr = do
 \caption{GHC build system abstractions\label{fig:abstractions}}
 \end{figure}
 
-\subsection{GHC-specific abstractions}
+\subsection{GHC-specific abstractions\label{sec:ghc-context}}
 
 We start by describing GHC-specific build types, which form our \emph{build
 context}. By abstracting over the context in the subsequent sections we derive a
@@ -242,7 +242,7 @@ for each builder) and it is important to provide a terse and readable notation t
 describe them. After experimenting with several abstractions, we converged on
 \emph{expressions} defined in the next subsection.
 
-\subsection{Expressions}
+\subsection{Expressions\label{sec:expressions}}
 
 An expression \lst'Expr a' is a computation that produces a value of type
 \lst'Action a' and can read the current build \lst'Target', as shown in

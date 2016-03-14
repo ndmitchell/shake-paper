@@ -55,11 +55,11 @@ to rely on patterns whose expressive power is limited.
 The standard Make approach to solve these problems is to use \emph{macros}.
 As an example, here is a highly simplified version of the macro from~\S\ref{sec:challenges}:
 
+%define hs-compile =
+%endef
 \begin{lstlisting}
-define hs-compile =
 $1/$2/build/%.o : $1/$4/%.hs
     ghc $$($1_$2_$3_HC_OPTS) -c $$< -o $$@
-endef
 \end{lstlisting}
 
 \noindent As before, the rule is responsible for compiling a Haskell source
@@ -67,8 +67,16 @@ file into an object file. The arguments to the macro are available as \lst'$1'
 to \lst'$4'. We have solved the two problems above, but inelegantly:
 
 \begin{itemize}
-\item The restriction to certain directories is solved by using the macro to generate rules, and calling that macro at all relevant matches. We are duplicating the rule to make up for weak pattern matching, and are still quite restricted in what can be expressed.
-\item The dependence of the options on the file is solved using a computed variable name, which is dereferenced using \lst'$$(...)' to ensure the value is expanded when the macro is \emph{used}, not when it is \emph{defined}. However, certain variables are present in positions where the value is unavailable when first called, requiring \lst'$$$$(..)' to further delay expansion. Alas, it is far from obvious when extra delaying is required.
+\item The restriction to certain directories is solved by using the macro to
+generate rules, and calling that macro at all relevant matches. We are
+duplicating the rule to make up for weak pattern matching, and are still quite
+restricted in what can be expressed.
+\item The dependence of the options on the file is solved using a computed
+variable name, which is dereferenced using \lst'$$(...)' to ensure the value is
+expanded when the macro is \emph{used}, not when it is \emph{defined}. However,
+certain variables are present in positions where the value is unavailable when
+first called, requiring \lst'$$$$(..)' to further delay expansion. Alas, it is
+far from obvious when extra delaying is required.
 \end{itemize}
 
 \noindent Using Shake, the simplest variant looks slightly more complex, because
@@ -88,7 +96,9 @@ However, as the complexity grows, the build system scales properly. Making
 cmd "ghc" (hc_opts hs) hs
 \end{lstlisting}
 
-\noindent Namely turning \lst'hc_opts' from a constant to a function. To use richer pattern matching we can drop down to a lower-level Shake operation. In Shake \lst"%>" is itself defined in terms of \lst"?>":
+\noindent Namely turning \lst'hc_opts' from a constant to a function. To use
+richer pattern matching we can drop down to a lower-level Shake operation. In
+Shake \lst"%>" is itself defined in terms of \lst"?>":
 
 \begin{lstlisting}
 pat %> act = (pat ?==) ?> act
@@ -102,10 +112,16 @@ In both cases the generality of higher-order functions solves the problem.
 
 In any large-scale build system, there are rules that tell how to build targets,
 and then there is a very long list of special cases, listing targets that need
-to be treated specially, under certain circumstances, in a congirurable way.
+to be treated specially, under certain circumstances, in a configurable way.
 Writing a separate rule for each special case by hand is impractical, hence
-build rules are typically generated. In Make, this is done by using macros, for
-example:
+build rules are typically generated. In Make, this is done using macros.
+For example, the GHC build system generates different compilation rules
+for each combination of package, compiler version, and build way
+(in~\S\ref{sec:ghc-context} we refer to such combinations as \emph{build
+contexts}). The build rules differ in several aspects: they place build results
+in different directories, build using different compiler versions, and use
+different command line arguments. Here we only focus on the latter aspect,
+illustrated by the following example from the GHC build system:
 
 \begin{lstlisting}
 WAY_p_HC_OPTS = -static -prof
@@ -117,42 +133,64 @@ $1_$2_$3_HC_OPTS = $$($1_$2_HC_OPTS) \
 
 This tells that when building targets with GHC in the \emph{profiling way}
 \lst'p' (i.e. with the profiling information enabled), we need to add command
-line arguments \lst'-static -prof' to the command line.
+line arguments \lst'-static -prof' to the command line. 
 
 \lst'WAY_p_HC_OPTS = -static -prof' is concise, but is inflexible. For example,
-if we do not want to pass \lst'-prof' flag when building one particular file, we
-will have to either add another component to the name,
-\lst'WAY_p_filename_HC_OPTS', or conditionally filter out the \lst'-prof' flag from
-\lst'HC_OPTS' once it is constructed and the file being build is known.
+if we do not want to pass \lst'-prof' flag when building a particular file, we
+have to either add a new component to the variable name, e.g.
+\lst'WAY_p_file_HC_OPTS', or conditionally filter out the \lst'-prof' flag from
+\lst'HC_OPTS' after it is constructed and the file being build is known. Both
+approaches are not scalable; consequently, much of the complexity of the GHC
+build system is caused by generating configurable command lines. This complexity is
+unnecessary and can be tackled using high-level abstractions readily available
+in Haskell. We elaborate on this in~\S\ref{sec:abstractions}, where we design a
+DSL for succinct and type-safe generation of build rules and build command
+lines. The approach allows us to write the following:
 
-\todo{\textbf{Andrey}: finilise.}
+\begin{lstlisting}
+hc_opts = builder Ghc ? mconcat
+    [ way profiling ? append ["-static", "-prof"]
+    , ...
+    , file "//special.o" ? remove ["-prof"]
+    , ... ]
+\end{lstlisting}
 
-The question of provenance is particularly important in large multi-author build
-systems, but generally not something that is addressed anywhere - one of our key
-inovations in \S?. The encapsulation is provided by Haskell modules. The lack of
-freedom is provided by strong name binding. The problems related to `:' go away
-by manipulating values rather program text.
+\noindent Here the first line tells us that \lst'hc_opts' is applicable only
+when running GHC; the second line appends \lst'-static -prof' in profiling way; and
+finally flag \lst'-prof' is removed when we build \lst'special.o'. 
+
+Large-scale software projects may contain thousands of such special cases
+defined throughout the build system. Determining the provenance of each argument
+in the final command line is therefore very hard, and is generally not addressed
+in build systems. We designed our DSL with the provenance tracking in mind, as
+discussed in~\S\ref{sec:expressions}.
 
 
-As we develop more Shake-based build systems, patterns have started to emerge.
-Typically 90\% of a build system can be captured in some simple DSL, taking
-advantage of conventions, and 10\% cannot. As an example, a large build system
-might build 100 C++ libraries, each with similar flags and file layout, but
-taking the source files from different directories. It may also minify a
-Javascript file, and build an installer -- both one-off tasks. Using a
-fully-powerful system such as Shake, it is possible to engineer robust
-abstractions, and then define the majority of the build system using only these
-abstractions. The end result is that most edits to the build system involve only
-the DSL, and can be performed by a large number of individuals.
+% The question of provenance is particularly important in large multi-author build
+% systems, but generally not something that is addressed anywhere - one of our key
+% inovations in \S?. The encapsulation is provided by Haskell modules. The lack of
+% freedom is provided by strong name binding. The problems related to `:' go away
+% by manipulating values rather program text.
 
-After dealing with the DSL, there are usually a few pieces left over, and these
-can be implemented in Shake, as normal. Thanks to the power of Shake you can
-interpret the DSL and combine it with the custom pieces. In our experience by
-providing an \emph{escape hatch} where fully-powerful code an be expressed it
-removes the temptation to shoehorn more advanced features in the DSL, and thus
-avoids turning it into an ad-hoc scripting language. Instead, should enough
-pieces be required in the escape hatch, they can be abstracted in the
-traditional ways - perhaps even combining two DSLs in one build system.
+% As we develop more Shake-based build systems, patterns have started to emerge.
+% Typically 90\% of a build system can be captured in some simple DSL, taking
+% advantage of conventions, and 10\% cannot. As an example, a large build system
+% might build 100 C++ libraries, each with similar flags and file layout, but
+% taking the source files from different directories. It may also minify a
+% Javascript file, and build an installer -- both one-off tasks. Using a
+% fully-powerful system such as Shake, it is possible to engineer robust
+% abstractions, and then define the majority of the build system using only these
+% abstractions. The end result is that most edits to the build system involve only
+% the DSL, and can be performed by a large number of individuals.
+% 
+% After dealing with the DSL, there are usually a few pieces left over, and these
+% can be implemented in Shake, as normal. Thanks to the power of Shake you can
+% interpret the DSL and combine it with the custom pieces. In our experience by
+% providing an \emph{escape hatch} where fully-powerful code an be expressed it
+% removes the temptation to shoehorn more advanced features in the DSL, and thus
+% avoids turning it into an ad-hoc scripting language. Instead, should enough
+% pieces be required in the escape hatch, they can be abstracted in the
+% traditional ways - perhaps even combining two DSLs in one build system.
 
 \subsection{Rules with multiple outputs\label{sec:multiple-outputs}}
 
