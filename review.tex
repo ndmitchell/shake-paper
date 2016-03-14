@@ -53,4 +53,16 @@ so such tools are all limited in which platforms they support.
 
 \subsection{Build clusters}
 
-The build systems Bazel and Buck \cite{buck} are used at Google and Facebook respectively, both operating at sizes significantly beyond that of the GHC build system (reportedly billions of lines of code). Both systems take a metadata approach, with rule types baked in. As an example, a user might declare a C++ binary using the \lst'cxx_binary' rule type along with the names of the inputs and the outputs -- the build system takes care of suitable flags and conventions. The disadvantage of such an approach is that the available rules are fixed, making it difficult to encode something like a bootstrapping compiler. Generating source code is not really supported -- a problem typically solved by committing generated files to version control. Both tools also support build clusters, which build code once and share the resulting objects to everyone without recompiling locally -- an essential feature at such scales.
+The build systems Bazel and Buck \cite{buck} are used at Google and Facebook
+respectively, both operating at sizes significantly beyond that of the GHC build
+system (reportedly billions of lines of code). Both systems take a metadata
+approach, with various rule types baked in. As an example, the \lst'cxx_binary'
+rule builds a C/C++ binary given a list of source files and dependencies,
+taking care of suitable build flags and conventions, much like
+\lst'buildPackage' from~\S\ref{sec:build-example} but a lot more feature-rich.
+The disadvantage of such an approach is that the available rules are fixed,
+making it difficult to encode something like a bootstrapping compiler.
+Generating source code is not really supported -- a problem typically solved by
+committing generated files to version control. Both tools also support build
+clusters, which build code once and share the resulting objects to everyone
+without recompiling locally -- an essential feature at such scales.
