@@ -9,7 +9,7 @@ in big projects, when complexities such as these show up:
 \begin{itemize}
 \item The project has a large number of components (libraries or
   executables), using multiple languages, with complex
-  interdependencies.  Executables depending on libraries, for example,
+  interdependencies.  For example, executables depending on libraries,
   or tools generating inputs for other parts of the build system.
 \item Many components follow similar patterns, so there is a need for
   abstractions that allow common functionality to be shared between
@@ -23,7 +23,7 @@ in big projects, when complexities such as these show up:
 \end{itemize}
 The GHC build system includes all of the above. To illustrate the
 consequences, here is one rule from GHC's current build system, which
-is based on Make:
+uses Make:
 \begin{lstlisting}[basicstyle=\footnotesize\sffamily,escapeinside={(*}{*)}]
 $1/$2/build/%.$$($3_osuf) : \
     $1/$4/%.hs $$(LAX_DEPS_FOLLOW) \
@@ -46,8 +46,8 @@ problems that arose:
 
 \begin{itemize}
 \item The first incarnation of the build system used \lst'jmake', a
-  system inspired by the X Consortium's \lst'imake'.  This was
-  essentially ordinary Make together with the C preprocessor to
+  system inspired by the X Consortium's \lst'imake'.  This tool was
+  essentially ordinary Make combined with the C preprocessor to
   allow the use of macros in Makefiles.  The macro layer partly
   solves the problem of needing to share functionality between
   different parts of the build system.
