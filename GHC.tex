@@ -21,41 +21,46 @@
 & Nothing is rebuilt \hfill \checkedbox
 \\
 \hline
-\textsf{U4:} Add comment: \textsf{libraries/base/Prelude.hs}
+\textsf{U4:} Touch: \hspace{10.2mm}\textsf{libraries/base/Prelude.hs}
+& \textsf{Prelude.o}, \textsf{base} library, and all \hfill \uncheckedbox
+\newline dependent binaries are rebuilt
+& Nothing is rebuilt \hfill \checkedbox
+\\
+\textsf{U5:} Add comment: \textsf{libraries/base/Prelude.hs}
 & \textsf{Prelude.o}, \textsf{base} library, and all \hfill \uncheckedbox
 \newline dependent binaries are rebuilt
 & Only \textsf{Prelude.o} is rebuilt \hfill \checkedbox
 \\
-\textsf{U5:} Modify code: \hspace{1.75mm}\textsf{libraries/base/Prelude.hs}
+\textsf{U6:} Modify code: \hspace{1.75mm}\textsf{libraries/base/Prelude.hs}
 & \textsf{Prelude.o} and all its dependencies \hfill \checkedbox \newline
 are rebuilt
 & \textsf{Prelude.o} and all its dependencies \hfill \checkedbox \newline
 are rebuilt
 \\
-\textsf{U6:} Add comment: \textsf{utils/ghc-cabal/Main.hs}
+\textsf{U7:} Add comment: \textsf{utils/ghc-cabal/Main.hs}
 & Almost everything is rebuilt \hfill \uncheckedbox
 & All \textsf{ghc-cabal} rules are rerun \hfill \uncheckedbox
 \\
-\textsf{U7:} Modify code: \hspace{1.75mm}\textsf{utils/ghc-cabal/Main.hs}
+\textsf{U8:} Modify code: \hspace{1.75mm}\textsf{utils/ghc-cabal/Main.hs}
 & Almost everything is rebuilt \hfill \uncheckedbox
 & Only the targets affected by the \hfill \checkedbox \newline change are rebuilt
 \\
 \hline
-\textsf{U8:} Modify the build system: pass \textsf{-O2} when \newline
+\textsf{U9:} Modify the build system: pass \textsf{-O2} when \newline
 $\textit{~~~~~~~}$compiling Stage2 GHC
 & Nothing is rebuilt \hfill \uncheckedbox
 & Stage2 GHC and its dependencies \hfill \checkedbox \newline are rebuilt
 \\
-\textsf{U9:} Modify the build system without changing \newline
+\textsf{U10:} Modify the build system without changing \newline
 $\textit{~~~~~~~}$command line arguments of build tools
 & Nothing is rebuilt \hfill \uncheckedbox
 & Nothing is rebuilt \hfill \uncheckedbox
 \\
-\hline
-\textsf{U10:} Switch to a \textsf{git} branch and back
-& Some files are rebuilt \hfill \uncheckedbox
-& Nothing is rebuilt \hfill \checkedbox
-\\
+% \hline
+% \textsf{U10:} Switch to a \textsf{git} branch and back
+% & Some files are rebuilt \hfill \uncheckedbox
+% & Nothing is rebuilt \hfill \checkedbox
+% \\
 \textsf{U11:} Change path to \textsf{gcc}
 & Everything is rebuilt \hfill \uncheckedbox
 & Files depending on \textsf{gcc} are rebuilt \hfill \checkedbox
@@ -108,16 +113,21 @@ than the old one (see \S\ref{sec:benchmarks}).
 % The time it takes represents internal overheads of the build system:
 % scanning the file system, reading the database, etc.
 
-In \lst'U4-U5' we modify \lst'libraries/base/Prelude.hs' and rebuild GHC.
-When only comments are added (\lst'U4'), the new build system recompiles the
-file, notices the object code is unchanged, and stops: there is nothing else to
-be done. The old build system continues to rebuild the \lst'base' library as
-well as all dependent binaries, which is unnecessary. In \lst'U5' the
-modification of \lst'Prelude.hs' leads to changes in \lst'Prelude.o', which
-causes all dependencies to be rebuilt. Both build systems handle this case
-correctly.
+In \lst'U4-U6' we modify \lst'libraries/base/Prelude.hs' and rebuild GHC.
+If we \lst'touch' the file (\lst'U4'), i.e. change only its modification
+time, the new build system rebuilds nothing, as desired. The old build system rebuilds
+\lst'Prelude.o', the \lst'base' library, and all dependent binaries, such as
+\lst'Stage2' GHC. This use case commonly occurs when switching \lst'git'
+branches, as explained in~\S\ref{sec:file-contents}, or whenever a user changes
+a file, but then decides to undo the changes. In \lst'U5' we add comments,
+forcing the new build system to recompile \lst'Prelude.hs'. It then notices the
+object code is unchanged, and stops: there is nothing else to be done. The old
+build system continues to rebuild the \lst'base' library and dependent binaries,
+which is unnecessary. In \lst'U6' the modification of \lst'Prelude.hs' leads to
+changes in \lst'Prelude.o', which causes all dependencies to be rebuilt. Both
+build systems handle this case correctly.
 
-\lst'U6-U7' are similar, but we now modify sources of \lst'ghc-cabal' build
+\lst'U7-U8' are similar, but we now modify sources of \lst'ghc-cabal' build
 tool. The old build system rebuilds almost everything in both cases,
 which is unnecessary. Rebuilds are caused by rerunning updated \lst'ghc-cabal'
 binary, which changes modification time of generated \lst'package-data.mk'
@@ -127,38 +137,38 @@ file when using Make, therefore even if only one field in a
 rebuilding everything, not only C compilation rules that depend on
 \lst'CC_OPTS'. The new build system uses Shake's polymorphic
 dependencies~\S\ref{sec:polymorphic} to avoid such unnecessary rebuilds. Note
-however, that \lst'U6' behaviour is still suboptimal: \lst'ghc-cabal' rules
+however, that \lst'U7' behaviour is still suboptimal: \lst'ghc-cabal' rules
 are rerun, because GHC currently produces non-deterministic output
 (\lst'ghc-cabal''s binary is changed).
 
-In \lst'U8' we modify the build system itself by changing command line
+In \lst'U9' we modify the build system itself by changing command line
 arguments for one of the build files. The old build system rebuilds nothing,
 as Make does not track such changes. The new build system correctly reruns all
 affected rules. We currently only track command line arguments, therefore other,
-more subtle modifications of the build system (\lst'U9') are unnoticed.
+more subtle modifications of the build system (\lst'U10') are unnoticed.
 
-Working with multiple \lst'git' branches is a problematic use-case for build
-systems based on Make (as discissed in the second bullet point of
-\S\ref{sec:file-contents}). In \lst'U10' we conduct the following simple
-experiment:
-
-\begin{lstlisting}
-$ build
-$ git checkout -b test
-$ echo -- comment >> libraries/base/Prelude.hs
-$ git checkout master
-$ build
-\end{lstlisting}
-
-We expect the second \lst'build' to do nothing, since the \lst'master'
-branch has not changed. However, \lst'git checkout master' changes modification
-time of all files that were updated between branches, forcing the new
-build system to rerun all dependent rules (as in \lst'U4'). Shake's ability to
-track file contents in addition to modification time~\S\ref{sec:file-contents}
-allows us to avoid such unnecessary rebuils.
+% Working with multiple \lst'git' branches is a problematic use-case for build
+% systems based on Make (as discissed in the second bullet point of
+% \S\ref{sec:file-contents}). In \lst'U10' we conduct the following simple
+% experiment:
+% 
+% \begin{lstlisting}
+% $ build
+% $ git checkout -b test
+% $ echo -- comment >> libraries/base/Prelude.hs
+% $ git checkout master
+% $ build
+% \end{lstlisting}
+% 
+% We expect the second \lst'build' to do nothing, since the \lst'master'
+% branch has not changed. However, \lst'git checkout master' changes modification
+% time of all files that were updated between branches, forcing the new
+% build system to rerun all dependent rules (as in \lst'U4'). Shake's ability to
+% track file contents in addition to modification time~\S\ref{sec:file-contents}
+% allows us to avoid such unnecessary rebuils.
 
 In \lst'U11' we modify the build environment, by changing the path to \lst'gcc'
-in the configuration files. As in \lst'U6-U7', the old build system rebuilds
+in the configuration files. As in \lst'U7-U8', the old build system rebuilds
 almost everything since depending on a single configuration setting is not
 supported. The new build system correctly reruns only affected rules.
 \todo{\textbf{Andrey}: Add \lst'U12', edit cabal.in case.}
