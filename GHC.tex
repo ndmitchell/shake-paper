@@ -179,13 +179,15 @@ the old one performs a lot of unnecessary rebuilds in all but simple cases.
 \subsection{Benchmarks\label{sec:benchmarks}}
 
 When building from scratch, ignoring the initial \lst'boot'/\lst'configure'
-steps which are shared, the old build system takes 1266 seconds and the new
-one takes 737 seconds. These were tested in as similar configurations as we could
+steps which are shared, the old build system takes 1266 seconds on Windows and 
+649 seconds on Linux; while the new build system takes 737 seconds on Windows and
+578 seconds on Linux. These were tested in as similar configurations as we could
 manage (by disabling all the features the new system does not support),
 but due to the complexity of the build systems, there are almost certainly
 minor differences. For the zero build, the old build system takes 12.3
-seconds and the new one takes 2.1 seconds. All measurements were collected on a
-Windows machine using \lst'-j4'. \todo{Add Linux runtime?}
+seconds on Windows and 2.2 seconds on Linux; while the new one takes
+2.1 seconds on Windows and 2.0 seconds on Linux. All measurements were collected
+using \lst'-j4'.
 
 Since Shake and Haskell both provide profiling and analysis tools, we have
 already used these features to optimise the new build system, resulting in
