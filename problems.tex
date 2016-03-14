@@ -2,13 +2,10 @@
 
 Many existing build systems work well for small projects, or
 projects that follow a common pattern.  For example, building a single
-executable or library from single-language source files is a
-well-supported in virtually all build systems.  A
-lot of projects fit into this category, and so never run into the
-limits of existing build systems.
-
-Things start to get hairy in big projects, when complexities such as these
-show up:
+executable or library from single-language source files is well-supported in
+virtually all build systems. A lot of projects fit into this category, and so
+never run into the limits of existing build systems. Things start to get hairy
+in big projects, when complexities such as these show up:
 \begin{itemize}
 \item The project has a large number of components (libraries or
   executables), using multiple languages, with complex
@@ -51,14 +48,14 @@ problems that arose:
 \item The first incarnation of the build system used \lst'jmake', a
   system inspired by the X Consortium's \lst'imake'.  This was
   essentially ordinary Make together with the C preprocessor to
-  allow the use of macros in \lst'Makefile's.  The macro layer partly
+  allow the use of macros in Makefiles.  The macro layer partly
   solves the problem of needing to share functionality between
   different parts of the build system.
 
 \item The C preprocessor was somewhat painful to use with Make.
   The syntax was difficult to get right, and the need to constantly
-  \lst"make Makefiles" when working on the build system was tiresome.  GNU
-  Make came along which had built-in support for \lst'include' files and
+  \lst'make' Makefiles when working on the build system was tiresome.  GNU
+  Make came along which had built-in support for include files and
   other features, meaning the GHC build system could do away with the C
   preprocessor. The build system was rewritten to use GNU Make, and
   simulated macros with include files (GNU Make didn't have macros at

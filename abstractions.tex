@@ -406,8 +406,9 @@ constructing command line arguments in the build system. In addition to the
 above generic functions (whose specialised versions are shown in
 Figure~\ref{fig:abstractions}), it is equipped with function
 \lst'arg :: String -> Args' for injecting simple \lst'String' arguments into
-\lst'Args'. With these abstractions in place, we can construct command line
-arguments for GHC as follows:
+\lst'Args'. \todo{\textbf{Andrey}: Append, remove, and arg can be tracked using
+ImplicitLocations.} With these abstractions in place, we can construct command
+line arguments for GHC as follows:
 
 \begin{lstlisting}
 ghcArgs :: Args

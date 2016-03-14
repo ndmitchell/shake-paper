@@ -26,8 +26,8 @@ notably space (which splits lexemes) and colon (which declares rules, but is
 also found in Windows drive letters).
 \end{itemize}
 
-By using a build system embedded in Haskell, or indeed any other modern programming language,
-most of these issues are eliminated. An alternative solution is to generate the Makefile, either using a tool such as Automake or a full programming language. However, a generator cannot interact with the
+\noindent By using a build system embedded in Haskell, or indeed any other
+modern programming language, most of these issues are eliminated. An alternative solution is to generate the Makefile, either using a tool such as Automake or a full programming language. However, a generator cannot interact with the
 build system after generation, resulting in problems with dynamic dependencies
 (\S\ref{sec:dynamic-deps}).
 
@@ -40,7 +40,7 @@ Consider the following Make rule:
     ghc $HC_OPTS $<
 \end{lstlisting}
 
-\noindent It tells Make that object files \lst"*.o" can be produced from Haskell
+\noindent It tells Make that object files \lst"*.o" are produced from Haskell
 source files \lst"*.hs" by compiling them with \lst"ghc" command invoked with
 \lst"HC_OPTS" arguments. The notation is terse and works well for this example.
 Unfortunately, this simple formulation does not scale:
@@ -101,12 +101,12 @@ richer pattern matching we can drop down to a lower-level Shake operation. In
 Shake \lst"%>" is itself defined in terms of \lst"?>":
 
 \begin{lstlisting}
-pat %> act = (pat ?==) ?> act
+pattern %> act = (pattern ?==) ?> act
 \end{lstlisting}
 \noindent
 Wildcard pattern matching is just a special case, and we can use an
 arbitrary predicate to exert more precise control over what matches.
-In both cases the generality of higher-order functions solves the problem.
+%In both cases the generality of higher-order functions solves the problem.
 
 \subsection{Generating rules}
 
@@ -160,10 +160,10 @@ when running GHC; the second line appends \lst'-static -prof' in profiling way; 
 finally flag \lst'-prof' is removed when we build \lst'special.o'. 
 
 Large-scale software projects may contain thousands of such special cases
-defined throughout the build system. Determining the provenance of each argument
-in the final command line is therefore very hard, and is generally not addressed
-in build systems. We designed our DSL with the provenance tracking in mind, as
-discussed in~\S\ref{sec:expressions}.
+defined throughout the build system, possibly by different authors. Determining
+the provenance of each argument in the final command line is therefore very
+hard, and is generally not addressed in build systems. We designed our DSL with
+the provenance tracking in mind, as discussed in~\S\ref{sec:expressions}.
 
 
 % The question of provenance is particularly important in large multi-author build
