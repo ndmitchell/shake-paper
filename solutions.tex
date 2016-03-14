@@ -107,7 +107,12 @@ Wildcard pattern matching is just a special case, and we can use an
 arbitrary predicate to exert more precise control over what matches.
 %In both cases the generality of higher-order functions solves the problem.
 
-\subsection{Generating rules}
+An alert reader may have noticed that \lst'$1_$2_$3_HC_OPTS' refers to
+\lst'$3', which is not related to the file being built. Indeed, the
+macro argument \lst'$3' specifies \emph{how} the file must be built. 
+The next subsection discusses this pattern and associated challenges.
+
+\subsection{Computing command lines}
 
 In any large-scale build system, there are rules that say how to build targets,
 and then there is a very long list of special cases, listing targets that need
@@ -146,24 +151,23 @@ in Haskell. We elaborate on this in~\S\ref{sec:abstractions}, where we design a
 DSL for succinct and type-safe generation of build rules and build command
 lines. The approach allows us to write the following:
 
-\begin{lstlisting}
-hc_opts = builder Ghc ? mconcat
-    [ way profiling ? append ["-static", "-prof"]
-    , ...
-    , file "//special.o" ? remove ["-prof"]
-    , ... ]
-\end{lstlisting}
-
-\noindent Here the first line tells us that \lst'hc_opts' is applicable only
-when running GHC; the second line appends \lst'-static -prof' in profiling way; and
-finally flag \lst'-prof' is removed when we build \lst'special.o'. 
-
-Large-scale software projects may contain thousands of such special cases
-defined throughout the build system, possibly by different authors. Determining
-the provenance of each argument in the final command line is therefore very
-hard, and is generally not addressed in build systems. We designed our DSL with
-the provenance tracking in mind, as discussed in~\S\ref{sec:expressions}.
-
+% \begin{lstlisting}
+% hc_opts = builder Ghc ? mconcat
+%     [ way profiling ? append ["-static", "-prof"]
+%     , ...
+%     , file "//special.o" ? remove ["-prof"]
+%     , ... ]
+% \end{lstlisting}
+% 
+% \noindent Here the first line tells us that \lst'hc_opts' is applicable only
+% when running GHC; the second line appends \lst'-static -prof' in profiling way; and
+% finally flag \lst'-prof' is removed when we build \lst'special.o'. 
+% 
+% Large-scale software projects may contain thousands of such special cases
+% defined throughout the build system, possibly by different authors. Determining
+% the provenance of each argument in the final command line is therefore very
+% hard, and is generally not addressed in build systems. We designed our DSL with
+% the provenance tracking in mind, as discussed in~\S\ref{sec:expressions}.
 
 % The question of provenance is particularly important in large multi-author build
 % systems, but generally not something that is addressed anywhere - one of our key
