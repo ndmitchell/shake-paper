@@ -13,8 +13,7 @@ and fast, but also:
 \begin{itemize}
 \item The code should be simple and direct, talking about concepts familiar to
 developers, such as files that are built, tools that are used to build
-them, and their configuration settings. These concepts need first-class
-representation.
+them, and their configuration settings.
 \item The code should permit configuration. Many GHC users work with GHC in
 different modes and in different environments. Common configuration settings
 include turning on/off documentation, choosing different sets of optimisation flags,
@@ -142,9 +141,9 @@ GHC source code is split into logical units, or \emph{packages}. We model
 packages with the \lst'Package' type, see
 Figure~\ref{fig:abstractions}~(Build types). A package is identified by a
 unique \lst'PackageName' and a \lst'FilePath' pointing to its location in the
-source tree. A GHC package can be a library (e.g., \lst'array') or a program
-(e.g., \lst'genprimopcode'), which is captured by \lst'PackageType'. There are
-32 libraries and 18 programs (the latter includes the GHC itself and various utilities).
+source tree. A GHC package can be a library (e.g. \lst'array') or a program
+(e.g. \lst'genprimopcode'), which is captured by \lst'PackageType'. There are
+32 libraries and 18 programs (the latter includes GHC itself and various utilities).
 
 A package can be built multiple \emph{ways}, for example, to produce a library
 with or without profiling information. This is captured by an opaque
@@ -152,7 +151,7 @@ type \lst'Way' inhabited by values such as \lst'vanilla' (the simplest
 possible way), \lst'profiling' (with profiling information), \lst'debug'
 (with debug information), and many others (there are 18 ways in total). Some
 ways can be combined, e.g., \lst'debugProfiling'; however, not all combinations
-are allowed or currently supported. By making \lst'Way' opaque we make it easier
+make sense. By making \lst'Way' opaque we make it easier
 to add new ways or change their internal representation, something that would be
 impossible to achieve in Make, where no information hiding is possible.
 
@@ -167,13 +166,12 @@ a self-test: the object code of \lst'Stage2' and \lst'Stage3' compilers
 should be the same.
 
 \lst'Stage', \lst'Package' and \lst'Way' form a GHC-specific
-\emph{build context} represented by type \lst'Context'. A typical GHC build
+\emph{build context} represented by the type \lst'Context'. A typical GHC build
 rule, such as \lst'compilePackage', depends on the context as follows: it
 uses an appropriate compiler version (e.g. the bootstrap compiler in
 \lst'Stage0'), produces object files with different extensions (e.g. vanilla
 \lst'*.o' or profiled \lst'*.p_o' object files), puts build artefacts
 into an appropriate directory (e.g. \lst'stage1/libraries/base'), etc.
-There are $4 \times 40 \times 18 = 2880$ different possible contexts.
 
 \subsection{General abstractions}
 
@@ -208,7 +206,7 @@ during \lst'Stage0', \lst'Haddock' is built in \lst'Stage2', etc. There are
 colourise Haskell code when building documentation.
 
 Each invocation of a builder is fully described by a \lst'Target', which
-comprises a build \lst'Context', a \lst'Builder', a list of input and
+comprises a build \lst'Context', a \lst'Builder', a list of input files and
 a list of output files. 3748 targets are built when building \lst'Stage2' GHC
 with documentation (with vanilla and profiled libraries). Consider the following
 invocation of builder \lst'Ghc Stage1' as an example:
@@ -233,20 +231,20 @@ command line for building \lst'build/stage1/libraries/base/Prelude.p_o':
 \begin{itemize}
   \item The builder is \lst'Ghc Stage1'. We lookup the right command
   \lst'inplace/bin/ghc-stage1' with help of \lst'builderProvenance', and use it
-  in the following command line expression:\vspace{1mm}\\
+  in the following command line template:\vspace{1mm}\\
   \centerline{\!\!\!\!\!\lst'-O2 -c <input> -o <output>'}
-  \item The way is \lst'profiling'. We know that we need to add
-  flag \lst'-prof' to the above expression.
+  \item The way is \lst'profiling'. We know that we need to add the
+  flag \lst'-prof'.
   \item We know how to substitute \lst'<input>' and \lst'<output>' in the
-  above expression.
+  above template.
   \item We ignore \lst'package' because it is not relevant in this particular
-  case. However, we record it in the build log.
+  case.
 \end{itemize}
 
 \noindent A build system typically contains many such computations (at least one
 for each builder) and it is important to provide a terse and readable notation to
 describe them. After experimenting with several abstractions, we converged on
-\emph{expressions} defined in the next subsection.
+\emph{expressions}, as defined in the next subsection.
 
 \subsection{Expressions\label{sec:expressions}}
 
@@ -278,7 +276,7 @@ use \lst'way :: Way -> Expr Bool' to check which way is currently being built.
 For example, predicate \lst'way profiling' returns \lst'True' when the
 current target is built using the \lst'profiling' way.
 
-The operator \lst'(?) :: Monoid a => Expr Bool -> Expr a -> Expr a' is a
+Operator \lst'(?) :: Monoid a => Expr Bool -> Expr a -> Expr a' is a
 convenient shortcut for applying a predicate to an expression that computes a monoidal value, such
 as \lst'[String]'. For example, the following expression returns
 \lst'["-prof"]' when the current target is built the \lst'profiling' way and an
@@ -311,9 +309,9 @@ many useful laws that allow us to reason about them:
 \subsubsection{Extensibility}
 
 All expressions need to be modifiable by users of the build system. We therefore
-need to provide a way not only to add new arguments to an expression, but also
-to modify and remove them. A simple way to achieve this is to switch to difference
-list expressions, represented by type \lst'Expr (Diff a)', which is used to
+need to provide a way not only to add new arguments, but also
+to modify and remove them. A simple solution is to switch to difference
+list expressions, represented by the type \lst'Expr (Diff a)', which is used to
 construct values of type \lst'Diff a' with the following monoid instance:
 
 \begin{lstlisting}
@@ -353,7 +351,7 @@ remove xs = return . Diff $ filter (`notElem` xs)
 #\vspace{-5mm}#
 #\line(1,0){240}#
 args :: Args#\hspace{33mm}\textbf{\emph{Command~line~arguments}}#
-args = mconcat #\todo{\textbf{Andrey}: move to a separate figure?}#
+args = mconcat
     [ builder Ghc ? mconcat
         [ arg "-O2"
         , way Profiling ? arg "-prof"
@@ -414,16 +412,16 @@ constructing command line arguments in the build system. In addition to the
 above generic functions (whose specialised versions are shown in
 Figure~\ref{fig:abstractions}), it is equipped with function
 \lst'arg :: String -> Args' for injecting simple \lst'String' arguments into
-\lst'Args'. \todo{\textbf{Andrey}: Append, remove, and arg can be tracked using
-ImplicitLocations.} With these abstractions in place, we can construct command
+\lst'Args'. With these abstractions in place, we can construct command
 line arguments for GHC as follows:
 
 \begin{lstlisting}
 ghcArgs :: Args
-ghcArgs = mconcat [ arg "-O2"
-#\hspace{28.8mm}#, way profiling ? arg "-prof"
-#\hspace{28.8mm}#, arg "-c", arg =<< getInput
-#\hspace{28.8mm}#, arg "-o", arg =<< getOutput ]
+ghcArgs = builder Ghc $ mconcat
+    [ arg "-O2"
+    , way profiling ? arg "-prof"
+    , arg "-c", arg =<< getInput
+    , arg "-o", arg =<< getOutput ]
 \end{lstlisting}
 
 \noindent Here \lst'getInput :: Expr FilePath' and
@@ -433,16 +431,16 @@ return it.
 
 The resulting \lst'ghcArgs' expression is terse and readable. All
 distracting plumbing details have been abstracted away so that the designers and
-users of the build system could focus on what matters. \todo{\textbf{Andrey}: Also
+users of the build system can focus on what matters. \todo{\textbf{Andrey}: Also
 mention Packages and Ways expressions.}
 
-We compose all command line arguments into a single \lst'args :: Args' expression,
-applying custom user modifications \lst'userArgs' in the very end, which
-allows the user to override any default setting:
+We compose all command line arguments into a single \lst'args' expression,
+applying custom user modifications \lst'userArgs' to the end,
+allowing the user to override any default setting:
 
 \begin{lstlisting}
 args :: Args
-args = mconcat [ builder Ghc ? ghcArgs, ..., userArgs ]
+args = mconcat [ ghcArgs, ..., userArgs ]
 \end{lstlisting}
 
 The resulting expression is used in the \lst'build' function that is responsible
@@ -458,21 +456,21 @@ build target@Target {..} = do
     cmd [path] argList
 \end{lstlisting}
 
-\noindent We clarify each statement of the \lst'build' function below:
+\noindent The \lst'build' function proceeds as follows:
 \begin{itemize}
-  \item Firstly, \lst'builderPath :: Builder -> Action FilePath' determines the
+  \item First, \lst'builderPath :: Builder -> Action FilePath' determines the
   path to the builder depending on its provenance and the contents of the
   \lst'system.config' file.
   \item We \lst'need' the builder to make sure it is up-to-date. Some builders
   are built by the build system, e.g. \lst'genprimopcode',
   \lst'ghc-cabal', \lst'Stage1' GHC, so it is important to rebuild them (as well
   as all dependent targets) if needed.
-  \item Function \lst'checkArgsHash :: Target -> Action ()' checks whether the
+  \item The function \lst'checkArgsHash :: Target -> Action ()' checks whether the
   \lst'target' needs to be rebuilt because the command line computed from
   \lst'args' expression has changed since the previous build. If it has,
-  the target is rebuilt even if it is up-to-date. This tracks changes both in
-  the environment and in the build system itself. We implemented this feature
-  by tracking command line hashes using polymorphic dependencies~\S\ref{sec:polymorphic}.
+  the target is rebuilt even if it is otherwise up-to-date. This step tracks changes both in
+  the environment and in the build system itself. We
+  track command line hashes using polymorphic dependencies, see~\S\ref{sec:polymorphic}.
   \item We \lst'interpret' the \lst'args' expression w.r.t. to the
   \lst'target', and obtain the list \lst'argList :: [String]' of arguments to be
   passed to the builder. See Figure~\ref{fig:abstractions} for the implementation of
@@ -493,15 +491,13 @@ Note, the build \lst'Context' is slightly different from GHC, but this does not
 prevent us from using the same abstractions.
 
 Build rules are generated by the \lst'buildPackage' function, which given a
-build \lst'Context', shows how to compile a Haskell source file and build a
+build \lst'Context', describes how to compile a Haskell source file and build a
 library by archiving the obtained object files. \lst'buildPackage' relies on
 several helper functions, which define the \lst'path' to build artefacts,
 set way-specific extensions for object and archive files, lookup
 dependencies of a source file, and compute a list of source files for a given
 library. Command line arguments are specified as a single expression~\lst'args',
 which makes use of package-, way-, builder-, and file-specific arguments.
-\todo{\textbf{Andrey}: Mention that there is a parallel between contexts and CI
-matrices?}
 
 The \lst'main' function is straightforward: for each possible \lst'Context'
 we request the corresponding library to be built using \lst'want', as well as
