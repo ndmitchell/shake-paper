@@ -132,7 +132,7 @@ $1_$2_$3_HC_OPTS = $$($1_$2_HC_OPTS) \
 #\hspace{34.3mm}#... plus 30 more special cases
 \end{lstlisting}
 
-This tells that when building targets with GHC in the \emph{profiling way}
+This says that when building targets with GHC in the \emph{profiling way}
 \lst'p' (i.e. with the profiling information enabled), we need to add command
 line arguments \lst'-static -prof' to the command line. 
 
@@ -140,7 +140,7 @@ line arguments \lst'-static -prof' to the command line.
 if we do not want to pass \lst'-prof' flag when building a particular file, we
 have to either add a new component to the variable name, e.g.
 \lst'WAY_p_file_HC_OPTS', or conditionally filter out the \lst'-prof' flag from
-\lst'HC_OPTS' after it is constructed and the file being build is known. Both
+\lst'HC_OPTS' after it is constructed and the file being built is known. Both
 approaches are not scalable; consequently, much of the complexity of the GHC
 build system is caused by computing command lines. This complexity is
 unnecessary and can be tackled using high-level abstractions readily available
