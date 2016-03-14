@@ -429,10 +429,10 @@ limitation in practice, whereas the lack of dynamic dependencies really
 % unchanging rules we automatically get rebuild avoidance if the value does not
 % change.
 
-\subsection{Real computation\label{sec:real_code}}
+\subsection{Avoiding external tools\label{sec:real_code}}
 
 Build systems typically spend most of their time calling out to external
-processes, e.g. compilers. But sometimes it is useful to replace external processes
+tools, e.g. compilers. But sometimes it is useful to replace external tools
 with direct functions. As an example, the Make system used \lst'xargs' to
 split command line arguments that exceed a certain size, but that did not work
 consistently across OS versions, requiring lots of conditional logic.
