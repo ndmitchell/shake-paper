@@ -69,11 +69,14 @@
 \maketitle
 
 \begin{abstract}
-\todo{\textbf{SLPJ}: Rewrite}
-The paper discusses common challenges of build systems at scale and proposes a
-number of techniques that help overcome them. The techniques have been
-implemented in Haskell and thoroughly tested through a complete redesign of an
-existing build system of the Glasgow Haskell Compiler.
+\todo{\textbf{SLPJ}: Rewrite} Build systems start small and simple,
+and grow into hairy monsters that few dare to touch.  One approach
+this challenge, exemplified by Shake among others, is to build an
+embedded domain-specfic language designed to support build systems.
+We should take our own medicine: this paper describes the design of a
+Shake-based build system for GHC, the Glasgow Haskell Compiler.  The
+result is smaller, faster, and spectactularly more maintainable than
+its \make{}-based predecessor.
 \end{abstract}
 
 %\category{CR-number}{subcategory}{third-level}

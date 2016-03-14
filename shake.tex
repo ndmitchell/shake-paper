@@ -1,15 +1,21 @@
 \section{Background about Shake\label{sec:shake}}
 
-Our solution to the issues raised in~\S\ref{sec:challenges} starts with
-switching from Make to the Shake build system~\cite{shake}. In this section we
+Many of the issues raised in~\S\ref{sec:challenges} stem from the fact
+that \make{} was never designed to be a programming language.  A
+promising appoarch is, therefore, abandon \make{} in favour of an
+embedded domain-specfic language (DSL), so that we have access to the full
+static typing and abstraction facilities of the host language.
+We did exactly this with GHC's build system, replacing \make{} with
+Shake, a DSL embedded in Haskell~\cite{shake}. In this section we
 recap the key ideas behind Shake, and also describe some of the additional
 features provided by Shake, but not covered in the original paper. These
-features are of general use and all predate our efforts to replace the GHC build
+features are of general use, and all predate our efforts to replace the GHC build
 system.
 
 \subsection{Introduction\label{sec:shake_intro}}
 
-As an example of a small Shake build system, let us compile a C file into an object file:
+As an example of a complete
+small Shake build system, let us compile a C file into an object file:
 
 \begin{lstlisting}[numbers=left,xleftmargin=2em,framexleftmargin=1.5em]
 module Main(main) where
@@ -41,7 +47,7 @@ provides the \lst'-<.>' function to replace a file's extension.
 \item[Lines 6] declares the \lst'main' function, which calls \lst'shake'. The
 \lst'shake' function takes some options (parallelism settings, etc.), along with
 a set of \lst'Rules', and executes the necessary rules.
-\item[Line 7] calls \lst'want' to declare that after the build system has
+\item[Line 7] calls \lst'want', to declare that after the build system has
 finished we would like the file \lst'foo.o' to be available and up-to-date.
 \item[Line 9] defines a rule to build \lst'*.o' files, namely those files which
 end with the extension \lst'.o'. The \lst'%>' operator produces a rule of type
@@ -49,7 +55,7 @@ end with the extension \lst'.o'. The \lst'%>' operator produces a rule of type
 right. The variable \lst'out' will be bound to the actual file being produced,
 namely \lst'foo.o' in this example.
 \item[Line 10] computes the name of the source file, in our case \lst'src = foo.c'.
-\item[Line 11] uses \lst'need' to ensure \lst'foo.c' has been built before
+\item[Line 11] uses the Shake function \lst'need' to ensure \lst'foo.c' has been built before
 continuing, and to introduce a dependency that if \lst'foo.c' changes then this
 rule will require rerunning.
 \item[Line 12] uses the variable-arity function \lst'cmd' to execute the system
@@ -123,37 +129,52 @@ power throughout \S\ref{sec:abstractions}.
 
 \subsection{Parsimonious rebuilding}
 
-Both Make and Shake try to eliminate unnecessary rebuilding, but both use
-different approaches:
+Both Make and Shake try to eliminate unnecessary rebuilding, but each
+uses a different approach:
 
 \begin{itemize}
-\item In Make, a rule is rerun if the output does not exist, or if the
-modification time of the output is earlier than any of the inputs. In an example
+\item In Make, a rule is rerun if \emph{the output does not exist, or if the
+modification time of the output is earlier than any of the inputs}. In an example
 similar to that above, \lst'gcc' would be rerun if either \lst'foo.o' did not
 exist, or if the modification time of \lst'foo.o' was earlier than that of
 \lst'foo.c'.
-\item In Shake, a rule is rerun if any of the inputs or outputs change. In our
-example, Shake will rerun \lst'gcc' if either \lst'foo.c' or \lst'foo.o' does
-not exist or if either file changes modification time from when the rule was
-last run (or more generally, if either file changes contents, see
+\item In Shake, a rule is rerun if \emph{any of the inputs or outputs have changed since the
+last run of the rule}. In our example, Shake will rerun \lst'gcc' if
+either \lst'foo.c' or \lst'foo.o' does not exist or if either file
+changes modification time from when the rule was last run (or more
+generally, if either file changes contents, see
 \S\ref{sec:file-contents}).
 \end{itemize}
-
+\noindent
 Shake achieves this result by storing the inputs and outputs after a rule
 completes in a per-project database, and rerunning a rule if anything has
 changed (and thus the result could be expected to change). The Shake's approach
-has a number of advantages: 1) we can track things that aren't files as in
-\S\ref{sec:polymorphic}; 2) we can depend on a more refined measure than
-modification time as in \S\ref{sec:file-contents}; 3) we are robust to system
-time changes or extracting old files from backups; 4) the execution of a rule
+has a number of advantages: (1) we can track things that aren't files as in
+\S\ref{sec:polymorphic}; (2) we can depend on a more refined measure than
+modification time as in \S\ref{sec:file-contents}; (3) we are robust to system
+time changes or extracting old files from backups; (4) the execution of a rule
 does not need to update its output to avoid future rebuilds. The final point is
 often worked around in Make by using \emph{stamp files} to provide a modification
 time but having no actual content -- Shake simplifies this common use-case.
 
-\subsection{Post-use dependencies\label{sec:needed}}
+In fact, by decoupling dependencies from modification times, Shake allows
+a richer notion ``dependency'', which turns out to be very useful in practice
+as we now review.
+
+\subsection{Pre-use dependencies: \lst'need'\label{sec:need}}
+
+The call \lst'need [src]' on line 11 tells Shake that \lst'foo.c' is needed
+to build \lst'foo.o'. But note that this dependency need only be announced
+when Shake decides to run the rule to built \lst'foo.c'; and that the
+build system author is free to use arbitary I/O actions to find which files
+are needed. This is much more dynamic than \make{}'s static dependencies,
+a feature that turns out be extremely important in practice (\S\ref{sec:dynamic-deps}).
+
+\subsection{Post-use dependencies: \lst'needed'\label{sec:needed}}
 
 Looking at our first example, the object gets recompiled if the C source file
-changes. But C files may \lst'#include' any number of header files, and changes
+changes (via the call to \lst'need [src]', line 11).
+But a C file may \lst'#include' any number of header files, and changes
 to these headers will also affect the resulting object. While it is possible to
 write our own code to search for transitively included headers
 \cite[\S6.4]{shake}, a simpler alternative is to reuse the logic already present
@@ -174,12 +195,20 @@ need $ makefileDepends makefile
 list of dependencies we \lst'need' them, making them inputs to this rule, and
 ensuring that if a header changes the object will be rebuilt.
 
-However, for this use case, the \lst'need' function is actually a little
-\emph{too} powerful. The \lst'need' will cause Shake to suspend the \lst'*.o'
-rule, build the dependencies, and then resume the remainder of the rule. But
-since the header files were \emph{already} used by \lst'gcc', if they change
-then the result will be inconsistent, since the object file will reflect the
-previous header contents.
+\simon{I have rewritten this paragraph; Neil pls check.}
+There is something a bit fishy here: \emph{after} building \lst'foo.o' we
+announce that its \emph{pre-requisites} are \lst'bar.h' and \lst'wibble.h'.
+That is certainly useful if \lst'bar.h' is a source file because
+then Shake will know to re-build \lst'foo.o' if the user edits \lst'bar.h'.
+But if \lst'bar.h' is itself built by the build system from something else,
+we have told Shake ``too late''.
+
+% However, for this use case, the \lst'need' function is actually a little
+% \emph{too} powerful. The \lst'need' will cause Shake to suspend the \lst'*.o'
+% rule, build the dependencies, and then resume the remainder of the rule. But
+% since the header files were \emph{already} used by \lst'gcc', if they change
+% then the result will be inconsistent, since the object file will reflect the
+% previous header contents.
 
 We solve this problem by using \lst'needed' instead of \lst'need', which
 combines \lst'need' which an assertion that the file does not change as a result
@@ -187,7 +216,7 @@ of building, and thus the result is consistent. In the common case of the header
 files being source files, the associated rule will be the default file rule,
 which does not modify the file, and the assertion will not trigger.
 
-\subsection{Order-only dependencies}
+\subsection{Order-only dependencies: \lst'orderOnly'}
 
 We have seen how \lst'needed' can be safely used for source files, but what
 about generated files? Imagine we have a rule to build \lst'config.h' from a
@@ -204,10 +233,14 @@ does \emph{not} include \lst'config.h' to rebuild unnecessarily if
 A better solution is to use order-only dependencies, with the expression
 \lst'orderOnly ["config.h"]'. This expression ensures that \lst'config.h' has
 been built and is up-to-date before continuing, but does not introduce a
-dependency on \lst'config.h'. Afterwards, if the file turns out to have been
+dependency on \lst'config.h'; that is, if \lst'config.h' changes
+the rule will not be re-run. Afterwards, if the file turns out to have been
 required, \lst'needed' can be used to express the dependency.
 
-Combining \lst'orderOnly' (ensure a file has been built) and \lst'needed' (depend on a file) we obtain the equivalence:
+So, for a given rule; \lst'orderOnly' ensures that a (potential) input
+file has been built before the rule is run; and \lst'needed' ensures
+that the rule is re-run if an (actual) input file changes. Combining
+the two we obtain the equivalence:
 
 \begin{lstlisting}
 need xs === (orderOnly xs >> needed xs)
@@ -220,18 +253,22 @@ implemented on top of the \lst'need' primitive.
 
 While build-systems are typically focused around files, the core of Shake is
 fully polymorphic, operating on objects that are uniquely labelled by a
-\lst'key' (e.g. filename) and have rules that produce a \lst'value' (e.g.
-modification time). This polymorphic API and the file-specific API built on top
-of it are presented in corresponding sections of Figure~\ref{fig:shake-api}. Using
-the polymorphic API we can define new types of rules to track additional
+\lst'key' and have rules that produce a \lst'value'.
+In the case of files, they key is the filename and the value is the modification 
+time, or content hash (\S\ref{sec:file-contents}).
+Using the polymorphic API we can define new types of rules to track additional
 dependencies.
+This polymorphic API, and the file-specific API built on top
+of it, are presented in corresponding sections of Figure~\ref{fig:shake-api}.
 
 As an example of a new type of rules, let us imagine that the actual compiler
-name (\lst'gcc') is obtained from a configure script that produces a
+name (\lst'gcc') is obtained from a configure script that p
+roduces a
 configuration file containing many key/value pairs. The \lst'*.o' rule could
-depend on and parse the configuration file, but then any change to the
-configuration file would cause all rules using the C compiler to rebuild, even
-if the compiler name did not change. Alternatively, we could have rules to split
+\lst'need' the configuration file, and parse it to extract the compiler name,
+but that would be wildly over-conservative: \emph{any} change to the
+configuration file would cause \emph{all} rules using the C compiler to rebuild, 
+\emph{even if the compiler name did not change}. Alternatively, we could have rules to split
 the single configuration file into one file per key, where each file is only
 updated if that key changes, but that might result in thousands of files.
 Instead, we can define a rule to map from configuration keys to values.
@@ -255,21 +292,38 @@ main = shake shakeOptions $ do
 
 parseConfig :: String -> Map String String
 \end{lstlisting}
+\simon{This code is hard to understand.}
+\simon{It looks as though the config file will be parsed once for each key.  Is that right?}
+We use two new functions, \lst'rule' and \lst'apply', whose types are given in
+Figure~\ref{fig:shake-api}:
+\begin{itemize}
+\item \lst'rule' takes a function that, for any given key, tells how to get its value
+(ignore the \lst'Maybe' in the type for now), and stores the function in Shake's database.
+In our example, the function reads the config file, parses it to get a finite map, and
+looks the key up in that map.
+\item \lst'apply' takes a key and looks up the corresponding value. \simon{Why a list of keys?}
+\end{itemize}
+Crucially, Shake treats these computation incrementally: it parses the
+file only once, regardless of the number of uses of \lst'apply'; and
+it re-runs rules that look up key \lst'ConfigKey "cc"' only if the
+name of the C compiler actually changes.  So if file \lst'config.file' changes,
+Shake will re-run the rule installed by the call to `rule`, but if \lst'cc' does
+not change, the \lst'*.o' rule will not re-run.
 
-This code defines a fresh type \lst'ConfigKey' to serve as the key for the rule.
-We define a \lst'Rule' instance so Shake rules can operate on \lst'ConfigKey'
-keys, declaring the associated value to be of type \lst'String'. We are only
-required to implement the \lst'storedValue' method, where we declare that the
-rule producing the config key is not stored separately on disk.
-
-Next we use \lst'rule' to describe how to generate the value associated with
-\lst'ConfigKey', using \lst"readFile'" to read the config file, and assuming the
-existence of a suitable \lst'parseConfig' function. We use \lst'apply' to force
-execution of the rule and introduce a dependency on the result.
-%For files, \lst'%>' is implemented in terms of \lst'rule', and \lst'need' is
-% implemented in terms of \lst'apply'.
-Now the \lst'*.o' rule will have the \emph{value} of the
-\lst'cc' key as a dependency, and if that value changes, all \lst'*.o' files will rebuild.
+% This code defines a fresh type \lst'ConfigKey' to serve as the key for the rule.
+% We define a \lst'Rule' instance so Shake rules can operate on \lst'ConfigKey'
+% keys, declaring the associated value to be of type \lst'String'. We are only
+% required to implement the \lst'storedValue' method, where we declare that the
+% rule producing the config key is not stored separately on disk.
+% 
+% Next we use \lst'rule' to describe how to generate the value associated with
+% \lst'ConfigKey', using \lst"readFile'" to read the config file, and assuming the
+% existence of a suitable \lst'parseConfig' function. We use \lst'apply' to force
+% execution of the rule and introduce a dependency on the result.
+% %For files, \lst'%>' is implemented in terms of \lst'rule', and \lst'need' is
+% % implemented in terms of \lst'apply'.
+% Now the \lst'*.o' rule will have the \emph{value} of the
+% \lst'cc' key as a dependency, and if that value changes, all \lst'*.o' files will rebuild.
 
 % \todo{Do we need to explain oracles? Just polymorphic rules aren't that much harder}
 %
@@ -328,9 +382,9 @@ competing for the resource, or adding fake dependencies to seralise the rules.
 All these solutions fail to make best use of the available CPUs, and the fake
 dependencies are also fragile and tricky to implement.
 
-In Shake this problem can be solved directly using the \lst'Resource' type,
-which represents a finite resource that multiple build rules can use. \lst'Resource'
-values are created with \lst'newResource' and used by \lst'withResource'. As an
+Shake provides a \lst'Resource' abstraction that solves this problem directly.
+A \lst'Resource' value represents a finite resource that multiple build rules can use;
+such values are created with \lst'newResource' and used by \lst'withResource'. As an
 example, only one set of calls to the \lst'Excel' API can occur at once, therefore
 \lst'Excel' is a finite resource of quantity 1. We can write:
 
@@ -373,9 +427,9 @@ However, if \lst'master' changes regularly, any files that changed in
 \lst'master' since the second branch was last synced will have a new
 modification time, despite having the same contents.
 \end{itemize}
-
-Shake could solve these problems by simply making the value of a file rule the
-contents of that file, instead of the modification time. In the remainder of
+\noindent
+Shake can solve these problems by simply making the value of a file rule reflect the
+\emph{contents} of that file, instead of the \emph{modification time}. In the remainder of
 this section we discuss how to efficiently implement something approximating
 that simple scheme. Since Shake rules are polymorphic it is easy to provide
 multiple types of coexisting file rules, although for simplicity we instead

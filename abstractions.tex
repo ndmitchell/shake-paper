@@ -25,14 +25,16 @@ such knowledge usually lives. As an example, to include profiling information
 when compiling a Haskell source file with GHC we need to pass the \lst'-prof' flag.
 We want users to be able to easily determine what flags were used and why.
 \end{itemize}
-
-A solution was not obvious to us at first, but we ended up building a DSL for
-expressions, and an interpreter that evaluates it to run the build.
+\noindent
+To address these challenges we developed a
+second DSL for describing configurations on top of Shake.
+% A solution was not obvious to us at first, but we ended up building a 
+% expressions, and an interpreter that evaluates it to run the build.
 % Where the DSL would be unnecessarily complex we opt for a direct
 % implementation.
 The configuration language is tracked (if it changes the affected build rules
 are rerun), can have provenance (using the new \lst'ImplicitLocation' feature in
-GHC~\todo{Reference?}) and permits easy configuration. As an example:
+GHC~\todo{Reference?}), and permits easy configuration. As an example:
 
 \begin{lstlisting}
 builder Ghc ? way profiling ? arg "-prof"
@@ -40,6 +42,11 @@ builder Ghc ? way profiling ? arg "-prof"
 
 \noindent This expression adds the \lst'-prof' argument to the command line when
 building a file with GHC in the \lst'profiling' way.
+
+In this section we describe these new abstractions. \S\ref{sec:ghc-context} helps
+make our story concrete by focusing on the specifics of GHC's build system,
+but otherwise the abstactions we describe are independent of GHC and will, we believe,
+be useful to others.
 
 \newcommand{\itab}[1]{\hspace{0em}\rlap{#1}}
 \newcommand{\tab}[1]{\hspace{.1\textwidth}\rlap{#1}}

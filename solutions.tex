@@ -1,13 +1,12 @@
 \section{Quick wins: from Make to Shake\label{sec:solutions}}
 
-The GHC build system stumbles into a number of nasty corners of Make. In this
-section we reflect on the challenges, and how they can be solved in
-our new system. We consider these \empty{unnecessary} complexities --
-they are not consequences of our problem domain, merely weaknesses of Make on
-large projects. The problems can be divided into those caused by the
-Make language (solved using Haskell) and those caused by a lack of expressive
+The GHC build system stretches \make{} beyond its limits.
+In this section we illustrate, from our experience with GHC's build system,
+some of these challenges, how they can be solved in our new system.
+These problems can be divided into two groups: those caused by the
+Make language (solved using Haskell); and those caused by a lack of expressive
 power when describing dependencies (solved using Shake).
-After tackling these unnecessary complexities, we show how to structure a
+Building on these ``quick wins'', we show how to structure a
 large build system in~\S\ref{sec:abstractions}.
 
 \subsection{Variables}
@@ -21,7 +20,7 @@ encapsulation and implementation hiding.
 \item Since variables are strings, arrays and associative maps are typically
 encoded using computed variable names, which is error-prone.
 \item Since variable references are spliced into the Makefile contents
-and interpretted, certain special characters can cause problems --
+and interpreted, certain special characters can cause problems --
 notably space (which splits lexemes) and colon (which declares rules, but is
 also found in Windows drive letters).
 \end{itemize}
@@ -205,7 +204,7 @@ on the other. For example:
 #\vspace{-2mm}#
 %.hi : %.o ;
 \end{lstlisting}
-\noindent Here \lst';' is a no-op: it tells Make that an interface file can be
+\noindent The second rule is a no-op: it tells Make that an interface file can be
 produced simply by depending on the corresponding object file. Alas, this
 approach is fragile: if we delete the interface file, but leave the object
 file intact, Make will not rerun the \lst'*.o' rule, because the object file is
@@ -234,12 +233,13 @@ global state (package database) and hence at most one package can be registered
 at a time, or the database is corrupted.
 
 In Make, the solution is to introduce fake \emph{concurrency
-reduction} dependencies. There are 25 GHC packages that require registration,
+reduction} dependencies. In GHC's build system there are 25
+packages that require registration,
 and in the old build system they all depended on each other in a chain, to
 ensure no simultaneous registrations occur. This solution works, but is
 fragile (easy to get wrong) and inefficient (reduces available parallelism).
 
-In Shake, the solution is to use the \emph{resources} feature:
+In Shake, the solution is to use the \emph{resources} feature (\S\ref{sec:concurrency-reduction}):
 
 \begin{lstlisting}
 packageDb <- newResource "package-db" 1
@@ -260,9 +260,9 @@ availability of functions, we can abstract a function that both executes
 
 Make, in common with many other build systems, works by
 constructing a dependency graph and then executing it. This approach
-has some benefits in that it is possible to analyse the graph ahead of
-time, but it is limiting in some important ways.  It's common to run
-into cases where parts of the dependency graph can only be known after
+makes it possible to analyse the graph ahead of
+time, but it is limiting in some fundamental ways.  Specifically,
+it is common that parts of the dependency graph can be known only after
 executing some other parts of the dependency graph.  Some examples of
 this that occur in the GHC build system:
 
@@ -290,7 +290,7 @@ this that occur in the GHC build system:
   know what the dependencies are by running the C preprocessor to
   gather the set of filenames that were included.
 \end{itemize}
-
+\noindent
 There are several other cases of such \emph{dynamic dependencies} in the build
 system. Indeed, they arise naturally even when building a simple C program,
 because the \lst'#include' files for a C source file are not known until the
@@ -318,16 +318,17 @@ solution for several reasons:
   Diagnosing problems is particularly hard.
 \item Even when doing an incremental build we have to perform all the
   phases, because explicit phases preclude dependency tracking across
-  the phase boundary.  This means we have to work around slow
-  incremental builds by having an explicit way for the user to say
-  that they are sure nothing has changed that would require rebuilding
+  the phase boundary.  This is so slow that we were forced to allow
+  the user to short-circuit the earlier phases, by promising
+  that nothing has changed that would require rebuilding
   the early phases (\lst'make fast').  Obviously this is less than
   ideal.
 \end{itemize}
 
 Shake supports dynamic dependencies natively, so these problems just
 go away.  The \lst"need" function can introduce new dependencies
-\emph{after observing the results of previous dependencies}\footnote{It has been
+\emph{after observing the results of previous dependencies}
+(see \S\ref{sec:need})\footnote{It has been
 suggested that the dependency mechanism in Shake should rightly be called
 \emph{Monadic dependencies} to contrast with the \emph{Applicative dependencies}
 in Make. We agree. In an applicative computation the structure cannot depend on
@@ -339,9 +340,9 @@ needs to be done to build the package.
 
 The existence of \lst"need" means that Shake cannot construct the
 dependency graph ahead of time, because it doesn't know the full
-dependency graph until the build has completed, but this is not a
-limitation in practice (while the lack of dynamic dependencies really
-\emph{is} a limitation requiring painful workarounds).
+dependency graph until the build has completed.  But this is not a
+limitation in practice, whereas while the lack of dynamic dependencies really
+\emph{is} a limitation requiring painful workarounds.
 
 % SimonM: I wasn't really sure what this paragraph was trying to say
 % While the existence of the \lst"need" fundamentally alters the expressive
