@@ -14,18 +14,53 @@ features found in other build systems which could be useful at scale.
 
 \subsection{Embedded language}
 
-A build system can either be specified using structured metadata (e.g. Bazel \cite{bazel}), or embedded into a standard programming language -- for example SCons in Python \cite{scons}, Pluto in Java \cite{pluto} and Jenga in OCaml \cite{jenga}. For complex bespoke build systems, embedding into a language allows both complex operations (\S\ref{sec:real_code}) and better abstractions (\S\ref{sec:abstractions}) -- essentially allowing us to write most of our build system in a domain language tailored to our specific project.
+A build system can either be specified using structured metadata, e.g. Bazel
+\cite{bazel}, or embedded into a standard programming language -- for example
+SCons in Python \cite{scons}, Pluto in Java \cite{pluto} and Jenga in OCaml
+\cite{jenga}. For complex bespoke build systems, embedding into a language
+allows both complex operations (\S\ref{sec:real_code}) and better abstractions
+(\S\ref{sec:abstractions}) -- essentially allowing us to write most of our build
+system in a domain language tailored to our specific project.
 
-Even sticking to Haskell as the embedded language, there are a surprisingly large number of libraries implementing a dependency aware build system -- we know of eleven in addition to Shake (Abba, Blueprint, Buildsome, Coadjute, Cake $\times$ 2, Hake, Hmk, Nemesis, OpenShake and Zoom). Of these, the two Cake libraries and OpenShake are based on an early presentation of the principles behind Shake.
+Even sticking to Haskell as the embedded language, there are a surprisingly
+large number of libraries implementing a dependency aware build system -- we
+know of eleven in addition to Shake (Abba, Blueprint, Buildsome, Coadjute, Cake
+$\times$ 2, Hake, Hmk, Nemesis, OpenShake and Zoom). Of these, the two Cake
+libraries and OpenShake are based on an early presentation of the principles behind Shake.
 
 \subsection{Advanced dependencies}
 
-We have found that while powerful dependencies might only be used in a few places, if they are missing the workarounds can be pervasive (\S\ref{sec:dynamic-deps}). A few other build systems support resources (e.g. Ninja \cite{ninja}), and several support monadic dependencies (e.g. Redo \cite{redo}, Jenga, Pluto, SCons). A few build systems directly support dependency features more powerful than Shake, for example Pluto supports rules that run until a fixed-point is reached and rules whose output is not known in advance. These features can be encoded in Shake, but are not present natively.
+We have found that while powerful dependencies might only be used in a few
+places, if they are missing the workarounds can be pervasive
+(\S\ref{sec:dynamic-deps}). A few build systems support resources, e.g.
+Ninja \cite{ninja}, and several support monadic dependencies (e.g. Redo
+\cite{redo}, Jenga, Pluto, SCons). A few build systems directly support
+dependency features more powerful than Shake, for example Pluto supports rules
+that run until a fixed-point is reached and rules whose output is not known in
+advance. These features can be encoded in Shake, but are not present natively.
 
 \subsection{Automatic dependency management}
 
-In both Shake and Make, all dependencies must be declared explicitly. However, in build systems such as Tup \cite{tup} and Buildsome \cite{buildsome}, some dependencies are automatically captured by monitoring program execution, albeit only \emph{after} the dependency has been used (like \lst'needed' in \S\ref{sec:needed}). The Fabricate tool \cite{fabricate} takes a unique approach to defining build systems, providing a series of steps that run sequentially, but are skipped if their automatically-detected inputs have not changed. Unfortunately no cross-platform APIs are available to detect used dependencies, so such tools are all limited in which platforms they support.
+In both Shake and Make, all dependencies must be declared explicitly. However,
+in build systems such as Tup \cite{tup} and Buildsome \cite{buildsome}, some
+dependencies are automatically captured by monitoring program execution, albeit
+only \emph{after} the dependency has been used (like \lst'needed' in
+\S\ref{sec:needed}). The Fabricate tool \cite{fabricate} takes a unique approach
+to defining build systems, providing a series of steps that run sequentially,
+but are skipped if their automatically-detected inputs have not changed.
+Unfortunately no cross-platform APIs are available to detect used dependencies,
+so such tools are all limited in which platforms they support.
 
 \subsection{Build clusters}
 
-The build systems Bazel and Buck \cite{buck} are used at Google and Facebook respectively, both operating at sizes significantly beyond that of the GHC build system (reportedly billions of lines of code). Both systems take a metadata approach, with rule types such as \lst'cxx_binary' provided, which only require the name of inputs and outputs, and have knowledge of most flags and conventions baked in. The disadvantage of such an approach is that the available rules are fixed, making it difficult to encode something like a bootstrapping compiler. Generating source code is not really supported -- a problem typically solved by committing generated files to version control. Both tools also support build clusters, which build code once and share the resulting objects to everyone without recompiling locally -- an essential feature at such scales.
+The build systems Bazel and Buck \cite{buck} are used at Google and Facebook
+respectively, both operating at sizes significantly beyond that of the GHC build
+system (reportedly billions of lines of code). Both systems take a metadata
+approach, with rule types such as \lst'cxx_binary' provided, which only require
+the name of inputs and outputs, and have knowledge of most flags and conventions
+baked in. The disadvantage of such an approach is that the available rules are
+fixed, making it difficult to encode something like a bootstrapping compiler.
+Generating source code is not really supported -- a problem typically solved by
+committing generated files to version control. Both tools also support build
+clusters, which build code once and share the resulting objects to everyone
+without recompiling locally -- an essential feature at such scales.

@@ -1,11 +1,25 @@
 \section{Conclusions and future work\label{section-conclusions}}
 
-We have demonstrated that Make really is unsuitable for large complex build systems, regardless of whether used recursively or non-recursively. Using Shake we have rewritten the GHC build system, producing the fifth and hopefully final version. While all previous versions have started simple and gained complexity as they progressed, this version is different. Developing the abstractions in \S\ref{sec:abstractions} took many months of discussion and refinement. Once the fundamental concepts were in place, the rest was ``just'' coding and reverse engineering the existing system. The result is faster, more maintainable and more correct. There are three major tasks remaining:
+We have demonstrated that Make really is unsuitable for large complex build
+systems, regardless of whether used recursively or non-recursively. Using Shake
+we have rewritten the GHC build system, producing the fifth and hopefully final
+version. While all previous versions have started simple and gained complexity
+as they progressed, this version is different. Developing the abstractions in
+\S\ref{sec:abstractions} took many months of discussion and refinement. Once the
+fundamental concepts were in place, the rest was ``just'' coding and reverse
+engineering of the existing system. The result is faster, more maintainable and
+more correct. There are three major tasks remaining for future work:
 
 \begin{itemize}
-\item While we have demonstrated that our approach works, we have not yet implemented all the corners of the build system, and hope to do so over the next few months. Once complete, we expect it to quickly become the only supported method of building GHC.
+\item While we have demonstrated that our approach works, we have not yet
+implemented all the corners of the build system, and hope to do so over the next
+few months. Once complete, we expect it to quickly become the only supported
+method of building GHC.
 
-\item Our abstractions from \S\ref{sec:abstractions} were designed to allow tracking provenance of command lines -- mapping every flag to the location of the expression that generated it. This feature relies on the \emph{implicit locations} feature of the latest pre-release GHC.
+\item Our abstractions from \S\ref{sec:abstractions} were designed to allow
+tracking provenance of command line arguments -- mapping each to the
+location of the expression that generated it. This feature relies on the
+\emph{implicit locations} feature of the latest pre-release GHC.
 
 \item While faster than the old system, the build is still slower than we would like. In particular the critical path takes over seven minutes, limiting the gains available from additional processors. We hope to break this critical path by refactoring, a feasible task in the new system.
 \end{itemize}
