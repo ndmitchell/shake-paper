@@ -31,7 +31,7 @@ expressions, and an interpreter that evaluates it to run the build.
 % Where the DSL would be unnecessarily complex we opt for a direct
 % implementation.
 The configuration language is tracked (if it changes the affected build rules
-are rerun), can have provenance (using the new \lst'?location :: Location' feature in
+are rerun), can have provenance (using the new \lst'ImplicitLocation' feature in
 GHC~\todo{Reference?}) and permits easy configuration. As an example:
 
 \begin{lstlisting}
@@ -107,8 +107,8 @@ interpret target args = do
 #\line(1,0){240}#
 way :: Way -> Expr Bool#\hspace{35mm}\textbf{\emph{Predicates}}#
 way w = do
-    ctx <- asks context
-    return $ w == Context.way ctx
+    target <- ask
+    return $ way (context target) == w
 
 #\itab{stage} \tytab{:: Stage} \atab{$\rightarrow$ Expr Bool}#
 #\itab{package} \tytab{:: Package} \atab{$\rightarrow$ Expr Bool}#
@@ -171,7 +171,7 @@ There are $4 \times 40 \times 18 = 2880$ different possible contexts.
 \subsection{General abstractions}
 
 A typical build system invokes several build tools, or \emph{builders}, such as
-compilers, linkers, archivers, etc., some of which may be built by the
+compilers, linkers, etc., some of which may be built by the
 build system itself. The builders are captured by the \lst'Builder' type. It
 is useful to distinguish \emph{internal} and \emph{external} builders, i.e.
 those that are built by the build system and those which are installed on the
@@ -180,20 +180,21 @@ during which an internal builder is built, the way it is built, and the package
 containing the sources (all captured by a \lst'Context'); \lst'Nothing' is
 known about the provenance of external builders.
 
+\newcommand{\bptab}[1]{\hspace{.143\textwidth}\rlap{#1}}
+
 \begin{lstlisting}
 builderProvenance :: Builder -> Maybe Context
 builderProvenance x = case x of
-    GenPrimopCode -> Just $
-        Context Stage0 genprimopcode vanilla
-    Ghc Stage0 -> Nothing
-    Ghc stage -> Just $ Context (pred stage) ghc vanilla
-    Haddock -> Just $ Context $ Stage2 haddock vanilla
-    ...
-    _ -> Nothing
+#\itab{~~~GenPrimopCode} \bptab{$\rightarrow$ Just$\,$(Context$\,$Stage0$\,$genprimopcode$\,$vanilla)}#
+#\itab{~~~Ghc Stage0} \bptab{$\rightarrow$ Nothing}#
+#\itab{~~~Ghc stage} \bptab{$\rightarrow$ Just \$ Context (pred stage) ghc vanilla}#
+#\itab{~~~Haddock} \bptab{$\rightarrow$ Just \$ Context Stage2 haddock vanilla}#
+#\itab{~~~...}#
+#\itab{~~~\_} \bptab{$\rightarrow$ Nothing}#
 \end{lstlisting}
 
-In particular, we can see that \lst'Ghc Stage0' is an external builder,
-\lst'Ghc Stage1' is an internal one built from package \lst'ghc'
+\noindent In particular, we can see that \lst'Ghc Stage0' is an external
+builder, \lst'Ghc Stage1' is an internal one built from package \lst'ghc'
 during \lst'Stage0', \lst'Haddock' is built in \lst'Stage2', etc. There are
 27 builders, 16 of which are internal. Furthermore, some builders are
 \emph{optional}, e.g., \lst'HsColour', which (if installed) is used to
