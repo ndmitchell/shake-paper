@@ -1,6 +1,16 @@
 \section{Related Work\label{section-review}}
 
-This paper is about writing build systems at scale, a subject without much literature since \citet{miller:recursive_make}. When \citet{mcintosh:build_maintenance_effort} studied software maintenance they found that build systems can take up to 27\% of development effort, and that improvements to the build system rapidly paid off. Recently \citet{martin:make_it_simple} surveyed which Make features are used, and then \citet{martin:maintenance_complexity_makefiles} classified them by complexity -- unsurprisingly they found that as Makefiles grow, their complexity increases, and that the features required for hand written Makefiles are those which are most complex. In the remainder of this section we focus on some of the features found in other build systems which could be useful at scale.
+This paper is about writing build systems at scale, a subject without much
+literature since \citet{miller:recursive_make}. When
+\citet{mcintosh:build_maintenance_effort} studied software maintenance they
+found that build systems can take up to 27\% of
+development effort, and that improvements to the build system rapidly paid off.
+Recently \citet{martin:make_it_simple} surveyed which Make features are used,
+and then \citet{martin:maintenance_complexity_makefiles} classified them by
+complexity -- unsurprisingly they found that as Makefiles grow, their complexity
+increases, and that the features required for hand written Makefiles are those
+which are most complex. In the remainder of this section we focus on some of the
+features found in other build systems which could be useful at scale.
 
 \subsection{Embedded language}
 
