@@ -71,14 +71,17 @@
 \maketitle
 
 \begin{abstract}
-\todo{\textbf{SLPJ}: Rewrite} Build systems start small and simple,
-and grow into hairy monsters that few dare to touch.  One approach
-this challenge, exemplified by Shake among others, is to build an
-embedded domain-specfic language designed to support build systems.
-We should take our own medicine: this paper describes the design of a
-Shake-based build system for GHC, the Glasgow Haskell Compiler.  The
-result is smaller, faster, and spectactularly more maintainable than
-its \make{}-based predecessor.
+Most build systems start small and simple, but over time grow into hairy monsters
+that few dare to touch. As we demonstrate in this paper, there are a few issues
+that cause major scalability challenges for build systems, and many pervasively
+used build systems (e.g. Make) do not scale well.
+
+This paper presents a solution to the challenges we identify. We use functional
+programming to design advanced abstractions for build systems, and implement
+them on top of the Shake library, which allows us to describe build rules and
+dependencies. To substantiate our claims, we engineer a new build system
+for the Glasgow Haskell Compiler. The result is more scalable, faster, and
+spectacularly more maintainable than its Make-based predecessor.
 \end{abstract}
 
 %\category{CR-number}{subcategory}{third-level}
