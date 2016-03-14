@@ -85,7 +85,7 @@ data Target = Target
 #\vspace{-5mm}#
 #\line(1,0){240}#
 type Expr a = ReaderT Target Action a#\hspace{14mm}\textbf{\emph{Expressions}}#
-#\todo{\textbf{Andrey}: use type Expr a = Target $\rightarrow$ Action a}#
+
 newtype Diff a = Diff { fromDiff :: a -> a }
 
 type Args = Expr (Diff [String])
@@ -105,19 +105,17 @@ interpret target args = do
     return $ fromDiff diff mempty
 #\vspace{-5mm}#
 #\line(1,0){240}#
-type Predicate = Expr Bool#\hspace{31mm}\textbf{\emph{Predicates}}#
-
-way :: Way -> Predicate
+way :: Way -> Expr Bool#\hspace{35mm}\textbf{\emph{Predicates}}#
 way w = do
     ctx <- asks context
     return $ w == Context.way ctx
 
-#\itab{stage} \tytab{:: Stage} \atab{$\rightarrow$ Predicate}#
-#\itab{package} \tytab{:: Package} \atab{$\rightarrow$ Predicate}#
-#\itab{builder} \tytab{:: Builder} \atab{$\rightarrow$ Predicate}#
-#\itab{file} \tytab{:: FilePattern} \atab{$\rightarrow$ Predicate}#
+#\itab{stage} \tytab{:: Stage} \atab{$\rightarrow$ Expr Bool}#
+#\itab{package} \tytab{:: Package} \atab{$\rightarrow$ Expr Bool}#
+#\itab{builder} \tytab{:: Builder} \atab{$\rightarrow$ Expr Bool}#
+#\itab{file} \tytab{:: FilePattern} \atab{$\rightarrow$ Expr Bool}#
 
-(?) :: Monoid a => Predicate -> Expr a -> Expr a
+(?) :: Monoid a => Expr Bool -> Expr a -> Expr a
 predicate ? expr = do
     bool <- predicate
     if bool then expr else return mempty
@@ -254,25 +252,25 @@ the following expression computes command line arguments for invoking GHC:
 \begin{lstlisting}
 ghcArgs :: Expr [String]
 ghcArgs = do
-#\itab{~~~~ctx} \altab{$\leftarrow$ asks Target.context}#
-#\itab{~~~~src} \altab{$\leftarrow$ asks Target.inputs}#
-#\itab{~~~~out} \altab{$\leftarrow$ asks Target.outputs}#
+    target <- ask
     return $ [ "-O2" ]
-          #\!#++ [ "-prof" | way ctx == profiling ]
-          #\!#++ [ "-c", head src ]
-          #\!#++ [ "-o", head out ]
+          #\!#++ [ "-prof" | way (context target) == profiling ]
+          #\!#++ [ "-c", head (inputs target) ]
+          #\!#++ [ "-o", head (outputs target) ]
 \end{lstlisting}
 
-There is a room for improvement of the \lst'ghcArgs' expression. For
-example, conditional arguments like \lst'-prof' are very common in build
-systems and a better way to express them is clearly desirable. We use Boolean
-\emph{predicates} of type \lst'Expr Bool' to achieve this, see
-Figure~\ref{fig:abstractions}~(Predicates). In particular, we
-use \lst'way :: Way -> Predicate' to check which way is currently being built.
-For example, predicate \lst'way profiling' returns \lst'True' when the
-current target is built the \lst'profiling' way.
+\subsubsection{Predicates}
 
-Operator \lst'(?) :: Monoid a => Predicate -> Expr a -> Expr a' is a
+The use of conditional \lst'Expr' values is pervasive. In the \lst'ghcArgs' expression
+above \lst'-prof' is only applied when profiling. But in fact, the entire expression
+is only applicable when using the \lst'Ghc' builder. To make conditionals more concise
+we use \emph{predicates} of type \lst'Expr Bool', see
+Figure~\ref{fig:abstractions}~(Predicates). In particular, we
+use \lst'way :: Way -> Expr Bool' to check which way is currently being built.
+For example, predicate \lst'way profiling' returns \lst'True' when the
+current target is built using the \lst'profiling' way.
+
+The operator \lst'(?) :: Monoid a => Expr Bool -> Expr a -> Expr a' is a
 convenient shortcut for applying a predicate to an expression that computes a monoidal value, such
 as \lst'[String]'. For example, the following expression returns
 \lst'["-prof"]' when the current target is built the \lst'profiling' way and an
@@ -283,7 +281,7 @@ prof :: Expr [String]
 prof = way profiling ? return ["-prof"]
 \end{lstlisting}
 
-\noindent Note, expressions computing monoids themselves form a monoid:
+Expressions computing monoids themselves form a monoid:
 
 \begin{lstlisting}
 instance Monoid a => Monoid (Expr a) where
@@ -292,7 +290,7 @@ instance Monoid a => Monoid (Expr a) where
 \end{lstlisting}
 
 \noindent Predicates and monoidal expressions are a powerful combination with
-many useful laws that allow to reason about them:
+many useful laws that allow us to reason about them:
 \begin{enumerate}
   \item \itab{Absorption:} \tab{\lst'p ? mempty === mempty'}
   \item \itab{Distributivity:} \tab{\lst'p ? (e <> f) === p ? e <> p ? f'}
@@ -301,6 +299,8 @@ many useful laws that allow to reason about them:
   \lst'    p ? e <> q ? e === (p ||| q) ? e === q ? e <> p ? e'
   \item \itab{Complement:} \tab{\lst'p ? e <> !!!p ? e === e'}
 \end{enumerate}
+
+\subsubsection{Extensibility}
 
 All expressions need to be modifiable by users of the build system. We therefore
 need to provide a way not only to add new arguments to an expression, but also
@@ -401,7 +401,7 @@ main = shake shakeOptions $ do
 
 \caption{Example of a build system\label{fig:example-abstractions}}
 \end{figure}
-We are now ready to introduce \lst'Args', a type of expressions for
+We are now ready to introduce \lst'Args', a type of expression for
 constructing command line arguments in the build system. In addition to the
 above generic functions (whose specialised versions are shown in
 Figure~\ref{fig:abstractions}), it is equipped with function
@@ -427,7 +427,7 @@ distracting plumbing details have been abstracted away so that the designers and
 users of the build system could focus on what matters. \todo{\textbf{Andrey}: Also
 mention Packages and Ways expressions.}
 
-We compose all command line arguments into \lst'args :: Args' expression,
+We compose all command line arguments into a single \lst'args :: Args' expression,
 applying custom user modifications \lst'userArgs' in the very end, which
 allows the user to override any default setting:
 
@@ -457,7 +457,7 @@ build target@Target {..} = do
   \item We \lst'need' the builder to make sure it is up-to-date. Some builders
   are built by the build system, e.g. \lst'genprimopcode',
   \lst'ghc-cabal', \lst'Stage1' GHC, so it is important to rebuild them (as well
-  as all dependent targets) if need be.
+  as all dependent targets) if needed.
   \item Function \lst'checkArgsHash :: Target -> Action ()' checks whether the
   \lst'target' needs to be rebuilt because the command line computed from
   \lst'args' expression has changed since the previous build. If it has,
@@ -481,7 +481,7 @@ The build system comprises two packages (\lst'Array' and \lst'Base') that can
 be built in two ways (\lst'Vanilla' and \lst'Profiling'), using two versions
 of GHC (\lst'Ghc Head' and \lst'Ghc Release') and an archiver tool \lst'Ar'.
 Note, the build \lst'Context' is slightly different from GHC, but this does not
-prevent us from using the abstractions.
+prevent us from using the same abstractions.
 
 Build rules are generated by the \lst'buildPackage' function, which given a
 build \lst'Context', shows how to compile a Haskell source file and build a

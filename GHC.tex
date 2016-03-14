@@ -23,7 +23,7 @@
 \hline
 \textsf{U4:} Add comment: \textsf{libraries/base/Prelude.hs}
 & \textsf{Prelude.o}, \textsf{base} library, and all \hfill \uncheckedbox
-\newline dependent binaries are rebuilt 
+\newline dependent binaries are rebuilt
 & Only \textsf{Prelude.o} is rebuilt \hfill \checkedbox
 \\
 \textsf{U5:} Modify code: \hspace{1.75mm}\textsf{libraries/base/Prelude.hs}
@@ -62,19 +62,19 @@ $\textit{~~~~~~~}$command line arguments of build tools
 \\
 \end{tabular}
 \caption{Comparison of GHC build systems on common use cases. Checkmarks
-\checkmark indicate expected behaviour.}
+\checkmark indicate desired behaviour.}
 \label{tab:use-cases}
 \end{table*}
 
 \section{Shaking up GHC\label{sec:ghc}}
 
-In this section we report on our experience on applying the techniques presented
+In this section we report on our experience of applying the techniques presented
 so far to building a large-scale software project: the Glasgow Haskell Compiler.
 
 \subsection{Current status and limitations\label{sec:limitations}}
 
 We implemented a new build system for GHC from scratch using Shake and our build
-abstractions~\S\ref{sec:abstractions}. The current implementation can build
+abstractions from~\S\ref{sec:abstractions}. The current implementation can build
 \lst'Stage2' GHC, but has the following limitations:
 \begin{itemize}
   \item We only build \lst'vanilla' and \lst'profiling' way.
@@ -106,7 +106,7 @@ build} (\lst'U3'). The new build system works as expected, and is much faster
 than the old one (see \S\ref{sec:benchmarks}).
 
 % The time it takes represents internal overheads of the build system:
-% scanning the file system, reading the database, etc. 
+% scanning the file system, reading the database, etc.
 
 In \lst'U4-U5' we modify \lst'libraries/base/Prelude.hs' and rebuild GHC.
 When only comments are added (\lst'U4'), the new build system recompiles the
@@ -145,7 +145,7 @@ experiment:
 \begin{lstlisting}
 $ build
 $ git checkout -b test
-$ touch libraries/base/Prelude.hs
+$ echo -- comment >> libraries/base/Prelude.hs
 $ git checkout master
 $ build
 \end{lstlisting}
@@ -164,34 +164,24 @@ supported. The new build system correctly reruns only affected rules.
 \todo{\textbf{Andrey}: Add \lst'U12', edit cabal.in case.}
 
 In summary, the new build system correctly handles most use cases, whereas
-the old one performs a lot of unnecessary rebuilds in all but simple cases. In
-the next section we show that the new build system is also faster.
+the old one performs a lot of unnecessary rebuilds in all but simple cases.
 
 \subsection{Benchmarks\label{sec:benchmarks}}
 
 When building from scratch, ignoring the initial \lst'boot'/\lst'configure'
 steps which are shared, the old build system takes 1266 seconds and the new
 one takes 737 seconds. These were tested in as similar configurations as we could
-manage, but due to the complexity of the build system, there are almost certain
+manage (by disabling all the features the new system does not support),
+but due to the complexity of the build systems, there are almost certainly
 minor differences. For the zero build, the old build system takes 12.3
-seconds and the new one takes 2.1 seconds. \todo{\textbf{Neil}: optimise Shake
-further.}
+seconds and the new one takes 2.1 seconds. All measurements were collected on a
+Windows machine using \lst'-j4'.
 
 Since Shake and Haskell both provide profiling and analysis tools, we have
 already used these features to optimise the new build system, resulting in
 modest gains so far and several opportunities we have yet to exploit. Looking at
-the current full build time, which takes 737 seconds, the longest single task is
-building the GMP library (315 seconds), and total time of single-threaded
+the current full build time of 737 seconds, the longest single task is
+building the GMP library (315 seconds), and the total time of single-threaded
 computation is 2206 seconds, of which 2099 is calling out to external processes.
 The critical dependency chain has 378 steps in it, and requires 463 seconds -- a
-lower bound on the time even if we have an unlimited number of processors.
-
-\subsection{Summary}
-
-\todo{How we used better tools and abstractions to do better.}
-
-\todo{Qualitative results: easier to understand and maintain. Can we
-say this? Can we say that the new build system works in more environments,
-because we have fewer dependencies?}
-
-
+lower bound on the time even with an unlimited number of processors.
