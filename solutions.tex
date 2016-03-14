@@ -117,15 +117,12 @@ The next subsection discusses this pattern and associated challenges.
 In any large-scale build system, there are rules that say how to build targets,
 and then there is a very long list of special cases, listing targets that need
 to be treated specially, under certain circumstances, in a configurable way.
-Writing a separate rule for each special case by hand is impractical, hence
-build rules are typically generated. In Make, this is done using macros.
 For example, the GHC build system generates different compilation rules
 for each combination of package, compiler version, and build way
 (in~\S\ref{sec:ghc-context} we refer to such combinations as \emph{build
-contexts}). The build rules differ in several aspects: they place build results
-in different directories, build using different compiler versions, and use
-different command line arguments. Here we only focus on the latter aspect,
-illustrated by the following example from the GHC build system:
+contexts}). The build rules differ in several aspects, and in particular they
+use different command line arguments. The following snippet shows how command
+line arguments \lst'$1_$2_$3_HC_OPTS' are computed in the GHC build system:
 
 \begin{lstlisting}
 WAY_p_HC_OPTS = -static -prof
@@ -145,12 +142,12 @@ have to either add a new component to the variable name, e.g.
 \lst'WAY_p_file_HC_OPTS', or conditionally filter out the \lst'-prof' flag from
 \lst'HC_OPTS' after it is constructed and the file being build is known. Both
 approaches are not scalable; consequently, much of the complexity of the GHC
-build system is caused by generating configurable command lines. This complexity is
+build system is caused by computing command lines. This complexity is
 unnecessary and can be tackled using high-level abstractions readily available
-in Haskell. We elaborate on this in~\S\ref{sec:abstractions}, where we design a
-DSL for succinct and type-safe generation of build rules and build command
-lines. The approach allows us to write the following:
+in Haskell. We elaborate on this in~\S\ref{sec:expressions}, where we design a
+DSL for succinct and type-safe computation of build command lines.
 
+% The approach allows us to write the following:
 % \begin{lstlisting}
 % hc_opts = builder Ghc ? mconcat
 %     [ way profiling ? append ["-static", "-prof"]
