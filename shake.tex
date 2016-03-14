@@ -1,11 +1,11 @@
 \section{Background about Shake\label{sec:shake}}
 
 Many of the issues raised in~\S\ref{sec:challenges} stem from the fact
-that \make{} was never designed to be a programming language.  A
-promising appoarch is, therefore, abandon \make{} in favour of an
+that Make was never designed to be a programming language.  A
+promising appoarch is, therefore, abandon Make in favour of an
 embedded domain-specfic language (DSL), so that we have access to the full
 static typing and abstraction facilities of the host language.
-We did exactly this with GHC's build system, replacing \make{} with
+We did exactly this with GHC's build system, replacing Make with
 Shake, a DSL embedded in Haskell~\cite{shake}. In this section we
 recap the key ideas behind Shake, and also describe some of the additional
 features provided by Shake, but not covered in the original paper. These
@@ -167,7 +167,7 @@ The call \lst'need [src]' on line 11 tells Shake that \lst'foo.c' is needed
 to build \lst'foo.o'. But note that this dependency need only be announced
 when Shake decides to run the rule to built \lst'foo.c'; and that the
 build system author is free to use arbitary I/O actions to find which files
-are needed. This is much more dynamic than \make{}'s static dependencies,
+are needed. This is much more dynamic than Make's static dependencies,
 a feature that turns out be extremely important in practice (\S\ref{sec:dynamic-deps}).
 
 \subsection{Post-use dependencies: \lst'needed'\label{sec:needed}}
