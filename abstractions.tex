@@ -199,10 +199,10 @@ builderProvenance x = case x of
 \end{lstlisting}
 
 \noindent In particular, we can see that \lst'Ghc Stage0' is an external
-builder, \lst'Ghc Stage1' is an internal one built from package \lst'ghc'
+builder, \lst'Ghc Stage1' is internal, built from package \lst'ghc'
 during \lst'Stage0', \lst'Haddock' is built in \lst'Stage2', etc. There are
 27 builders, 16 of which are internal. Furthermore, some builders are
-\emph{optional}, e.g., \lst'HsColour', which (if installed) is used to
+\emph{optional}, e.g. \lst'HsColour', which (if installed) is used to
 colourise Haskell code when building documentation.
 
 Each invocation of a builder is fully described by a \lst'Target', which
@@ -233,8 +233,8 @@ command line for building \lst'build/stage1/libraries/base/Prelude.p_o':
   \lst'inplace/bin/ghc-stage1' with help of \lst'builderProvenance', and use it
   in the following command line template:\vspace{1mm}\\
   \centerline{\!\!\!\!\!\lst'-O2 -c <input> -o <output>'}
-  \item The way is \lst'profiling'. We know that we need to add the
-  flag \lst'-prof'.$\!\!\!$
+  \item The way is \lst'profiling', so we know that we need to add
+  \lst'-prof'.
   \item We know how to substitute \lst'<input>' and \lst'<output>' in the
   above template.
   \item We ignore \lst'package' since it is not relevant in this particular
@@ -279,7 +279,7 @@ current target is built using the \lst'profiling' way.
 Operator \lst'(?) :: Monoid a => Expr Bool -> Expr a -> Expr a' is a
 convenient shortcut for applying a predicate to an expression that computes a monoidal value, such
 as \lst'[String]'. For example, the following expression returns
-\lst'["-prof"]' when the current target is built the \lst'profiling' way and an
+\lst'["-prof"]' when the current target is built the \lst'profiling' way, and an
 empty list of arguments otherwise:
 
 \begin{lstlisting}
@@ -357,7 +357,7 @@ ghcArgs = builderGhc ? mconcat
 
 \noindent Here \lst'getInput :: Expr FilePath' and
 \lst'getOutput :: Expr FilePath' are expressions that check that
-\lst'Target.inputs' and \lst'Target.outputs' contain exactly one element and
+\lst'Target' \lst'inputs' and \lst'outputs' contain exactly one element and
 return it.
 
 The resulting \lst'ghcArgs' expression is terse and readable. All
