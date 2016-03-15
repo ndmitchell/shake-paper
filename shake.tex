@@ -156,7 +156,7 @@ arbitrary computation including I/O, running system commands and examining files
 produced by a previous \lst'need' before deciding to perform a future \lst'need'.
 In contrast, in most build systems (Make included), all dependencies of a rule must be
 declared before the rule starts executing. The power to add additional dependencies
-while running a rule turns out be extremely important in practice (\S\ref{sec:dynamic-deps}).
+while running a rule turns out to be extremely important in practice (\S\ref{sec:dynamic-deps}).
 
 \subsection{Post-use dependencies: \lst'needed'\label{sec:needed}}
 
@@ -168,7 +168,7 @@ write our own code to search for transitively included headers
 \cite[\S6.4]{shake}, a simpler alternative is to reuse the logic already present
 in \lst'gcc'. The \lst'gcc' compilation command (\lst'-c') can also take a flag
 \lst'-M' to print out a \lst'Makefile' listing all headers that were used by the
-compilation. We can integrate this into our example by replacing the final
+compilation. We can integrate this flag into our example by replacing the final
 line with:
 
 \begin{lstlisting}
@@ -242,7 +242,7 @@ implemented on top of the \lst'need' primitive.
 While build-systems are typically focused around files, the core of Shake is
 fully polymorphic, operating on objects that are uniquely labelled by a
 \lst'key' and have rules that produce a \lst'value'.
-In the case of files, they key is the filename and the value is the modification
+In the case of files, the key is the filename and the value is the modification
 time, or content hash (\S\ref{sec:file-contents}).
 Using the polymorphic API we can define new types of rules to track additional
 dependencies.
@@ -296,11 +296,11 @@ new rule types to Shake, allowing us to use \lst'rule' and \lst'apply' from
 Figure~\ref{fig:shake-api}.
 
 \begin{itemize}
-\item We declare rules using \lst'rule', which takes a function that for a given key,
+\item We \emph{declare} rules using \lst'rule', which takes a function that for a given key,
 says how to compute its value. We use \lst'Just' to indicate both rules apply to all
 keys of the appropriate type. In the first \lst'rule' we read the file and parse it,
 producing an associative map.
-\item We use rules with \lst'apply', which takes a list of rule keys and computes the
+\item We \emph{use} rules with \lst'apply', which takes a list of rule keys and computes the
 corresponding values. Here we use \lst'apply' with singletons, but in general \lst'apply'
 operates on list of keys which can be computed in parallel. When defining the rule
 for \lst'ConfigKey' we use the value of \lst'ConfigMap'. When defining \lst'*.o',
@@ -309,7 +309,7 @@ we use the value of \lst'ConfigKey "cc"'.
 
 Crucially, Shake treats these computations incrementally: it parses each
 configuration file only once, regardless of the number of uses of \lst'apply'; and
-it re-runs rules that look up key \lst'ConfigKey "cc"' only if the
+it re-runs rules that look up \lst'ConfigKey "cc"' only if the
 name of the C compiler actually changes.  So if file \lst'config.file' changes,
 Shake will re-run the \lst'ConfigMap' rule, but if \lst'cc' does
 not change, the \lst'*.o' rule will not re-run.
@@ -371,7 +371,7 @@ independent:
 
 \begin{itemize}
 \item Some APIs are global in nature. If you run two programs that access the
-\lst'Excel' API simultaneously things start to fail.
+Excel API simultaneously things start to fail.
 \item Many people have large numbers of CPUs, but only one slow rotating
 hard-drive. Running many disk-heavy linker processes simultaneously can overload
 the hard-drive.
@@ -389,8 +389,8 @@ dependencies are also fragile and tricky to implement.
 Shake provides a \lst'Resource' abstraction that solves this problem directly.
 A \lst'Resource' value represents a finite resource that multiple build rules can use;
 such values are created with \lst'newResource' and used by \lst'withResource'. As an
-example, only one set of calls to the \lst'Excel' API can occur at once, therefore
-\lst'Excel' is a finite resource of quantity 1. We can write:
+example, only one set of calls to the Excel API can occur at once, therefore
+Excel is a finite resource of quantity 1. We can write:
 
 \begin{lstlisting}
 want ["a.xls","b.xls"]
@@ -401,7 +401,7 @@ excel <- newResource "Excel" 1
 
 \noindent We create a new resource \lst'excel' of quantity 1, and then we call
 \lst'withResource excel 1' to use it. Now we will never run two copies of
-\lst'Excel' simultaneously, regardless of the \lst'shakeThreads' setting.
+Excel simultaneously, regardless of the \lst'shakeThreads' setting.
 Moreover, the build system will never block waiting for the resource if there
 are other rules that could be run. We use this approach to deal with the GHC
 package database, which only permits one writer at a time,
