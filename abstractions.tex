@@ -32,8 +32,9 @@ second DSL for describing configurations on top of Shake.
 % Where the DSL would be unnecessarily complex we opt for a direct
 % implementation.
 The configuration language is tracked (if it changes the affected build rules
-are rerun), can have provenance (using the new \lst'ImplicitLocation' feature in
-GHC~\todo{Reference?}), and permits easy configuration. As an example:
+are rerun), can have provenance (using the new \lst'ImplicitLocation'
+feature\footnote{\scriptsize\urlstyle{sf}\url{https://ghc.haskell.org/trac/ghc/wiki/ExplicitCallStack/ImplicitLocations}$\!\!\!$}
+in GHC), and permits easy configuration. As an example:
 
 \begin{lstlisting}
 builder Ghc ? way profiling ? arg "-prof"
@@ -81,7 +82,7 @@ data Builder = Alex
                   | GenPrimopCode
                   | Ghc Stage
                   | Haddock
-                  ... (22 more builders)
+                  ... #\emph{\textrm{plus 22 more builders}}#
 
 data Target = Target
 #\itab{~~~~\{} \ctab{context} \ttab{:: Context}#
@@ -209,7 +210,7 @@ Each invocation of a builder is fully described by a \lst'Target', which
 comprises a build \lst'Context', a \lst'Builder', a list of input files and
 a list of output files. 3748 targets are built when building \lst'Stage2' GHC
 with documentation (with vanilla and profiled libraries). Consider the following
-invocation of builder \lst'Ghc Stage1' as an example:
+invocation of \lst'Ghc Stage1' as an example:
 
 \begin{lstlisting}
 inplace/bin/ghc-stage1 -O2 -prof -c libraries/base/Prelude.hs
@@ -234,10 +235,10 @@ command line for building \lst'build/stage1/libraries/base/Prelude.p_o':
   in the following command line template:\vspace{1mm}\\
   \centerline{\!\!\!\!\!\lst'-O2 -c <input> -o <output>'}
   \item The way is \lst'profiling'. We know that we need to add the
-  flag \lst'-prof'.
+  flag \lst'-prof'.$\!\!\!$
   \item We know how to substitute \lst'<input>' and \lst'<output>' in the
   above template.
-  \item We ignore \lst'package' because it is not relevant in this particular
+  \item We ignore \lst'package' since it is not relevant in this particular
   case.
 \end{itemize}
 
@@ -260,9 +261,9 @@ ghcArgs :: Expr [String]
 ghcArgs = do
     target <- ask
     return $ [ "-O2" ]
-          #\!#++ [ "-prof" | way (context target) == profiling ]
-          #\!#++ [ "-c", head (inputs target) ]
-          #\!#++ [ "-o", head (outputs target) ]
+        #\hspace{1.5mm}#++ [ "-prof" | way (context target) == profiling ]
+        #\hspace{1.5mm}#++ [ "-c", head (inputs target) ]
+        #\hspace{1.5mm}#++ [ "-o", head (outputs target) ]
 \end{lstlisting}
 
 \subsubsection{Predicates}
@@ -287,7 +288,7 @@ prof :: Expr [String]
 prof = way profiling ? return ["-prof"]
 \end{lstlisting}
 
-Expressions computing monoids themselves form a monoid:
+\noindent Expressions computing monoids themselves form a monoid:
 
 \begin{lstlisting}
 instance Monoid a => Monoid (Expr a) where
@@ -335,89 +336,20 @@ remove :: Eq a => [a] -> Expr (Diff [a])
 remove xs = return . Diff $ filter (`notElem` xs)
 \end{lstlisting}
 
-\newcommand{\tabx}[1]{\hspace{.106\textwidth}\rlap{#1}}
-\newcommand{\taby}[1]{\hspace{.114\textwidth}\rlap{#1}}
-\newcommand{\tabz}[1]{\hspace{.24\textwidth}\rlap{#1}}
 
-\begin{figure}
-\begin{lstlisting}
-#\vspace{-7mm}#
-#\line(1,0){240}#
-#\itab{data Version} \tabx{= Head} \taby{| Release}\hspace{27mm}\textbf{\emph{Build~types}}#
-#\itab{data Package} \tabx{= Array} \taby{| Base}#
-#\itab{data Way} \tabx{= Vanilla} \taby{| Profiling}#
-#\itab{data Builder} \tabx{= Ghc Version} \taby{| Ar}#
-#\itab{data Context} \tabx{= Context Version Package Way}#
-#\vspace{-5mm}#
-#\line(1,0){240}#
-args :: Args#\hspace{33mm}\textbf{\emph{Command~line~arguments}}#
-args = mconcat
-    [ builder Ghc ? mconcat
-        [ arg "-O2"
-        , way Profiling ? arg "-prof"
-        , arg "-c", arg =<< getInput
-        , arg "-o", arg =<< getOutput ]
-
-    , builder Ar ? mconcat
-        [ arg "q"
-        , arg =<< getOutput
-        , append =<< getInputs ]
-
-    , file "//base/GHC/IO.*" ? arg "-funbox-strict-fields"
-
-    , builder Ghc ? package Array ? arg "-Wall" ]
-#\vspace{-5mm}#
-#\line(1,0){240}#
-path :: Context -> FilePath#\hspace{31.5mm}\textbf{\emph{Build rules}}#
-path Context#\,#{..} = show#\,#version </> pkgName#\,#package
-
-#\itab{osuf :: Way $\rightarrow$ String} \tabz{asuf :: Way $\rightarrow$ String}#
-#\itab{osuf Vanilla~~~= ".o"} \tabz{asuf Vanilla~~~= ".a"}#
-#\itab{osuf Profiling = ".p\_o"} \tabz{asuf Profiling = "\_p.a"}#
-
-lookupDependencies :: Context#\,#->#\,#FilePath#\,#->#\,#Action#\,#[FilePath]
-
-lookupSources :: Context -> Action [FilePath]
-
-buildPackage :: Context -> Rules ()
-buildPackage context@Context {..} = do
-    path context </> "*" ++ osuf way %> \obj -> do
-        let src = obj -<.> "hs"
-        deps <- lookupDependencies context obj
-        need $ src : deps
-        build $ Target context (Ghc version) [src] [obj]
-
-    path context </> "*" ++ asuf way %> \a -> do
-        srcs <- lookupSources context
-        let objs = [ src -<.> osuf way | src <- srcs ]
-        need objs
-        build $ Target context Ar objs [a]
-#\vspace{-5mm}#
-#\line(1,0){240}#
-main :: IO ()#\hspace{59.5mm}\textbf{\emph{Main}}#
-main = shake shakeOptions $ do
-    for_ [Head, Release] $ \version ->
-        for_ [Array, Base] $ \package ->
-            for_ [Vanilla, Profiling] $ \way -> do
-                let context = Context version package way
-                want [#\,#path#\,#context </> "HSlib" ++ asuf#\,#way#\,#]
-                buildPackage context
-#\vspace{-4mm}#
-\end{lstlisting}
-
-\caption{Example of a build system\label{fig:example-abstractions}}
-\end{figure}
 We are now ready to introduce \lst'Args', a type of expression for
 constructing command line arguments in the build system. In addition to the
 above generic functions (whose specialised versions are shown in
-Figure~\ref{fig:abstractions}), it is equipped with function
+Figure~\ref{fig:abstractions}), it is equipped with the function
 \lst'arg :: String -> Args' for injecting simple \lst'String' arguments into
-\lst'Args'. With these abstractions in place, we can construct command
+an expression, e.g. \lst'arg "-prof" :: Args'.
+
+With these abstractions in place, we can construct command
 line arguments for GHC as follows:
 
 \begin{lstlisting}
 ghcArgs :: Args
-ghcArgs = builder Ghc $ mconcat
+ghcArgs = builder Ghc ? mconcat
     [ arg "-O2"
     , way profiling ? arg "-prof"
     , arg "-c", arg =<< getInput
@@ -431,8 +363,9 @@ return it.
 
 The resulting \lst'ghcArgs' expression is terse and readable. All
 distracting plumbing details have been abstracted away so that the designers and
-users of the build system can focus on what matters. \todo{\textbf{Andrey}: Also
-mention Packages and Ways expressions.}
+users of the build system can focus on what matters.
+
+%\todo{\textbf{Andrey}: Also mention Packages and Ways expressions.}
 
 We compose all command line arguments into a single \lst'args' expression,
 applying custom user modifications \lst'userArgs' to the end,
@@ -483,6 +416,87 @@ build target@Target {..} = do
 
 Figure~\ref{fig:example-abstractions} shows a simple build system that uses the
 abstractions introduced in this section.
+
+\newcommand{\tabx}[1]{\hspace{.106\textwidth}\rlap{#1}}
+\newcommand{\taby}[1]{\hspace{.074\textwidth}\rlap{#1}}
+\newcommand{\tabz}[1]{\hspace{.24\textwidth}\rlap{#1}}
+
+\begin{figure}
+\begin{lstlisting}
+#\vspace{-7mm}#
+#\line(1,0){240}#
+#\itab{data Version} \tabx{= Head} \taby{| Release}\hspace{34.5mm}\textbf{\emph{Build~types}}#
+#\itab{data Package} \tabx{= Array} \taby{| Base}#
+#\itab{data Way} \tabx{= Vanilla} \taby{| Profiling}#
+
+#\itab{data Context} \tabx{= Context Version Package Way}#
+
+#\itab{data Builder} \tabx{= Ghc Version | Ar}#
+#\vspace{-5mm}#
+#\line(1,0){240}#
+args :: Args#\hspace{33mm}\textbf{\emph{Command~line~arguments}}#
+args = mconcat
+    [ builder Ghc ? mconcat
+        [ arg "-O2"
+        , way Profiling ? arg "-prof"
+        , arg "-c", arg =<< getInput
+        , arg "-o", arg =<< getOutput ]
+
+    , builder Ar ? mconcat
+        [ arg "q"
+        , arg =<< getOutput
+        , append =<< getInputs ]
+
+    , file "//base/GHC/IO.*" ? arg "-funbox-strict-fields"
+
+    , builder Ghc ? package Array ? arg "-Wall" ]
+#\vspace{-5mm}#
+#\line(1,0){240}#
+buildPackage :: Context -> Rules ()#\hspace{20.5mm}\textbf{\emph{Build rules}}#
+buildPackage context@Context {..} = do
+    path context </> "*" ++ osuf way %> \obj -> do
+        let src = obj -<.> "hs"
+        deps <- lookupDependencies context obj
+        need $ src : deps
+        build $ Target context (Ghc version) [src] [obj]
+
+    path context </> "*" ++ asuf way %> \a -> do
+        srcs <- lookupSources context
+        let objs = [ src -<.> osuf way | src <- srcs ]
+        need objs
+        build $ Target context Ar objs [a]
+
+path :: Context -> FilePath
+path Context#\,#{..} = show#\,#version </> pkgName#\,#package
+
+osuf :: Way -> String
+osuf Vanilla   = ".o"
+osuf Profiling = ".p_o"
+
+asuf :: Way -> String
+asuf Vanilla   = ".a"
+asuf Profiling = "_p.a"
+
+lookupDependencies :: Context#\,#->#\,#FilePath#\,#->#\,#Action#\,#[FilePath]
+lookupDependencies context src = do ...
+
+lookupSources :: Context -> Action [FilePath]
+lookupSources context = do ...
+#\vspace{-5mm}#
+#\line(1,0){240}#
+main :: IO ()#\hspace{59.5mm}\textbf{\emph{Main}}#
+main = shake shakeOptions $ do
+    for_ [Head, Release] $ \version ->
+        for_ [Array, Base] $ \package ->
+            for_ [Vanilla, Profiling] $ \way -> do
+                let context = Context version package way
+                want [#\,#path#\,#context </> "HSlib" ++ asuf#\,#way#\,#]
+                buildPackage context
+#\vspace{-4mm}#
+\end{lstlisting}
+
+\caption{Example of a build system\label{fig:example-abstractions}}
+\end{figure}
 
 The build system comprises two packages (\lst'Array' and \lst'Base') that can
 be built in two ways (\lst'Vanilla' and \lst'Profiling'), using two versions
