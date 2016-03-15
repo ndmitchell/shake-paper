@@ -130,13 +130,15 @@ WAY_p_HC_OPTS = -static -prof
 base_stage1_HC_OPTS = -this-unit-id base
 ...
 $1_$2_$3_HC_OPTS = $$(WAY_$3_HC_OPTS) \
-#\hspace{34.3mm}# $$($1_$2_HC_OPTS)\
-#\hspace{34.3mm}#... plus 30 more configuration patterns
+#\hspace{34.4mm}#$$($1_$2_HC_OPTS)\
+#\hspace{34.4mm}#... plus 30 more configuration patterns
 \end{lstlisting}
 
-This says that when building targets with GHC in the \emph{profiling way}
-\lst'p' (i.e. with the profiling information enabled), we need to add command
-line arguments \lst'-static -prof' to the command line. 
+\noindent This says that when building targets with GHC in the \emph{profiling
+way} \lst'p' (i.e. with the profiling information enabled), we need to add
+\lst'-static -prof' to the command line. Furthermore, when we compile targets
+from the \lst'base' library using the \lst'Stage1' GHC, we need to add
+\lst'-this-unit-id base' to the command line. 
 
 \lst'WAY_p_HC_OPTS = -static -prof' is concise, but is inflexible. For example,
 if we do not want to pass \lst'-prof' flag when building a particular file, we
