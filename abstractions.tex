@@ -147,11 +147,11 @@ source tree. A GHC package can be a library (e.g. \lst'array') or a program
 32 libraries and 18 programs (the latter includes GHC itself and various utilities).
 
 A package can be built multiple \emph{ways}, for example, to produce a library
-with or without profiling information. This is captured by an opaque
+with or without profiling information. The way is captured by an opaque
 type \lst'Way' inhabited by values such as \lst'vanilla' (the simplest
 possible way), \lst'profiling' (with profiling information), \lst'debug'
 (with debug information), and many others (there are 18 ways in total). Some
-ways can be combined, e.g., \lst'debugProfiling'; however, not all combinations
+ways can be combined, e.g. \lst'debugProfiling'; however, not all combinations
 make sense. By making \lst'Way' opaque we make it easier
 to add new ways or change their internal representation, something that would be
 impossible to achieve in Make, where no information hiding is possible.
@@ -159,7 +159,7 @@ impossible to achieve in Make, where no information hiding is possible.
 In addition to different build ways, each package can be built by several
 versions of GHC, which leads to the notion of \emph{stages}.
 In \lst'Stage0' we use the \emph{bootstrap} GHC, i.e. the one that is
-installed in the system. During this stage we build \lst'Stage1' GHC, an
+installed on the system. During this stage we build \lst'Stage1' GHC, an
 intermediate compiler that still lacks many features. It is used during the
 following \lst'Stage1' for building a fully-featured \lst'Stage2' GHC, the
 primary goal of the build system. We sometimes also build \lst'Stage3' GHC as
