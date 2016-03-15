@@ -246,7 +246,8 @@ and in the old build system they all depended on each other in a chain, to
 ensure no simultaneous registrations occur. This solution works, but is
 fragile (easy to get wrong) and inefficient (reduces available parallelism).
 
-In Shake, the solution is to use the \emph{resources} feature (\S\ref{sec:concurrency-reduction}):
+In Shake, the solution is to use the \emph{resources} feature
+(\S\ref{sec:concurrency-reduction}):
 
 \begin{lstlisting}
 packageDb <- newResource "package-db" 1
@@ -303,17 +304,17 @@ system. Indeed, they arise naturally even when building a simple C program,
 because the \lst'#include' files for a C source file are not known until the
 source file is compiled or analysed by the C compiler, using something like
 \lst'gcc -M'. Build systems that have a static dependency graph typically have
-special-case support for changing dependencies; for example, GNU Make will re-read
-Makefiles that change during building.  In the case of GNU Make,
+special-case support for changing dependencies; for example, Make will re-read
+Makefiles that change during building.  In the case of Make,
 this works for simple cases, but fails when there are dependencies
 between the generated Makefiles, which arises in more complex cases.
 
-The GHC build system works around this limitation of GNU Make by
+The GHC build system works around this limitation of Make by
 dividing the build system into \emph{phases}, where each phase
 generates the parts of the build system that are required by
 subsequent phases. We managed to reduce the number of phases to
-three, by carefully making use of GNU Make's automatic restarting
-functionality where possible. However, explicit phases are a terrible
+three, by carefully making use of Make's automatic restarting
+feature where possible. However, explicit phases are a terrible
 solution for several reasons:
 
 \begin{itemize}
@@ -323,24 +324,23 @@ solution for several reasons:
   understanding of generated parts of the build system and their dependencies,
   and this area of our build system is notoriously difficult to work on. 
   Diagnosing problems is particularly hard.
-\item Even when doing an incremental build we have to perform all the
-  phases, because explicit phases preclude dependency tracking across
-  the phase boundary.  The result is so slow that we were forced to allow
-  the user to short-circuit the earlier phases, by promising
-  that nothing has changed that would require rebuilding
-  the early phases (\lst'make fast').  This solution is less than
-  ideal.
+\item We have to run all the phases even when doing an incremental build,
+ because explicit phases preclude dependency tracking across the phase boundary.
+ The result is so slow that we were forced to allow the user to short-circuit
+ the earlier phases, by promising that nothing has changed that would require
+ rebuilding the early phases (\lst'make fast').  This solution is less than
+ ideal.
 \end{itemize}
 
 Shake supports dynamic dependencies natively, so these problems just
 go away.  The \lst"need" function can introduce new dependencies
-\emph{after observing the results of previous dependencies}
-(see \S\ref{sec:need})\footnote{It has been
+\emph{after observing the results of previous dependencies}\footnote{It has been
 suggested that the dependency mechanism in Shake should rightly be called
 \emph{Monadic dependencies} to contrast with the \emph{Applicative dependencies}
 in Make. We agree. In an applicative computation the structure cannot depend on
 the values flowing through container. In a monadic computation the structure can
-depend on the values.}. For example, when building a Haskell package, we first
+depend on the values.}
+(see \S\ref{sec:need}). For example, when building a Haskell package, we first
 \lst"need" the \lst'ghc-cabal' tool, then we run it on the package's \lst'.cabal' file to
 extract the package metadata, and then we consult the result to determine what
 needs to be done to build the package.
