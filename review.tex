@@ -3,7 +3,7 @@
 This paper is about writing build systems at scale, a subject without much
 literature since \citet{miller:recursive_make}. When
 \citet{mcintosh:build_maintenance_effort} studied software maintenance they
-found that build systems can take up to 27\% of
+found that build systems can take up to 27\% of the
 development effort, and that improvements to the build system rapidly paid off.
 Recently \citet{martin:make_it_simple} surveyed which Make features are used,
 and then \citet{martin:maintenance_complexity_makefiles} classified them by
@@ -33,10 +33,10 @@ libraries and OpenShake are based on an early presentation of the principles beh
 We have found that while powerful dependencies might only be used in a few
 places, if they are missing the workarounds can be pervasive
 (\S\ref{sec:dynamic-deps}). A few build systems support resources, e.g.
-Ninja \cite{ninja}, and several support monadic dependencies (e.g. Redo
-\cite{redo}, Jenga, Pluto, SCons). A few build systems directly support
+Ninja \cite{ninja}, and several support monadic dependencies, e.g. Redo
+\cite{redo}, Jenga, Pluto, SCons. A few build systems directly support
 dependency features more powerful than Shake, for example Pluto supports rules
-that run until a fixed-point is reached and rules whose output is not known in
+that run until a fixed-point is reached and rules whose output filename is not known in
 advance. These features can be encoded in Shake, but are not present natively.
 
 \subsection{Automatic dependency management}
@@ -63,7 +63,7 @@ taking care of suitable build flags and conventions, much like
 sophisticated.
 The disadvantage of such an approach is that the available rules are fixed,
 making it difficult to encode something like a bootstrapping compiler.
-Generating build metadata is not really supported -- a problem typically solved by
+Generating source files is not really supported -- a problem typically solved by
 committing generated files to version control. Both tools also support build
 clusters, which build code once and share the resulting objects to everyone
 without recompiling them locally -- an essential feature at such scales.
