@@ -66,12 +66,14 @@ file into an object file. The arguments to the macro are available as \lst'$1'
 to \lst'$4'. We have solved the two problems above, but inelegantly:
 
 \begin{itemize}
-\item The restriction to certain directories is solved by using the macro to
-generate rules, and calling that macro at all relevant matches. We are
-duplicating the rule to make up for weak pattern matching, and are still quite
-restricted in what can be expressed.
-\item The dependence of the options on the file is solved using a computed
-variable name, which is dereferenced using \lst'$$(...)' to ensure the value is
+\item To make up for weak pattern matching, we use macros to generate a separate
+rule for each \lst'$1/$2/$4' combination.
+% The restriction to certain directories is solved by using the macro to
+% generate rules, and calling that macro at all relevant matches. We are
+% duplicating the rule to make up for weak pattern matching, and are still quite
+% restricted in what can be expressed.
+\item The dependence of the command line arguments on the file is solved using a
+computed variable name, which is dereferenced using \lst'$$(...)' to ensure the value is
 expanded when the macro is \emph{used}, not when it is \emph{defined}. However,
 certain variables are present in positions where the value is unavailable when
 first called, requiring \lst'$$$$(..)' to further delay expansion. Alas, it is
@@ -89,13 +91,13 @@ it must be expressed in Haskell syntax:
 \end{lstlisting}
 \noindent
 However, as the complexity grows, the build system scales properly. Making
-\lst"hc_opts" depend on the Haskell file requires the small and obvious change of:
+\lst"hc_opts" depend on the Haskell file requires the small and obvious change:
 
 \begin{lstlisting}
 cmd "ghc" (hc_opts hs) hs
 \end{lstlisting}
 
-\noindent Namely turning \lst'hc_opts' from a constant to a function. To use
+\noindent Namely, we turn \lst'hc_opts' from a constant to a function. To use
 richer pattern matching we can drop down to a lower-level Shake operation. In
 Shake \lst"%>" is itself defined in terms of \lst"?>":
 
@@ -131,7 +133,7 @@ base_stage1_HC_OPTS = -this-unit-id base
 ...
 $1_$2_$3_HC_OPTS = $$(WAY_$3_HC_OPTS) \
 #\hspace{34.4mm}#$$($1_$2_HC_OPTS)\
-#\hspace{34.4mm}#... plus 30 more configuration patterns
+#\hspace{34.4mm}\emph{\textrm{... plus 30 more configuration patterns}}#
 \end{lstlisting}
 
 \noindent This says that when building targets with GHC in the \emph{profiling
