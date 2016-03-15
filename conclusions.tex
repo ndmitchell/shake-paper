@@ -7,7 +7,7 @@ version. While all previous versions have started simple and gained complexity
 as they progressed, this version is different. Developing the abstractions in
 \S\ref{sec:abstractions} took many months of discussion and refinement. Once the
 fundamental concepts were in place, the rest was ``just'' coding and reverse
-engineering of the existing system. The result is faster, more maintainable and
+engineering the existing system. The result is faster, more maintainable and
 more correct. There are three major tasks remaining for future work:
 
 \begin{itemize}
@@ -17,7 +17,7 @@ few months. Once complete, we expect it to quickly become the only supported
 method of building GHC.
 
 \item Our abstractions from \S\ref{sec:abstractions} were designed to allow
-tracking provenance of command line arguments -- mapping each to the
+tracking provenance of command line arguments -- mapping each flag to the
 location of the expression that generated it. This feature relies on the
 \emph{implicit locations} feature of the latest pre-release GHC.
 
