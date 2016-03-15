@@ -94,12 +94,12 @@ problems that arose:
 By carefully employing a set of
 idioms\footnote{\urlstyle{sf}\url{https://ghc.haskell.org/trac/ghc/wiki/Building/Architecture}}
 (such as the prefix idiom \lst'$1_$2_' above, which is explained
-in~\S\ref{sec:pattern-rule-language}), it was possible to construct a
-non-recursive build system for GHC in GNU Make. It works surprisingly well, and
-by virtue of being non-recursive it tracks dependencies accurately; but, it is
-almost impossible to understand and maintain. So while it is \textit{possible}
-to develop large scale build systems using Make, it is clear that GHC developers
-have gone far beyond Make's scalability limits.
+in~\S\ref{sec:pattern-rule-language} and~\S\ref{sec:command-lines}), it was
+possible to construct a non-recursive build system for GHC in GNU Make. It works
+surprisingly well, and by virtue of being non-recursive it tracks dependencies
+accurately; but, it is almost impossible to understand and maintain. So while it
+is \textit{possible} to develop large-scale build systems using Make, it is
+clear that GHC developers have gone far beyond Make's scalability limits.
 
 % \begin{enumerate}
 % \item The programming language is complex. This macro expands through multiple
