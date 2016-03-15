@@ -127,9 +127,11 @@ line arguments \lst'$1_$2_$3_HC_OPTS' are computed in the GHC build system:
 \begin{lstlisting}
 WAY_p_HC_OPTS = -static -prof
 ...
-$1_$2_$3_HC_OPTS = $$($1_$2_HC_OPTS) \
-#\hspace{34.3mm}#$$(WAY_$3_HC_OPTS) \
-#\hspace{34.3mm}#... plus 30 more special cases
+base_stage1_HC_OPTS = -this-unit-id base
+...
+$1_$2_$3_HC_OPTS = $$(WAY_$3_HC_OPTS) \
+#\hspace{34.3mm}# $$($1_$2_HC_OPTS)\
+#\hspace{34.3mm}#... plus 30 more configuration patterns
 \end{lstlisting}
 
 This tells that when building targets with GHC in the \emph{profiling way}
