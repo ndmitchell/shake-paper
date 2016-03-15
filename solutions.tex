@@ -2,7 +2,7 @@
 
 The GHC build system stretches Make beyond its limits.
 In this section we illustrate, from our experience with GHC's build system,
-some of these challenges, how they can be solved in our new system.
+some of these challenges, and how they can be solved.
 These problems can be divided into two groups: those caused by the
 Make language (solved using Haskell); and those caused by a lack of expressive
 power when describing dependencies (solved using Shake).
@@ -40,7 +40,7 @@ Consider the following Make rule:
 \end{lstlisting}
 
 \noindent It tells Make that object files \lst"*.o" are produced from Haskell
-source files \lst"*.hs" by compiling them with \lst"ghc" command invoked with
+source files \lst"*.hs" by compiling them using \lst"ghc" invoked with
 \lst"HC_OPTS" arguments. The notation is terse and works well for this example.
 Unfortunately, this simple formulation does not scale:
 
@@ -117,7 +117,7 @@ The next subsection discusses this pattern and associated challenges.
 \subsection{Computing command lines\label{sec:command-lines}}
 
 In any large-scale build system, there are rules that say how to build targets,
-and then there is a very long list of special cases, listing targets that need
+and then there is a long list of special cases, listing targets that need
 to be treated specially.
 For example, the GHC build system generates different compilation rules
 for each combination of package, compiler version, and build way
@@ -142,15 +142,15 @@ way} \lst'p' (i.e. with the profiling information enabled), we need to add
 from the \lst'base' library using the \lst'Stage1' GHC, we need to add
 \lst'-this-unit-id base' to the command line.
 
-\lst'WAY_p_HC_OPTS = -static -prof' is concise, but is inflexible. For example,
-if we do not want to pass \lst'-prof' flag when building a particular file, we
+\lst'WAY_p_HC_OPTS = -static -prof' is concise, but also inflexible. For example,
+if we do not want to pass the \lst'-prof' flag when building a particular file, we
 have to either add a new component to the variable name, e.g.
 \lst'WAY_p_file_HC_OPTS', or conditionally filter out the \lst'-prof' flag from
-\lst'HC_OPTS' after it is constructed and the file being built is known. Both
+\lst'HC_OPTS' after it is constructed. Both
 approaches are not scalable; consequently, much of the complexity of the GHC
 build system is caused by computing command lines. This complexity is
 unnecessary and can be tackled using high-level abstractions readily available
-in Haskell. We elaborate on this in~\S\ref{sec:expressions}, where we design a
+in Haskell. We elaborate on this solution in~\S\ref{sec:expressions}, where we design a
 DSL for succinct and type-safe computation of build command lines.
 
 % The approach allows us to write the following:
@@ -256,11 +256,12 @@ action $ withResource packageDb 1 $ cmd "ghc-pkg" ...
 \end{lstlisting}
 
 This snippet declares a global resource named \lst"packageDb" with quantity 1,
-then later calls \lst"withResource" asking for a single quantity of the resource before running the
+then later calls \lst"withResource" asking for a single quantity of the resource
+to be held while running the
 \lst'ghc-pkg' utility. Provided all \lst'ghc-pkg' calls are suitably wrapped,
 we will never run two instances simultaneously. Furthermore, thanks to the
 availability of functions, we can abstract a function that both executes
-\lst'ghc-pkg' and applies the resource.
+\lst'ghc-pkg' and takes the resource.
 % Note that build systems already schedule tasks to satisfy the implicit thread
 % resource, so having user defined resources is an obvious generalisation.
 
@@ -283,7 +284,7 @@ this pattern from the GHC build system:
   built and run the \lst'ghc-cabal' tool.
 
   One ``solution'' to this problem is to generate the \lst'.mk'
-  files and check them into the repository whenever they change, but
+  files and check them into the repository whenever they change. But
   checking in generated files is ugly and introduces more failure
   cases when the generated files get out of sync.
 
@@ -293,7 +294,7 @@ this pattern from the GHC build system:
   building, so we cannot know the dependencies of many of the Haskell
   source files until we have built the stage 1 compiler.
 
-\item Source files processed by the C preprocessor using
+\item Source files processed by the C preprocessor use
   \lst'#include' directives to include other files.  We can only
   know what the dependencies are by running the C preprocessor to
   gather the set of filenames that were included.
@@ -440,8 +441,8 @@ limitation in practice, whereas the lack of dynamic dependencies really
 
 Build systems typically spend most of their time calling out to external
 tools, e.g. compilers. But sometimes it is useful to replace external tools
-with direct functions. As an example, the Make system used \lst'xargs' to
-split command line arguments that exceed a certain size, but that did not work
+with direct functions. As an example, the Make system uses \lst'xargs' to
+split command line arguments that exceed a certain size; but \lst'xargs' does not work
 consistently across OS versions, requiring lots of conditional logic.
 Fortunately, with Haskell at our disposal, we can write:
 
@@ -455,10 +456,10 @@ chunksOfSize n = repeatedly $ \xs ->
     in splitAt (max 1 $ length ys) xs
 \end{lstlisting}
 
-\noindent Writing a small function is easy in Haskell, and even easier to test
+\noindent Writing a small function is easy in Haskell, as is testing it
 (we test this function using QuickCheck). Writing it in \lst'bash' would be infeasible.
 Reducing the specific behaviours required from external tools leads to
-significantly less cross-platform concerns.
+significantly fewer cross-platform concerns.
 
 \subsection{Summary}
 
