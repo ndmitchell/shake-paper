@@ -467,7 +467,7 @@ buildPackage context@Context {..} = do
         build $ Target context Ar objs [a]
 
 path :: Context -> FilePath
-path Context#\,#{..} = show#\,#version </> pkgName#\,#package
+path Context#\,#{..} = show#\,#version </> show#\,#package
 
 osuf :: Way -> String
 osuf Vanilla   = ".o"
