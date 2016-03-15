@@ -144,7 +144,7 @@ packages with the \lst'Package' type, see
 Figure~\ref{fig:abstractions}~(Build types). A package is identified by a
 unique \lst'PackageName' and a \lst'FilePath' pointing to its location in the
 source tree. A GHC package can be a library (e.g. \lst'array') or a program
-(e.g. \lst'genprimopcode'), which is captured by \lst'PackageType'. There are
+(e.g. \lst'haddock'), which is captured by \lst'PackageType'. There are
 32 libraries and 18 programs (the latter includes GHC itself and various utilities).
 
 A package can be built multiple \emph{ways}, for example, to produce a library
@@ -187,7 +187,7 @@ during which an internal builder is built, the way it is built, and the package
 containing the sources (all captured by a \lst'Context'); \lst'Nothing' is
 known about the provenance of external builders.
 
-\newcommand{\bptab}[1]{\hspace{.143\textwidth}\rlap{#1}}
+\newcommand{\bptab}[1]{\hspace{.108\textwidth}\rlap{#1}}
 
 \begin{lstlisting}
 builderProvenance :: Builder -> Maybe Context
