@@ -268,12 +268,12 @@ instance Rule ConfigKey String
 
 main = shake shakeOptions $ do
     rule $ \(ConfigMap file) -> Just $ do
-        src <- readFile' file
-        return $ parseConfig src
+        cfg <- readFile' file
+        return $ parseConfig cfg
 
     rule $ \(ConfigKey key) -> Just $ do
-        [mp] <- apply [ConfigMap "config.file"]
-        return $ mp Map.! key
+        [dict] <- apply [ConfigMap "config.file"]
+        return $ dict Map.! key
 
     "*.o" %> \out -> do
         [cc] <- apply [ConfigKey "cc"]
@@ -283,9 +283,9 @@ main = shake shakeOptions $ do
 parseConfig :: String -> Map String String
 parseConfig = ...
 \end{lstlisting}
-\noindent We define two new types of rule. We define a rule from configuration
-file to the key/value pairs it contains, using the \lst'ConfigMap' type. Next we
-define a rule from a single key in the configuration file to the associated value,
+\noindent We define two new types of rule. First, we define a rule from
+configuration file to the key/value map it contains, using the
+\lst'ConfigMap' type. Next we define a rule from a single key in the configuration file to the associated value,
 using the \lst'ConfigKey' type. We define \lst'Rule' instances to declare these
 new rule types to Shake, allowing us to use \lst'rule' and \lst'apply' from
 Figure~\ref{fig:shake-api}.
@@ -302,7 +302,7 @@ for \lst'ConfigKey' we use the value of \lst'ConfigMap'. When defining \lst'*.o'
 we use the value of \lst'ConfigKey "cc"'.
 \end{itemize}
 
-Crucially, Shake treats these computation incrementally: it parses each
+Crucially, Shake treats these computations incrementally: it parses each
 configuration file only once, regardless of the number of uses of \lst'apply'; and
 it re-runs rules that look up key \lst'ConfigKey "cc"' only if the
 name of the C compiler actually changes.  So if file \lst'config.file' changes,
@@ -340,10 +340,10 @@ not change, the \lst'*.o' rule will not re-run.
 %
 % Using oracles we are freed from defining our own \lst'Rule' instance and can use a type-safe version of \lst'apply' tailored to our particular oracle. The definition of oracles is only a handful of lines long, but sharply decreases the number of Shake concepts that must be understood to define non-file rules following the typical pattern. All non-file rules in GHC are implemented using oracles.
 
-The use of non-file rule types is common in large build systems, we use ten
-different types in our implementation of GHC's build system in \S\ref{sec:ghc}.
-Polymorphic dependencies do not give any fundamental additional expressive power
-over file rules, but they do provide:
+The use of non-file rule types is common in large-scale build systems; for
+example, we use ten different types in our implementation of GHC's build system
+in \S\ref{sec:ghc}. Polymorphic dependencies do not give any fundamental
+additional expressive power over file rules, but they do provide:
 
 \begin{itemize}
 \item An easy way to get distinct keys, by using a freshly defined type.
