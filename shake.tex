@@ -221,7 +221,7 @@ does \emph{not} include \lst'config.h' to rebuild unnecessarily if
 A better solution is to use order-only dependencies, with the expression
 \lst'orderOnly ["config.h"]'. This expression ensures that \lst'config.h' has
 been built and is up-to-date before continuing, but does not introduce a
-dependency on \lst'config.h'; that is, if \lst'config.h' changes
+dependency on \lst'config.h': if \lst'config.h' changes
 the rule will not be re-run. Afterwards, if the file turns out to have been
 required, \lst'needed' can be used to express the dependency.
 
@@ -260,6 +260,7 @@ the single configuration file into one file per key, where each file is only
 updated if that key changes, but that might result in thousands of files.
 Instead, we can define a rule to map from configuration keys to values.
 
+\begin{figure}
 \begin{lstlisting}
 newtype ConfigMap = ConfigMap FilePath deriving ...
 instance Rule ConfigMap (Map String String)
@@ -284,8 +285,11 @@ main = shake shakeOptions $ do
 parseConfig :: String -> Map String String
 parseConfig = ...
 \end{lstlisting}
-\noindent We define two new types of rule. First, we define a rule from
-configuration file to the key/value map it contains, using the
+\caption{Using polymorphic dependencies in Shake\label{fig:polymorphic-deps}}
+\end{figure}
+
+In Figure~\ref{fig:polymorphic-deps} we define two new types of rule. First, we
+define a rule from configuration file to the key/value map it contains, using the
 \lst'ConfigMap' type. Next we define a rule from a single key in the configuration file to the associated value,
 using the \lst'ConfigKey' type. We define \lst'Rule' instances to declare these
 new rule types to Shake, allowing us to use \lst'rule' and \lst'apply' from
@@ -375,7 +379,7 @@ the hard-drive.
 concurrent processes, for example ModelSim.
 \end{itemize}
 
-\noindent Rules using such limited \emph{resources} should not be run in
+Rules using such limited \emph{resources} should not be run in
 parallel even though they do not have explicit dependencies between them. Build systems
 typically obey such constraints by setting an artifically low CPU limit, pausing rules
 competing for the resource, or adding fake dependencies to seralise the rules.
