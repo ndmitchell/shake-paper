@@ -3,7 +3,7 @@
 Many of the issues raised in~\S\ref{sec:challenges} stem from the fact
 that Make was never designed to be a programming language.  A
 promising approach is, therefore, abandon Make in favour of an
-embedded domain-specfic language (DSL), so that we have access to the full
+embedded domain-specific language (DSL), so that we have access to the full
 static typing and abstraction facilities of the host language.
 We did exactly that with GHC's build system, replacing Make with
 Shake, a DSL embedded in Haskell~\cite{shake}. In this section we
@@ -54,7 +54,7 @@ end with the extension \lst'.o'. The \lst'%>' operator produces a rule of type
 \lst'Rules' which takes a pattern on the left, and an \lst'Action' on the
 right. The variable \lst'out' will be bound to the actual file being produced,
 namely \lst'foo.o' in this example.
-\item[Line 10] computes the name of the source file, i.e. \lst'src = "foo.c"'. 
+\item[Line 10] computes the name of the source file, i.e. \lst'src = "foo.c"'.
 \item[Line 11] uses the Shake function \lst'need' to ensure \lst'foo.c' has been built before
 continuing, and to introduce a dependency that if \lst'foo.c' changes then this
 rule will require rerunning.
@@ -242,7 +242,7 @@ implemented on top of the \lst'need' primitive.
 While build-systems are typically focused around files, the core of Shake is
 fully polymorphic, operating on objects that are uniquely labelled by a
 \lst'key' and have rules that produce a \lst'value'.
-In the case of files, they key is the filename and the value is the modification 
+In the case of files, they key is the filename and the value is the modification
 time, or content hash (\S\ref{sec:file-contents}).
 Using the polymorphic API we can define new types of rules to track additional
 dependencies.
@@ -254,7 +254,7 @@ name (\lst'gcc') is obtained from a configure script that produces a
 configuration file containing many key/value pairs. The \lst'*.o' rule could
 \lst'need' the configuration file, and parse it to extract the compiler name,
 but that would be wildly over-conservative: \emph{any} change to the
-configuration file would cause \emph{all} rules using the C compiler to rebuild, 
+configuration file would cause \emph{all} rules using the C compiler to rebuild,
 \emph{even if the compiler name did not change}. Alternatively, we could have rules to split
 the single configuration file into one file per key, where each file is only
 updated if that key changes, but that might result in thousands of files.
@@ -319,7 +319,7 @@ not change, the \lst'*.o' rule will not re-run.
 % keys, declaring the associated value to be of type \lst'String'. We are only
 % required to implement the \lst'storedValue' method, where we declare that the
 % rule producing the config key is not stored separately on disk.
-% 
+%
 % Next we use \lst'rule' to describe how to generate the value associated with
 % \lst'ConfigKey', using \lst"readFile'" to read the config file, and assuming the
 % existence of a suitable \lst'parseConfig' function. We use \lst'apply' to force
@@ -381,8 +381,8 @@ concurrent processes, for example ModelSim.
 
 Rules using such limited \emph{resources} should not be run in
 parallel even though they do not have explicit dependencies between them. Build systems
-typically obey such constraints by setting an artifically low CPU limit, pausing rules
-competing for the resource, or adding fake dependencies to seralise the rules.
+typically obey such constraints by setting an artificially low CPU limit, pausing rules
+competing for the resource, or adding fake dependencies to serialise the rules.
 All these solutions fail to make best use of the available CPUs, and the fake
 dependencies are also fragile and tricky to implement.
 

@@ -75,10 +75,10 @@ affected rules. We currently only track command line arguments, therefore other,
 more subtle modifications of the build system (\lst'U10') are unnoticed.
 
 % Working with multiple \lst'git' branches is a problematic use-case for build
-% systems based on Make (as discissed in the second bullet point of
+% systems based on Make (as discussed in the second bullet point of
 % \S\ref{sec:file-contents}). In \lst'U10' we conduct the following simple
 % experiment:
-% 
+%
 % \begin{lstlisting}
 % $ build
 % $ git checkout -b test
@@ -86,7 +86,7 @@ more subtle modifications of the build system (\lst'U10') are unnoticed.
 % $ git checkout master
 % $ build
 % \end{lstlisting}
-% 
+%
 % We expect the second \lst'build' to do nothing, since the \lst'master'
 % branch has not changed. However, \lst'git checkout master' changes modification
 % time of all files that were updated between branches, forcing the new
@@ -106,7 +106,7 @@ the old one performs a lot of unnecessary rebuilds in all but simple cases.
 \subsection{Benchmarks\label{sec:benchmarks}}
 
 When building from scratch, ignoring the initial \lst'boot'/\lst'configure'
-steps which are shared, the old build system takes 1266 seconds on Windows and 
+steps which are shared, the old build system takes 1266 seconds on Windows and
 649 seconds on Linux; while the new build system takes 737 seconds on Windows and
 578 seconds on Linux. These were tested in as similar configurations as we could
 manage (by disabling all the features the new system does not support),

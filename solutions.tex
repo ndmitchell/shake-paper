@@ -111,7 +111,7 @@ arbitrary predicate to exert more precise control over what matches.
 
 An alert reader may have noticed that \lst'$1_$2_$3_HC_OPTS' refers to
 \lst'$3', which is not related to the file being built. Indeed, the
-macro argument \lst'$3' specifies \emph{how} the file must be built. 
+macro argument \lst'$3' specifies \emph{how} the file must be built.
 The next subsection discusses this pattern and associated challenges.
 
 \subsection{Computing command lines\label{sec:command-lines}}
@@ -140,7 +140,7 @@ $1_$2_$3_HC_OPTS = $$(WAY_$3_HC_OPTS) \
 way} \lst'p' (i.e. with the profiling information enabled), we need to add
 \lst'-static -prof' to the command line. Furthermore, when we compile targets
 from the \lst'base' library using the \lst'Stage1' GHC, we need to add
-\lst'-this-unit-id base' to the command line. 
+\lst'-this-unit-id base' to the command line.
 
 \lst'WAY_p_HC_OPTS = -static -prof' is concise, but is inflexible. For example,
 if we do not want to pass \lst'-prof' flag when building a particular file, we
@@ -161,11 +161,11 @@ DSL for succinct and type-safe computation of build command lines.
 %     , file "//special.o" ? remove ["-prof"]
 %     , ... ]
 % \end{lstlisting}
-% 
+%
 % \noindent Here the first line tells us that \lst'hc_opts' is applicable only
 % when running GHC; the second line appends \lst'-static -prof' in profiling way; and
-% finally flag \lst'-prof' is removed when we build \lst'special.o'. 
-% 
+% finally flag \lst'-prof' is removed when we build \lst'special.o'.
+%
 % Large-scale software projects may contain thousands of such special cases
 % defined throughout the build system, possibly by different authors. Determining
 % the provenance of each argument in the final command line is therefore very
@@ -174,7 +174,7 @@ DSL for succinct and type-safe computation of build command lines.
 
 % The question of provenance is particularly important in large multi-author build
 % systems, but generally not something that is addressed anywhere - one of our key
-% inovations in \S?. The encapsulation is provided by Haskell modules. The lack of
+% innovations in \S?. The encapsulation is provided by Haskell modules. The lack of
 % freedom is provided by strong name binding. The problems related to `:' go away
 % by manipulating values rather program text.
 
@@ -188,7 +188,7 @@ DSL for succinct and type-safe computation of build command lines.
 % abstractions, and then define the majority of the build system using only these
 % abstractions. The end result is that most edits to the build system involve only
 % the DSL, and can be performed by a large number of individuals.
-% 
+%
 % After dealing with the DSL, there are usually a few pieces left over, and these
 % can be implemented in Shake, as normal. Thanks to the power of Shake you can
 % interpret the DSL and combine it with the custom pieces. In our experience by
@@ -322,7 +322,7 @@ solution for several reasons:
   the previous one is complete.
 \item Knowing what targets to put in each phase requires a deep
   understanding of generated parts of the build system and their dependencies,
-  and this area of our build system is notoriously difficult to work on. 
+  and this area of our build system is notoriously difficult to work on.
   Diagnosing problems is particularly hard.
 \item We have to run all the phases even when doing an incremental build,
  because explicit phases preclude dependency tracking across the phase boundary.
