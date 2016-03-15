@@ -54,17 +54,17 @@ which is unnecessary. In \lst'U6' the modification of \lst'Prelude.hs' leads to
 changes in \lst'Prelude.o', which causes all dependencies to be rebuilt. Both
 build systems handle this case correctly.
 
-\lst'U7-U8' are similar, but we now modify sources of \lst'ghc-cabal' build
+\lst'U7-U8' are similar, but we now modify sources of the \lst'ghc-cabal' build
 tool. The old build system rebuilds almost everything in both cases,
-which is unnecessary. Rebuilds are caused by rerunning updated \lst'ghc-cabal'
+which is unnecessary. Rebuilds are caused by rerunning the updated \lst'ghc-cabal'
 binary, which changes modification time of generated \lst'package-data.mk'
 files. The lack of polymorphic dependencies means we have to depend on the whole
 file when using Make, therefore even if only one field in a
 \lst'package-data.mk' file is changed, e.g. \lst'CC_OPTS', we end up
 rebuilding everything, not only C compilation rules that depend on
 \lst'CC_OPTS'. The new build system uses Shake's polymorphic
-dependencies~\S\ref{sec:polymorphic} to avoid such unnecessary rebuilds. Note
-however, that \lst'U7' behaviour is still suboptimal: \lst'ghc-cabal' rules
+dependencies~\S\ref{sec:polymorphic} to avoid such unnecessary rebuilds. However,
+\lst'U7' behaviour is still suboptimal: \lst'ghc-cabal' rules
 are rerun, because GHC currently produces non-deterministic output
 (\lst'ghc-cabal''s binary is changed).
 
@@ -72,7 +72,7 @@ In \lst'U9' we modify the build system itself by changing command line
 arguments for one of the build files. The old build system rebuilds nothing,
 as Make does not track such changes. The new build system correctly reruns all
 affected rules. We currently only track command line arguments, therefore other,
-more subtle modifications of the build system (\lst'U10') are unnoticed.
+more subtle modifications of the build system (\lst'U10') go unnoticed.
 
 % Working with multiple \lst'git' branches is a problematic use-case for build
 % systems based on Make (as discussed in the second bullet point of
@@ -95,13 +95,13 @@ more subtle modifications of the build system (\lst'U10') are unnoticed.
 % allows us to avoid such unnecessary rebuils.
 
 In \lst'U11' we modify the build environment, by changing the path to \lst'gcc'
-in the configuration files. As in \lst'U7-U8', the old build system rebuilds
+in the configuration file. As in \lst'U7-U8', the old build system rebuilds
 almost everything since depending on a single configuration setting is not
 supported. The new build system correctly reruns only affected rules.
 %\todo{\textbf{Andrey}: Add \lst'U12', edit cabal.in case.}
 
 In summary, the new build system correctly handles most use cases, whereas
-the old one performs a lot of unnecessary rebuilds in all but simple cases.
+the old one performs a lot of unnecessary rebuilds in many cases.
 
 \subsection{Benchmarks\label{sec:benchmarks}}
 
@@ -119,7 +119,7 @@ using \lst'-j4'.
 Since Shake and Haskell both provide profiling and analysis tools, we have
 already used these features to optimise the new build system, resulting in
 modest gains so far and several opportunities we have yet to exploit. Looking at
-the current full build time of 737 seconds, the longest single task is
+the current full Windows build time of 737 seconds, the longest single task is
 building the GMP library (315 seconds), and the total time of single-threaded
 computation is 2206 seconds, of which 2099 is calling out to external processes.
 The critical dependency chain has 378 steps in it, and requires 463 seconds -- a
