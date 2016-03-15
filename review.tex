@@ -60,6 +60,7 @@ approach, with various rule types baked in. As an example, the \lst'cxx_binary'
 rule builds a C/C++ binary given a list of source files and dependencies,
 taking care of suitable build flags and conventions, much like a very sophisticated
 version of \lst'buildPackage' from~\S\ref{sec:build-example}.
+
 The disadvantage of such an approach is that the available rules are fixed,
 making it difficult to encode something like a bootstrapping compiler.
 Generating source files is not really supported -- a problem typically solved by
