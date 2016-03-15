@@ -37,7 +37,7 @@ feature\footnote{\scriptsize\urlstyle{sf}\url{https://ghc.haskell.org/trac/ghc/w
 in GHC), and permits easy configuration. As an example:
 
 \begin{lstlisting}
-builder Ghc ? way profiling ? arg "-prof"
+builderGhc ? way profiling ? arg "-prof"
 \end{lstlisting}
 
 \noindent This expression adds the \lst'-prof' argument to the command line when
@@ -191,7 +191,6 @@ known about the provenance of external builders.
 \begin{lstlisting}
 builderProvenance :: Builder -> Maybe Context
 builderProvenance x = case x of
-#\itab{~~~GenPrimopCode} \bptab{$\rightarrow$ Just$\,$(Context$\,$Stage0$\,$genprimopcode$\,$vanilla)}#
 #\itab{~~~Ghc Stage0} \bptab{$\rightarrow$ Nothing}#
 #\itab{~~~Ghc stage} \bptab{$\rightarrow$ Just \$ Context (pred stage) ghc vanilla}#
 #\itab{~~~Haddock} \bptab{$\rightarrow$ Just \$ Context Stage2 haddock vanilla}#
@@ -349,7 +348,7 @@ line arguments for GHC as follows:
 
 \begin{lstlisting}
 ghcArgs :: Args
-ghcArgs = builder Ghc ? mconcat
+ghcArgs = builderGhc ? mconcat
     [ arg "-O2"
     , way profiling ? arg "-prof"
     , arg "-c", arg =<< getInput
@@ -436,7 +435,7 @@ abstractions introduced in this section.
 #\line(1,0){240}#
 args :: Args#\hspace{33mm}\textbf{\emph{Command~line~arguments}}#
 args = mconcat
-    [ builder Ghc ? mconcat
+    [ builderGhc ? mconcat
         [ arg "-O2"
         , way Profiling ? arg "-prof"
         , arg "-c", arg =<< getInput
@@ -449,7 +448,7 @@ args = mconcat
 
     , file "//base/GHC/IO.*" ? arg "-funbox-strict-fields"
 
-    , builder Ghc ? package Array ? arg "-Wall" ]
+    , builderGhc ? package Array ? arg "-Wall" ]
 #\vspace{-5mm}#
 #\line(1,0){240}#
 buildPackage :: Context -> Rules ()#\hspace{20.5mm}\textbf{\emph{Build rules}}#
