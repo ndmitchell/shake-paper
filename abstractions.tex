@@ -54,7 +54,7 @@ be useful to others.
 \newcommand{\ptab}[1]{\hspace{.074\textwidth}\rlap{#1}}
 \newcommand{\cotab}[1]{\hspace{.064\textwidth}\rlap{#1}}
 \newcommand{\ttab}[1]{\hspace{.058\textwidth}\rlap{#1}}
-\newcommand{\tytab}[1]{\hspace{.06\textwidth}\rlap{#1}}
+\newcommand{\tytab}[1]{\hspace{.083\textwidth}\rlap{#1}}
 \newcommand{\atab}[1]{\hspace{.102\textwidth}\rlap{#1}}
 
 \begin{figure}
@@ -120,6 +120,7 @@ way w = do
 #\itab{stage} \tytab{:: Stage} \atab{$\rightarrow$ Expr Bool}#
 #\itab{package} \tytab{:: Package} \atab{$\rightarrow$ Expr Bool}#
 #\itab{builder} \tytab{:: Builder} \atab{$\rightarrow$ Expr Bool}#
+#\itab{builderGhc} \tytab{:: Expr Bool}#
 #\itab{file} \tytab{:: FilePattern} \atab{$\rightarrow$ Expr Bool}#
 
 (?) :: Monoid a => Expr Bool -> Expr a -> Expr a
