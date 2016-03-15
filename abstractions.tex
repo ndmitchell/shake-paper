@@ -115,7 +115,7 @@ interpret target args = do
 way :: Way -> Expr Bool#\hspace{35mm}\textbf{\emph{Predicates}}#
 way w = do
     target <- ask
-    return $ way (context target) == w
+    return $ Context.way (context target) == w
 
 #\itab{stage} \tytab{:: Stage} \atab{$\rightarrow$ Expr Bool}#
 #\itab{package} \tytab{:: Package} \atab{$\rightarrow$ Expr Bool}#
