@@ -63,7 +63,7 @@ version of \lst'buildPackage' from~\S\ref{sec:build-example}.
 
 The disadvantage of such an approach is that the available rules are fixed,
 making it difficult to encode something like a bootstrapping compiler.
-Generating source files is not really supported -- a problem typically solved by
-committing generated files to version control. Both tools also support build
+Generating build metadata is not really supported -- a problem typically solved by
+committing the generated files to version control. Both tools also support build
 clusters, which build code once and share the resulting objects to everyone
 without recompiling them locally -- an essential feature at such scales.
