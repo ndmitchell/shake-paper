@@ -538,9 +538,9 @@ prevent us from using the same abstractions.
 & Only \textsf{Prelude.o} is rebuilt \hfill \checkedbox
 \\
 \textsf{U6:} Modify code: \hspace{1.75mm}\textsf{libraries/base/Prelude.hs}
-& \textsf{Prelude.o} and all its dependencies \hfill \checkedbox \newline
+& \textsf{Prelude.o} and all its dependents \hfill \checkedbox \newline
 are rebuilt
-& \textsf{Prelude.o} and all its dependencies \hfill \checkedbox \newline
+& \textsf{Prelude.o} and all its dependents \hfill \checkedbox \newline
 are rebuilt
 \\
 \textsf{U7:} Add comment: \textsf{utils/ghc-cabal/Main.hs}
@@ -555,7 +555,7 @@ are rebuilt
 \textsf{U9:} $\textit{~~}$Modify the build system: pass \textsf{-O2} when
 \newline $\textit{~~~~~~~~~}$compiling Stage2 GHC
 & Nothing is rebuilt \hfill \uncheckedbox
-& Stage2 GHC and its dependencies \hfill \checkedbox \newline are rebuilt
+& Stage2 GHC and its dependents \hfill \checkedbox \newline are rebuilt
 \\
 \textsf{U10:} Modify the build system without changing \newline
 $\textit{~~~~~~~~~}$command line arguments of build tools
@@ -569,7 +569,7 @@ $\textit{~~~~~~~~~}$command line arguments of build tools
 % \\
 \textsf{U11:} Change path to \textsf{gcc}
 & Everything is rebuilt \hfill \uncheckedbox
-& Files depending on \textsf{gcc} are rebuilt \hfill \checkedbox
+& Only \textsf{gcc} dependents are rebuilt \hfill \checkedbox
 \\
 \end{tabular}
 \caption{Comparison of GHC build systems on common use cases. Checkmarks

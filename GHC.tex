@@ -72,7 +72,13 @@ In \lst'U9' we modify the build system itself by changing command line
 arguments for one of the build files. The old build system rebuilds nothing,
 as Make does not track such changes. The new build system correctly reruns all
 affected rules. We currently only track command line arguments, therefore other,
-more subtle modifications of the build system (\lst'U10') go unnoticed.
+more subtle modifications of the build system (\lst'U10') go unnoticed, for
+example, adding a new \lst'need' dependency does not cause a rebuild.
+In \lst'U11' we modify the build environment, by changing the path to \lst'gcc'
+in the configuration file. As in \lst'U7-U8', the old build system rebuilds
+almost everything since depending on a single configuration setting is not
+supported. The new build system correctly reruns only affected rules.
+%\todo{\textbf{Andrey}: Add \lst'U12', edit cabal.in case.}
 
 % Working with multiple \lst'git' branches is a problematic use-case for build
 % systems based on Make (as discussed in the second bullet point of
@@ -93,12 +99,6 @@ more subtle modifications of the build system (\lst'U10') go unnoticed.
 % build system to rerun all dependent rules (as in \lst'U4'). Shake's ability to
 % track file contents in addition to modification time~\S\ref{sec:file-contents}
 % allows us to avoid such unnecessary rebuils.
-
-In \lst'U11' we modify the build environment, by changing the path to \lst'gcc'
-in the configuration file. As in \lst'U7-U8', the old build system rebuilds
-almost everything since depending on a single configuration setting is not
-supported. The new build system correctly reruns only affected rules.
-%\todo{\textbf{Andrey}: Add \lst'U12', edit cabal.in case.}
 
 In summary, the new build system correctly handles most use cases, whereas
 the old one performs a lot of unnecessary rebuilds in many cases.
