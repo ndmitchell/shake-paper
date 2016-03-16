@@ -251,7 +251,7 @@ In Shake, the solution is to use the \emph{resources} feature
 
 \begin{lstlisting}
 packageDb <- newResource "package-db" 1
-
+...
 action $ withResource packageDb 1 $ cmd "ghc-pkg" ...
 \end{lstlisting}
 

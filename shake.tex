@@ -199,7 +199,7 @@ we have told Shake ``too late'', and Shake may now regenerate the file
 % previous header contents.
 
 We solve this problem by using \lst'needed' instead of \lst'need', which
-combines \lst'need' which an assertion that the file does not change as a result
+combines \lst'need' with an assertion that the file does not change as a result
 of building, and thus the result is consistent. In the common case of the header
 files being source files, the associated rule will be the default file rule,
 which does not modify the file, and the assertion will not trigger.
