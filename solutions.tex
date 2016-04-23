@@ -339,7 +339,7 @@ go away.  The \lst"need" function can introduce new dependencies
 suggested that the dependency mechanism in Shake should rightly be called
 \emph{Monadic dependencies} to contrast with the \emph{Applicative dependencies}
 in Make. We agree. In an applicative computation the structure cannot depend on
-the values flowing through container. In a monadic computation the structure can
+the values flowing through the container. In a monadic computation the structure can
 depend on the values.}
 (see \S\ref{sec:need}). For example, when building a Haskell package, we first
 \lst"need" the \lst'ghc-cabal' tool, then we run it on the package's \lst'.cabal' file to
