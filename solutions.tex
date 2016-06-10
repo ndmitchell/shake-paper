@@ -313,14 +313,14 @@ between the generated Makefiles, which arises in more complex cases.
 The GHC build system works around this limitation of Make by
 dividing the build system into \emph{phases}, where each phase
 generates the parts of the build system that are required by
-subsequent phases. We managed to reduce the number of phases to
+subsequent phases. The GHC developers managed to reduce the number of phases to
 three, by carefully making use of Make's automatic restarting
 feature where possible. However, explicit phases are a terrible
 solution for several reasons:
 
 \begin{itemize}
 \item Phases reduce concurrency: we cannot start the next phase until
-  the previous one is complete.
+  the previous phase is complete.
 \item Knowing what targets to put in each phase requires a deep
   understanding of generated parts of the build system and their dependencies,
   and this area of our build system is notoriously difficult to work on.
