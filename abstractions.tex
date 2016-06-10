@@ -410,14 +410,13 @@ build target@Target {..} = do
   \lst'system.config' file.
   \item We \lst'need' the builder to make sure it is up-to-date. Some builders
   are built by the build system, e.g. \lst'genprimopcode',
-  \lst'ghc-cabal', \lst'Stage1' GHC, so it is important to rebuild them (as well
-  as all dependent targets) if needed.
+  \lst'ghc-cabal', \lst'Stage1' GHC, so it is important to rebuild them if needed.
   \item The function \lst'checkArgsHash :: Target -> Action ()' checks whether the
-  \lst'target' needs to be rebuilt because the command line computed from
-  \lst'args' expression has changed since the previous build. If it has,
-  the target is rebuilt even if it is otherwise up-to-date. This step tracks changes both in
-  the environment and in the build system itself. We
-  track command line hashes using polymorphic dependencies, see~\S\ref{sec:polymorphic}.
+  command line computed from \lst'args' expression has changed since the
+  previous build. If it has, the target is rebuilt even if it is otherwise
+  up-to-date. This step tracks changes both in the environment and in the build
+  system itself. We track command lines using polymorphic dependencies,
+  see~\S\ref{sec:polymorphic}.
   \item We \lst'interpret' the \lst'args' expression w.r.t. to the
   \lst'target', and obtain the list \lst'argList :: [String]' of arguments to be
   passed to the builder. See Figure~\ref{fig:abstractions} for the implementation of
