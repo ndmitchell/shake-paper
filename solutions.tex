@@ -158,7 +158,7 @@ DSL for succinct and type-safe computation of build command lines.
 % hc_opts = builder Ghc ? mconcat
 %     [ way profiling ? append ["-static", "-prof"]
 %     , ...
-%     , file "//special.o" ? remove ["-prof"]
+%     , output "//special.o" ? remove ["-prof"]
 %     , ... ]
 % \end{lstlisting}
 %

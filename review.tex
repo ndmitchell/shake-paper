@@ -8,9 +8,9 @@ development effort, and that improvements to the build system rapidly paid off.
 Recently \citet{martin:make_it_simple} surveyed which Make features are used,
 and then \citet{martin:maintenance_complexity_makefiles} classified them by
 complexity -- unsurprisingly they found that as Makefiles grow, their complexity
-increases, and that the features required for hand written Makefiles are those
-which are most complex. In the remainder of this section we focus on some of the
-features found in other build systems which could be useful at scale.
+increases, and that hand written Makefiles require most complex features. In
+the remainder of this section we focus on some of the features found in other
+build systems which could be useful at scale.
 
 \subsection{Embedded language}
 
@@ -35,7 +35,7 @@ places, if they are missing the workarounds can be pervasive
 (\S\ref{sec:dynamic-deps}). A few build systems support resources, e.g.
 Ninja \cite{ninja}, and several support monadic dependencies, e.g. Redo
 \cite{redo}, Jenga, Pluto, SCons. A few build systems directly support
-dependency features more powerful than Shake, for example Pluto supports rules
+dependency features more powerful than Shake, e.g. Pluto supports rules
 that run until a fixed-point is reached and rules whose output filename is not known in
 advance. These features can be encoded in Shake, but are not present natively.
 

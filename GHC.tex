@@ -2,23 +2,28 @@
 
 In this section we report on our experience of applying the techniques presented
 so far to building a large-scale software project: the Glasgow Haskell Compiler.
-
-\subsection{Current status and limitations\label{sec:limitations}}
-
 We implemented a new build system for GHC from scratch using Shake and our build
-abstractions from~\S\ref{sec:abstractions}. The current implementation can build
-\lst'Stage2' GHC, but has the following limitations:
-\begin{itemize}
-  \item We only build \lst'vanilla' and \lst'profiling' way.
-  \item We reuse GHC testing infrastructure of the old build system.
-  \item Only HTML documentation can be built.
-  \item Not all build flavours and command line flags are supported.
-  \item Cross-compilation is not implemented.
-  \item Installation or binary/source distribution are not supported.
-\end{itemize}
-
-\noindent We intend to fix the above in the near future; nothing presents any
+abstractions from~\S\ref{sec:abstractions}. The new build system does not yet
+implement the full functionality of the old build system, but we are
+currently addressing remaining limitations; nothing presents any
 new challenges or requires changes to the build infrastructure.
+
+% \subsection{Current status and limitations\label{sec:limitations}}
+% 
+% We implemented a new build system for GHC from scratch using Shake and our build
+% abstractions from~\S\ref{sec:abstractions}. The current implementation can build
+% \lst'Stage2' GHC, but has the following limitations:
+% \begin{itemize}
+%   \item We only build \lst'vanilla' and \lst'profiling' way.
+%   \item We reuse GHC testing infrastructure of the old build system.
+%   \item Only HTML documentation can be built.
+%   \item Not all build flavours and command line flags are supported.
+%   \item Cross-compilation is not implemented.
+%   \item Installation or binary/source distribution are not supported.
+% \end{itemize}
+%
+% \noindent We intend to fix the above in the near future; nothing presents any
+% new challenges or requires changes to the build infrastructure.
 
 \subsection{Qualitative analysis\label{sec:use-cases}}
 
@@ -103,7 +108,7 @@ supported. The new build system correctly reruns only affected rules.
 In summary, the new build system correctly handles most use cases, whereas
 the old one performs a lot of unnecessary rebuilds in many cases.
 
-\subsection{Benchmarks\label{sec:benchmarks}}
+\subsection{Quantitative analysis: benchmarks\label{sec:benchmarks}}
 
 When building from scratch, ignoring the initial \lst'boot'/\lst'configure'
 steps which are shared, the old build system takes 1266 seconds on Windows and

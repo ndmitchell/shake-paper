@@ -12,18 +12,22 @@ more correct. There are three major tasks remaining for future work:
 
 \begin{itemize}
 \item While we have demonstrated that our approach works, we have not yet
-implemented all the corners of the build system, and hope to do so over the next
+implemented all features of the build system, and hope to do so over the next
 few months. Once complete, we expect it to quickly become the only supported
 method of building GHC.
 
 \item Our abstractions from \S\ref{sec:abstractions} were designed to allow
 tracking provenance of command line arguments -- mapping each flag to the
 location of the expression that generated it. This feature relies on the
-\emph{implicit locations} feature of the latest pre-release GHC.
+\emph{implicit locations} feature of the latest GHC.
+
+% using the new \emph{implicit locations}
+% feature\footnote{\scriptsize\urlstyle{sf}\url{https://ghc.haskell.org/trac/ghc/wiki/ExplicitCallStack/ImplicitLocations}$\!\!\!$}
+% in GHC
 
 \item While faster than the old system, the build is still slower than we would
 like. The zero build time could be reduced by switching to a more performant serialisation
-library. When doing a full rebuild, the critical path takes over seven minutes, limiting the
-gains available from additional processors. We hope to break this critical path
+library. The critical path of a full rebuild takes over seven minutes, limiting
+the gains available from additional processors. We hope to break this critical path
 by refactoring -- a feasible task in the new system.
 \end{itemize}

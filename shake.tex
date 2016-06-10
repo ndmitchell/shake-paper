@@ -7,10 +7,10 @@ embedded domain-specific language (DSL), so that we have access to the full
 static typing and abstraction facilities of the host language.
 We did exactly that with GHC's build system, replacing Make with
 Shake, a DSL embedded in Haskell~\cite{shake}. In this section we
-recap the key ideas behind Shake, and also describe some of the additional
-features provided by Shake, but not covered in the original paper. These
-features are of general use, and all predate our efforts to replace the GHC build
-system.
+recap the key ideas behind Shake (\S\ref{sec:shake_intro}-\S\ref{sec:need}), and
+also describe some of the additional features provided by Shake, but not covered
+in the original paper (\S\ref{sec:needed}-\S\ref{sec:file-contents}). These features
+are of general use, and all predate our efforts to replace the GHC build system.
 
 \subsection{Introduction\label{sec:shake_intro}}
 
@@ -97,15 +97,16 @@ withResource :: Resource -> Int -> Action a -> Action a
 #\vspace{-5mm}#
 #\line(1,0){240}#
 type FilePattern = String#\hspace{25mm}\textbf{\emph{File-specific API}}#
-want :: [FilePath] -> Rules ()
-need :: [FilePath] -> Action ()
-needed :: [FilePath] -> Action ()
-orderOnly :: [FilePath] -> Action ()
-(%>) :: FilePattern -> (FilePath -> Action ()) -> Rules ()
+want :: [FilePath] -> Rules#\,#()
+need :: [FilePath] -> Action#\,#()
+needed :: [FilePath] -> Action#\,#()
+orderOnly :: [FilePath] -> Action#\,#()
+(%>) :: FilePattern -> (FilePath -> Action#\,#()) -> Rules#\,#()
+(&%>) :: [FilePattern] -> ([FilePath] -> Action#\,#()) -> Rules#\,#()
 (?>) :: (FilePath -> Bool)#\,#->#\,#(FilePath -> Action#\,#())#\,#->#\,#Rules#\,#()
 \end{lstlisting}
-
 \caption{Shake API\label{fig:shake-api}}
+\vspace{-3mm}
 \end{figure}
 
 On the first execution, this example will start running the \lst'*.o' rule to
@@ -286,6 +287,7 @@ parseConfig :: String -> Map String String
 parseConfig = ...
 \end{lstlisting}
 \caption{Using polymorphic dependencies in Shake\label{fig:polymorphic-deps}}
+\vspace{-3mm}
 \end{figure}
 
 In Figure~\ref{fig:polymorphic-deps} we define two new types of rule. First, we
@@ -347,16 +349,16 @@ not change, the \lst'*.o' rule will not re-run.
 
 The use of non-file rule types is common in large-scale build systems; for
 example, we use ten different types in our implementation of GHC's build system
-in \S\ref{sec:ghc}. Polymorphic dependencies do not give any fundamental
+in~\S\ref{sec:ghc}. Polymorphic dependencies do not give any fundamental
 additional expressive power over file rules, but they do provide:
 
 \begin{itemize}
-\item An easy way to get distinct keys, by using a freshly defined type.
+\item An easy way to get distinct keys by using a freshly defined type.
 \item Additional structure for keys and values, instead of hierarchical
 filenames and binary content files. In particular they can contain full
 algebraic data types or associative maps.
 \item Greater granularity, by not forcing each rule to be backed by a separate
-file. GHC's build system uses 6,677 non-file rule values.
+file. GHC's build system uses 6,677 \mbox{non-file~rule~values}.
 \end{itemize}
 
 \subsection{Concurrency reduction\label{sec:concurrency-reduction}}

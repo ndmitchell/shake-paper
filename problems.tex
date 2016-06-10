@@ -84,8 +84,8 @@ problems that arose:
   accurately track dependencies when the build system is constructed
   of separate components that invoke each other.
 
-  So in the next rewrite of the build system it was made non-recursive.
-  However, in doing so, GNU Make was stretched to its absolute
+  In the next rewrite the build system was made non-recursive.
+  However, in doing so, Make was stretched to its absolute
   limits, as the example above illustrates. Every part of the rule is
   there for a good reason, but the cumulative effect of solving all
   the problems that arise in a complex build system is impenetrable.

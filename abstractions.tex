@@ -7,34 +7,47 @@
 
 In the previous section we covered how Shake helps us sidestep the unnecessary
 complexities inherent in a large-scale build system. In this section we focus on
-the complexities that remain. We want the build system to be maintainable, correct
-and fast, but also:
+the complexities that remain. In particular, we develop abstractions for
+describing build configurations on top of Shake. Common configuration settings
+include turning on/off documentation, choosing different sets of optimisation
+flags, etc. As shown in~\S\ref{sec:command-lines}, many GHC users work with GHC
+in different modes and in different environments, leading to a combinatorial
+explosion of possible configurations.
 
-\begin{itemize}
-\item The code should be simple and direct, talking about concepts familiar to
-developers, such as files that are built, tools that are used to build
-them, and their configuration settings.
-\item The code should permit configuration. Many GHC users work with GHC in
-different modes and in different environments. Common configuration settings
-include turning on/off documentation, choosing different sets of optimisation flags,
-etc.
-\item The code should permit debugging. There are many obscure configuration
-options inherent in any large software project, and the build system is where
-such knowledge usually lives. As an example, to include profiling information
-when compiling a Haskell source file with GHC we need to pass the \lst'-prof' flag.
-We want users to be able to easily determine what flags were used and why.
-\end{itemize}
-\noindent
-To address these challenges we developed a
-second DSL for describing configurations on top of Shake.
+%We want the build system to be maintainable, correct
+%and fast, but also:
+
+% \begin{itemize}
+% \item The code should be simple and direct, talking about concepts familiar to
+% developers, such as files that are built, tools that are used to build
+% them, and their configuration settings.
+% \item The code should permit configuration. Many GHC users work with GHC in
+% different modes and in different environments. Common configuration settings
+% include turning on/off documentation, choosing different sets of optimisation flags,
+% etc.
+% \item The code should permit debugging. There are many obscure configuration
+% options inherent in any large software project, and the build system is where
+% such knowledge usually lives. As an example, to include profiling information
+% when compiling a Haskell source file with GHC we need to pass the \lst'-prof' flag.
+% We want users to be able to easily determine what flags were used and why.
+% \end{itemize}
+
+% \noindent
+% To address these challenges we developed a
+% second DSL for describing configurations on top of Shake.
+
 % A solution was not obvious to us at first, but we ended up building a
 % expressions, and an interpreter that evaluates it to run the build.
 % Where the DSL would be unnecessarily complex we opt for a direct
 % implementation.
-The configuration language is tracked (if it changes, the affected build rules
-are rerun), can have provenance (using the new \emph{implicit locations}
-feature\footnote{\scriptsize\urlstyle{sf}\url{https://ghc.haskell.org/trac/ghc/wiki/ExplicitCallStack/ImplicitLocations}$\!\!\!$}
-in GHC), and permits easy configuration. As an example:
+
+We first focus on the specifics of the GHC build system
+(\S\ref{sec:ghc-context}). The remaining abstractions
+(\S\ref{sec:general-abstractions}) are independent of GHC and will,
+we believe, be useful to others. We then describe the configuration language we
+developed (\S\ref{sec:expressions}), which is tracked (if a configuration
+setting changes, the affected build rules are rerun), can have provenance
+(\S\ref{section-conclusions}), and permits easy configuration. As an example:
 
 \begin{lstlisting}
 builderGhc ? way profiling ? arg "-prof"
@@ -43,10 +56,10 @@ builderGhc ? way profiling ? arg "-prof"
 \noindent This expression adds the \lst'-prof' argument to the command line when
 building a file with GHC in the \lst'profiling' way.
 
-In this section we describe these new abstractions. \S\ref{sec:ghc-context} helps
-make our story concrete by focusing on the specifics of GHC's build system,
-but otherwise the abstractions we describe are independent of GHC and will, we believe,
-be useful to others.
+% In this section we describe these new abstractions. \S\ref{sec:ghc-context} helps
+% make our story concrete by focusing on the specifics of GHC's build system,
+% but otherwise the abstractions we describe are independent of GHC and will, we believe,
+% be useful to others.
 
 \newcommand{\itab}[1]{\hspace{0em}\rlap{#1}}
 \newcommand{\tab}[1]{\hspace{.1\textwidth}\rlap{#1}}
@@ -54,7 +67,7 @@ be useful to others.
 \newcommand{\ptab}[1]{\hspace{.074\textwidth}\rlap{#1}}
 \newcommand{\cotab}[1]{\hspace{.064\textwidth}\rlap{#1}}
 \newcommand{\ttab}[1]{\hspace{.058\textwidth}\rlap{#1}}
-\newcommand{\tytab}[1]{\hspace{.083\textwidth}\rlap{#1}}
+\newcommand{\tytab}[1]{\hspace{.103\textwidth}\rlap{#1}}
 \newcommand{\atab}[1]{\hspace{.102\textwidth}\rlap{#1}}
 
 \begin{figure}
@@ -121,7 +134,7 @@ way w = do
 #\itab{package} \tytab{:: Package} \atab{$\rightarrow$ Expr Bool}#
 #\itab{builder} \tytab{:: Builder} \atab{$\rightarrow$ Expr Bool}#
 #\itab{builderGhc} \tytab{::} \atab{~~~~Expr Bool}#
-#\itab{file} \tytab{:: FilePattern} \atab{$\rightarrow$ Expr Bool}#
+#\itab{input, output} \tytab{:: FilePattern} \atab{$\rightarrow$ Expr Bool}#
 
 (?) :: Monoid a => Expr Bool -> Expr a -> Expr a
 predicate ? expr = do
@@ -132,7 +145,7 @@ predicate ? expr = do
 \caption{GHC build system abstractions\label{fig:abstractions}}
 \end{figure}
 
-\subsection{GHC-specific abstractions\label{sec:ghc-context}}
+\subsection{\textsf{Context}\label{sec:ghc-context}}
 
 We start by describing GHC-specific build types, which form our \emph{build
 context}. By abstracting over the context in the subsequent sections we derive a
@@ -168,14 +181,13 @@ a self-test: the object code of \lst'Stage2' and \lst'Stage3' compilers
 should be the same.
 
 \lst'Stage', \lst'Package' and \lst'Way' form a GHC-specific
-\emph{build context} represented by the type \lst'Context'. A typical GHC build
-rule, such as \lst'compilePackage', depends on the context as follows: it
-uses an appropriate compiler version (e.g. the bootstrap compiler in
-\lst'Stage0'), produces object files with different extensions (e.g. vanilla
+\emph{build context} represented by the type
+\lst'Context', see Figure~\ref{fig:abstractions}. A typical GHC
+build rule, such as \lst'compilePackage', depends on the context as follows: it uses an appropriate compiler version (e.g. the bootstrap compiler in \lst'Stage0'), produces object files with different extensions (e.g. vanilla
 \lst'*.o' or profiled \lst'*.p_o' object files), puts build artifacts
 into an appropriate directory (e.g. \lst'stage1/libraries/base'), etc.
 
-\subsection{General abstractions}
+\subsection{\textsf{Builder} and \textsf{Target}\label{sec:general-abstractions}}
 
 A typical build system invokes several build tools, or \emph{builders}, such as
 compilers, linkers, etc., some of which may be built by the
@@ -210,14 +222,7 @@ Each invocation of a builder is fully described by a \lst'Target', which
 comprises a build \lst'Context', a \lst'Builder', a list of input files and
 a list of output files. 3748 targets are built when building \lst'Stage2' GHC
 with documentation (with vanilla and profiled libraries). Consider the following
-invocation of \lst'Ghc Stage1' as an example:
-
-\begin{lstlisting}
-inplace/bin/ghc-stage1 -O2 -prof -c libraries/base/Prelude.hs
-    -o build/stage1/libraries/base/Prelude.p_o
-\end{lstlisting}
-
-\noindent The corresponding \lst'Target' is:
+\lst'Target' as an example:
 
 \begin{lstlisting}
 preludeTarget = Target
@@ -242,10 +247,17 @@ command line for building \lst'build/stage1/libraries/base/Prelude.p_o':
   case.
 \end{itemize}
 
-\noindent A build system typically contains many such computations (at least one
+\noindent The resulting full command line is:
+\begin{lstlisting}
+inplace/bin/ghc-stage1 -O2 -prof -c libraries/base/Prelude.hs
+    -o build/stage1/libraries/base/Prelude.p_o
+\end{lstlisting}
+
+A build system typically contains many such computations (at least one
 for each builder) and it is important to provide a terse and readable notation to
-describe them. After experimenting with several abstractions, we converged on
-\emph{expressions}, as defined in the next subsection.
+describe the transformation from a \lst'Target' to a command line. After
+experimenting with several abstractions, we converged on \emph{expressions}, as
+defined in the next subsection.
 
 \subsection{Expressions\label{sec:expressions}}
 
@@ -306,6 +318,8 @@ many useful laws that allow us to reason about them:
   \lst'    p ? e <> q ? e === (p ||| q) ? e === q ? e <> p ? e'
   \item \itab{Complement:} \tab{\lst'p ? e <> !!!p ? e === e'}
 \end{enumerate}
+The laws appear in other applications and come with efficient proof methods,
+as studied by~\citet{pg-algebra}.
 
 \subsubsection{Extensibility}
 
@@ -447,7 +461,7 @@ args = mconcat
         , arg =<< getOutput
         , append =<< getInputs ]
 
-    , file "//base/GHC/IO.*" ? arg "-funbox-strict-fields"
+    , builderGhc ? output "//GHC/IO.*" ? arg "-funbox-strict-fields"
 
     , builderGhc ? package Array ? arg "-Wall" ]
 #\vspace{-5mm}#
@@ -516,7 +530,7 @@ prevent us from using the same abstractions.
 \hline
 \textsf{U1:} Fully-featured GHC build
 & Everything is built \hfill \checkedbox
-& Not all features supported, see~\S\ref{sec:limitations} \hfill \uncheckedbox
+& Not all features supported \hfill \uncheckedbox
 \\
 \textsf{U2:} Clean build
 & Everything is built \hfill \checkedbox
@@ -570,11 +584,11 @@ $\textit{~~~~~~~~~}$command line arguments of build tools
 \textsf{U11:} Change path to \textsf{gcc}
 & Everything is rebuilt \hfill \uncheckedbox
 & Only \textsf{gcc} dependents are rebuilt \hfill \checkedbox
-\\
 \end{tabular}
 \caption{Comparison of GHC build systems on common use cases. Checkmarks
 \checkmark indicate desired behaviour.}
 \label{tab:use-cases}
+\vspace{-3mm}
 \end{table*}
 
 Build rules are generated by the \lst'buildPackage' function, which given a
@@ -582,9 +596,11 @@ build \lst'Context', describes how to compile a Haskell source file and build a
 library by archiving the obtained object files. \lst'buildPackage' relies on
 several helper functions, which define the \lst'path' to build artifacts,
 set way-specific extensions for object and archive files, lookup
-dependencies of a source file, and compute a list of source files for a given
+dependencies of a source file, and compute source files of a
 library. Command line arguments are specified as a single expression~\lst'args',
-which makes use of package-, way-, builder-, and file-specific arguments.
+which makes use of \mbox{package-,} \mbox{way-,} builder-, and file-specific
+arguments; alternatively, parts of~\lst'args' can be defined separately and
+combined in a more modular way.
 
 The \lst'main' function is straightforward: for each possible \lst'Context'
 we request the corresponding library to be built using \lst'want', as well as
