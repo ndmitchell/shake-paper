@@ -345,7 +345,7 @@ difference list:
 \begin{lstlisting}
 append :: Monoid a => a -> Expr (Diff a)
 append x = return $ Diff (<> x)
-
+#\vspace{-1mm}#
 remove :: Eq a => [a] -> Expr (Diff [a])
 remove xs = return . Diff $ filter (`notElem` xs)
 \end{lstlisting}
@@ -390,8 +390,8 @@ args :: Args
 args = mconcat [ ghcArgs, ..., userArgs ]
 \end{lstlisting}
 
-The resulting expression is used in the \lst'build' function that is responsible
-for building a given \lst'Target':
+\noindent The resulting expression is used in the \lst'build' function that is
+responsible for building a given \lst'Target':
 
 \begin{lstlisting}
 build :: Target -> Action ()
