@@ -42,9 +42,7 @@ advance. These features can be encoded in Shake, but are not present natively.
 
 In both Shake and Make, all dependencies must be declared explicitly. However,
 in build systems such as Tup \cite{tup} and Buildsome \cite{buildsome}, some
-dependencies are automatically captured by monitoring program execution, albeit
-only \emph{after} the dependency has been used (like \lst'needed' in
-\S\ref{sec:needed}). The Fabricate tool \cite{fabricate} takes a unique approach
+dependencies are automatically captured by monitoring program execution. The Fabricate tool \cite{fabricate} takes a unique approach
 to defining build systems, providing a series of steps that run sequentially,
 but are skipped if their automatically-detected inputs have not changed.
 Unfortunately no cross-platform APIs are available to detect used dependencies,
