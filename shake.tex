@@ -135,9 +135,8 @@ generally, if either file changes contents, see
 \S\ref{sec:file-contents}).
 \end{itemize}
 \noindent
-Shake achieves this result by storing information about inputs and outputs after a rule
-completes in a per-project database, and rerunning a rule if anything has
-changed (and thus the result could be expected to change). The Shake approach
+Shake achieves this result by maintaining a per-project database, storing information about inputs and outputs after a rule completes, and rerunning a rule if anything has
+changed (and thus the result could be expected to change). Using a separate database
 has a number of advantages: (i) we can track things that aren't files as
 in~\S\ref{sec:polymorphic}; (ii) we can depend on a more refined measure than
 modification time as in~\S\ref{sec:file-contents}; (iii) we are robust to system
@@ -149,24 +148,24 @@ use-case.
 
 \subsection{Pre-use dependencies: \lst'need'\label{sec:need}}
 
-The call \lst'need [src]' on line 11 tells Shake that \lst'foo.c' is needed
+The call \lst'need [src]' on line 11 tells Shake that \lst'foo.c' is required
 to build \lst'foo.o'. But note that this dependency is only announced
 after Shake has started to run the rule building \lst'foo.c'.
 In particular, we can perform
 arbitrary computation including I/O, running system commands and examining files
-produced by a previous \lst'need' before deciding to perform a future \lst'need'.
+required by a previous \lst'need', before declaring additional requirements with \lst'need'.
 In contrast, in most build systems (Make included), all dependencies of a rule must be
 declared before the rule starts executing. The power to add additional dependencies
-while running a rule turns out to be extremely important in practice (\S\ref{sec:dynamic-deps}).
+while running a rule turns out to be important in practice (\S\ref{sec:dynamic-deps}).
 
 \subsection{Post-use dependencies: \lst'needed'\label{sec:needed}}
 
 Looking at our first example, the object gets recompiled if the C source file
 changes (via the call to \lst'need [src]', line 11).
 But a C file may \lst'#include' any number of header files, and changes
-to these headers will also affect the resulting object. While it is possible to
+to these headers will also affect the resulting object. One option is to
 write our own code to search for transitively included headers
-\cite[\S6.4]{shake}, a simpler alternative is to reuse the logic already present
+\cite[\S6.4]{shake}, another approach is to reuse the logic already present
 in \lst'gcc'. The \lst'gcc' compilation command (\lst'-c') can also take a flag
 \lst'-M' to print out a \lst'Makefile' listing all headers that were used by the
 compilation. We can integrate this flag into our example by replacing the final
@@ -291,7 +290,7 @@ parseConfig = ...
 \end{figure}
 
 In Figure~\ref{fig:polymorphic-deps} we define two new types of rule. First, we
-define a rule from configuration file to the key/value map it contains, using the
+define a rule from the configuration file to the key/value map it contains, using the
 \lst'ConfigMap' type. Next we define a rule from a single key in the configuration file to the associated value,
 using the \lst'ConfigKey' type. We define \lst'Rule' instances to declare these
 new rule types to Shake, allowing us to use \lst'rule' and \lst'apply' from
@@ -451,8 +450,7 @@ hostile, that is unlikely. The disadvantage of content hashes over modification
 times is that hashes are expensive to compute, requiring a full scan of the
 file. In particular, after a rule finishes Shake must scan the file it just
 built, and on startup Shake must scan all files. Scanning all files can cause
-rebuilds where no actions are required to take minutes instead of less than a
-second.
+rebuild checks to take minutes instead of less than a second.
 
 As an optimisation, Shake stores the modification time, file size and hash of
 the contents. After a rule completes all the information is computed and stored.

@@ -64,3 +64,6 @@ Generating build metadata is not really supported -- a problem typically solved 
 committing the generated files to version control. Both tools also support build
 clusters, which build code once and share the resulting objects to everyone
 without recompiling them locally -- an essential feature at such scales.
+Support for build clusters using Shake is made harder by the powerful dependencies,
+but we believe is still tractable, and hope to add support in a future version.
+
