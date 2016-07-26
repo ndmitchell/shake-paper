@@ -10,7 +10,7 @@ remaining limitations; nothing presents any new challenges or requires changes
 to the build infrastructure.
 
 % \subsection{Current status and limitations\label{sec:limitations}}
-% 
+%
 % We implemented a new build system for GHC from scratch using Shake and our build
 % abstractions from~\S\ref{sec:abstractions}. The current implementation can build
 % \lst'Stage2' GHC, but has the following limitations:
@@ -109,6 +109,7 @@ supported. The new build system correctly reruns only affected rules.
 In summary, the new build system correctly handles most use cases, whereas
 the old one performs a lot of unnecessary rebuilds in many cases.
 
+\vspace{-1mm}
 \subsection{Quantitative analysis: benchmarks\label{sec:benchmarks}}
 
 When building from scratch, ignoring the initial \lst'boot'/\lst'configure'

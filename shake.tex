@@ -267,7 +267,7 @@ Instead, we can define a rule to map from configuration keys to values.
 \begin{lstlisting}
 newtype ConfigMap = ConfigMap FilePath deriving ...
 instance Rule ConfigMap (Map String String)
-
+#\vspace{-2mm}#
 newtype ConfigKey = ConfigKey String deriving ...
 instance Rule ConfigKey String
 
@@ -275,18 +275,19 @@ main = shake shakeOptions $ do
     rule $ \(ConfigMap file) -> Just $ do
         cfg <- readFile' file
         return $ parseConfig cfg
-
+#\vspace{-2mm}#
     rule $ \(ConfigKey key) -> Just $ do
         [dict] <- apply [ConfigMap "config.file"]
         return $ dict Map.! key
-
+#\vspace{-2mm}#
     "*.o" %> \out -> do
         [cc] <- apply [ConfigKey "cc"]
         ...
-        cmd cc "-o" out "-c" src
+        cmd cc "-c" src "-o" out
 
 parseConfig :: String -> Map String String
 parseConfig = ...
+#\vspace{-5mm}#
 \end{lstlisting}
 \caption{Using polymorphic dependencies in Shake\label{fig:polymorphic-deps}}
 \vspace{-3mm}

@@ -1,4 +1,6 @@
+\vspace{-1mm}
 \section{Related Work\label{section-review}}
+\vspace{-1mm}
 
 This paper is about writing build systems at scale, the most complete modern advice on developing such systems comes from \citet{smith:software_build_systems}. When
 \citet{mcintosh:build_maintenance_effort} studied software maintenance they
@@ -11,7 +13,9 @@ increases, and that hand written Makefiles require most complex features. In
 the remainder of this section we focus on features found in other
 build systems which are useful at scale.
 
+\vspace{-0.5mm}
 \subsection{Embedded language}
+\vspace{-0.5mm}
 
 A build system can either be specified using structured metadata, e.g. Bazel
 \cite{bazel}, or embedded into a standard programming language -- for example
@@ -27,7 +31,9 @@ know of eleven in addition to Shake (Abba, Blueprint, Buildsome, Coadjute, Cake
 $\times$ 2, Hake, Hmk, Nemesis, OpenShake and Zoom). Of these, the two Cake
 libraries and OpenShake are based on an early presentation of the principles behind Shake.
 
+\vspace{-0.5mm}
 \subsection{Advanced dependencies}
+\vspace{-0.5mm}
 
 We have found that while powerful dependencies might only be used in a few
 places, if they are missing the workarounds can be pervasive
@@ -38,7 +44,9 @@ dependency features more powerful than Shake, e.g. Pluto supports rules
 that run until a fixed-point is reached and rules whose output filename is not known in
 advance. These features can be encoded in Shake, but are not present natively.
 
+\vspace{-0.5mm}
 \subsection{Automatic dependency management}
+\vspace{-0.5mm}
 
 In both Shake and Make, all dependencies must be declared explicitly. However,
 in build systems such as Tup \cite{tup} and Buildsome \cite{buildsome}, some
@@ -48,7 +56,9 @@ but are skipped if their automatically-detected inputs have not changed.
 Unfortunately no cross-platform APIs are available to detect used dependencies,
 so such tools are all limited in which platforms they support.
 
+\vspace{-0.5mm}
 \subsection{Build clusters}
+\vspace{-0.5mm}
 
 The build systems Bazel and Buck \cite{buck} are used at Google and Facebook
 respectively, both operating at sizes significantly beyond that of the GHC build
