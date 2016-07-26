@@ -29,7 +29,7 @@ main = shake shakeOptions $ do
     "*.o" %> \out -> do
         let src = out -<.> "c"
         need [src]
-        cmd "gcc -o" out "-c" src
+        cmd "gcc -c" src "-o" out
 \end{lstlisting}
 
 \noindent Following the code from top to bottom:
@@ -167,19 +167,22 @@ to these headers will also affect the resulting object. One option is to
 write our own code to search for transitively included headers
 \cite[\S6.4]{shake}, another approach is to reuse the logic already present
 in \lst'gcc'. The \lst'gcc' compilation command (\lst'-c') can also take a flag
-\lst'-M' to print out a \lst'Makefile' listing all headers that were used by the
+\lst'-MD' to generate a Makefile listing all headers that were used by the
 compilation. We can integrate this flag into our example by replacing the final
 line with:
 
 \begin{lstlisting}
-Stdout makefile <- cmd "gcc -M -o" out "-c" src
-need $ makefileDepends makefile
+let makefile = out -<.> "m"
+unit $ cmd "gcc -MD -MF" makefile "-c" src "-o" out
+deps <- liftIO $ readFile makefile
+need $ makefileDependencies deps
 \end{lstlisting}
 
-\noindent We use \lst'Stdout' to capture the output of \lst'cmd', then
-\lst'makefileDepends' to parse the Makefile and return all dependencies
-\footnote{Using the \lst'parseMakefile' helper function in Shake we can define
-\lst'makefileDepends = concatMap snd . parseMakefile'.}. After obtaining the
+\noindent We write the Makefile to \lst'foo.m', then use
+\lst'makefileDependencies' to parse the Makefile and return all
+dependencies\footnote{Using the \lst'parseMakefile' helper function
+provided by Shake we can define
+\lst'makefileDependencies = concatMap snd . parseMakefile'.}. After obtaining the
 list of dependencies we \lst'need' them, making them inputs to this rule, and
 ensuring that if a header changes the object will be rebuilt.
 
