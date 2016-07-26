@@ -91,7 +91,7 @@
   \else
     \@latex@error{Cannot handle more than 12 authors}{}%
   \fi
-  \vspace{1pc}
+  %\vspace{1pc}
   \end{center}}
 \makeatother
 
@@ -114,17 +114,12 @@
 \title{Non-recursive Make Considered Harmful}
 \subtitle{Build Systems at Scale}
 
-% \authorinfo{Authors}
-%            {Affiliations}
-%            {Emails}
-\authorinfo{Andrey Mokhov}{Newcastle University}{andrey.mokhov@ncl.ac.uk}
-\authorinfo{Neil Mitchell}{Standard Chartered}{ndmitchell@gmail.com}
+\authorinfo{Andrey Mokhov\thanks{Andrey Mokhov conducted this work during a 6-month research visit to Microsoft Research Cambridge which was funded by Newcastle University, EPSRC (grant reference EP/K503885/1), and Microsoft Research.}}{Newcastle University}{andrey.mokhov@ncl.ac.uk}
+\authorinfo{Neil Mitchell\thanks{Neil Mitchell is employed by Standard Chartered Bank. This paper has been created in a personal capacity and Standard Chartered Bank does not accept liability for its content. Views expressed in this paper do not necessarily represent the views of Standard Chartered Bank.}}{Standard Chartered Bank}{ndmitchell@gmail.com}
 \authorinfo{Simon Peyton Jones}{Microsoft Research}{simonpj@microsoft.com}
 \authorinfo{Simon Marlow}{Facebook}{smarlow@fb.com}
 
-
 \maketitle
-\vspace{-8mm}
 \begin{abstract}
 Most build systems start small and simple, but over time grow into hairy monsters
 that few dare to touch. As we demonstrate in this paper, there are a few issues
@@ -140,8 +135,8 @@ spectacularly more maintainable than its Make-based predecessor.
 \end{abstract}
 
 %\category{CR-number}{subcategory}{third-level}
-\keywords
-build-system, compilation, Haskell
+%\keywords
+%build-system, compilation, Haskell
 
 \input{introduction.tex}
 \input{problems.tex}
@@ -154,10 +149,8 @@ build-system, compilation, Haskell
 
 % \acks
 % Thanks to Standard Chartered, where Shake was initially developed.
-
 % \vspace{2mm}
 % \noindent
-% \footnotesize{Neil Mitchell is employed by Standard Chartered Bank. This paper has been created in a personal capacity and Standard Chartered Bank does not accept liability for its content. Views expressed in this paper do not necessarily represent the views of Standard Chartered Bank.}
 
 \bibliographystyle{plainnat}
 \balance
