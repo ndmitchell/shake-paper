@@ -243,8 +243,6 @@ command line for building \lst'build/stage1/libraries/base/Prelude.p_o':
   \lst'-prof'.
   \item We know how to substitute \lst'<input>' and \lst'<output>' in the
   above template.
-  \item We ignore \lst'package' since it is not relevant in this particular
-  case.
 \end{itemize}
 
 \noindent The resulting full command line is:
@@ -325,8 +323,8 @@ as studied by~\citet{pg-algebra}.
 
 All expressions need to be modifiable by users of the build system. We therefore
 need to provide a way not only to add new arguments, but also
-to modify and remove them. A simple solution is to switch to difference
-list expressions, represented by the type \lst'Expr (Diff a)', which is used to
+to modify and remove them (e.g. remove \lst'-O2' under some condition). A
+simple solution is to switch to difference list expressions, represented by the type \lst'Expr (Diff a)', which is used to
 construct values of type \lst'Diff a' with the following monoid instance:
 
 \begin{lstlisting}
@@ -427,9 +425,6 @@ build target@Target {..} = do
 
 \subsection{A simple build system example\label{sec:build-example}}
 
-Figure~\ref{fig:example-abstractions} shows a simple build system that uses the
-abstractions introduced in this section.
-
 \newcommand{\tabx}[1]{\hspace{.106\textwidth}\rlap{#1}}
 \newcommand{\taby}[1]{\hspace{.074\textwidth}\rlap{#1}}
 \newcommand{\tabz}[1]{\hspace{.24\textwidth}\rlap{#1}}
@@ -511,11 +506,14 @@ main = shake shakeOptions $ do
 \caption{Example of a build system\label{fig:example-abstractions}}
 \end{figure}
 
+Figure~\ref{fig:example-abstractions} shows a simple build system that uses the
+abstractions introduced in this section.
 The build system comprises two packages (\lst'Array' and \lst'Base') that can
 be built in two ways (\lst'Vanilla' and \lst'Profiling'), using two versions
 of GHC (\lst'Ghc Head' and \lst'Ghc Release') and an archiver tool \lst'Ar'.
-Note, the build \lst'Context' is slightly different from GHC, but this does not
-prevent us from using the same abstractions.
+Note, the \lst'Context' in Figure~\ref{fig:example-abstractions} is different
+from the GHC \lst'Context' presented in Figure~\ref{fig:abstractions}, but
+this does not prevent us from using the same abstractions.
 
 \newcommand{\checkedbox}{\makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}}
 \newcommand{\uncheckedbox}{\makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.92em}}}

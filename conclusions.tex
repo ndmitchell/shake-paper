@@ -18,7 +18,7 @@ method of building GHC.
 
 \item Our abstractions from \S\ref{sec:abstractions} were designed to allow
 tracking provenance of command line arguments -- mapping each flag to the
-location of the expression that generated it. This feature relies on the
+location of the expression that generated it. This feature will rely on the
 \emph{implicit locations} feature of the latest GHC.
 
 % using the new \emph{implicit locations}
@@ -26,8 +26,8 @@ location of the expression that generated it. This feature relies on the
 % in GHC
 
 \item While faster than the old system, the build is still slower than we would
-like. The zero build time could be reduced by switching to a more performant serialisation
+like. The zero build time could be reduced by switching to a faster serialisation
 library. The critical path of a full rebuild takes over seven minutes, limiting
 the gains available from additional processors. We hope to break this critical path
-by refactoring -- a feasible task in the new system.
+by refactoring the build system, which is now a feasible task.
 \end{itemize}
