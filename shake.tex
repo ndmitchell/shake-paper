@@ -1,3 +1,4 @@
+\vspace{-1mm}
 \section{Background about Shake\label{sec:shake}}
 
 Many of the issues raised in~\S\ref{sec:challenges} stem from the fact
@@ -33,7 +34,7 @@ main = shake shakeOptions $ do
 \end{lstlisting}
 
 \noindent Following the code from top to bottom:
-
+\vspace{-1mm}
 \begin{description}
 \item[Line 1] declares a Haskell module. Shake is a Haskell library, so all
 Shake build systems are written in Haskell and can make full use of other
@@ -87,8 +88,7 @@ class (ShakeValue key, ShakeValue value) =>
     storedValue :: ShakeOptions ->
         key -> IO (Maybe value)
 
-rule :: Rule key value =>
-    (key -> Maybe (Action value)) -> Rules ()
+rule :: Rule key value => (key#\,#->#\,#Maybe#\,#(Action value))#\,#->#\,#Rules#\,#()
 apply :: Rule key value => [key] -> Action [value]
 
 data Resource

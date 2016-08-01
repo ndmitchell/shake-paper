@@ -34,6 +34,7 @@ $1/$2/build/%.$$($3_osuf) : \
        -dyno $$(addsuffix .$$(dyn_osuf),$$(basename $$@)) )
   $$(call ohi(*-*)sanity(*-*)check,$1,$2,$3,$1/$2/build/$$*)
 \end{lstlisting}
+\vspace{-1mm}
 Yes, there are four dollar signs in a row!  If it wasn't so tragic,
 impenetrable code like this would be hilarious.  This kind of thing
 goes on for \emph{thousands} of lines.  The result is a nighmare to
