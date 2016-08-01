@@ -455,7 +455,7 @@ args = mconcat
         , arg =<< getOutput
         , append =<< getInputs ]
 
-    , builderGhc ? output "//GHC/IO.*" ? arg "-funbox-strict-fields"
+    , builderGhc ? output#\,#"//GHC/IO.*"#\,#?#\,#arg#\,#"-funbox-strict-fields"
 
     , builderGhc ? package Array ? arg "-Wall" ]
 #\vspace{-5mm}#
