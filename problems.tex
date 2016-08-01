@@ -34,7 +34,6 @@ $1/$2/build/%.$$($3_osuf) : \
        -dyno $$(addsuffix .$$(dyn_osuf),$$(basename $$@)) )
   $$(call ohi(*-*)sanity(*-*)check,$1,$2,$3,$1/$2/build/$$*)
 \end{lstlisting}
-\vspace{-1mm}
 Yes, there are four dollar signs in a row!  If it wasn't so tragic,
 impenetrable code like this would be hilarious.  This kind of thing
 goes on for \emph{thousands} of lines.  The result is a nighmare to
@@ -44,7 +43,7 @@ Perhaps GHC's implementors just aren't very clever?  Maybe so, but
 they did at least try hard. The current build system is the
 fourth major iteration, as they struggled to find good solutions to the
 problems that arose:
-
+\vspace{-1mm}
 \begin{itemize}
 \item The first incarnation of the build system used \lst'jmake', a
   system inspired by the X Consortium's \lst'imake'.  This tool was
