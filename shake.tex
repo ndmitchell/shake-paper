@@ -116,7 +116,7 @@ files that do not match any other rules, which simply checks the file already
 exists. After completing this simple rule, Shake will resume running the
 \lst'*.o' rule, executing \lst'gcc' to build \lst'foo.o'.
 
-\subsection{Parsimonious rebuilding}
+\subsection{Parsimonious Rebuilding}
 
 Both Make and Shake try to eliminate unnecessary rebuilding, but each
 uses a different approach:
@@ -146,7 +146,7 @@ often worked around in Make by using \emph{stamp files} to provide a
 modification time but having no actual content -- Shake simplifies this common
 use-case.
 
-\subsection{Pre-use dependencies: \lst'need'\label{sec:need}}
+\subsection{Pre-use Dependencies: \lst'need'\label{sec:need}}
 
 The call \lst'need [src]' on line 11 tells Shake that \lst'foo.c' is required
 to build \lst'foo.o'. But note that this dependency is only announced
@@ -158,7 +158,7 @@ In contrast, in most build systems (Make included), all dependencies of a rule m
 declared before the rule starts executing. The power to add additional dependencies
 while running a rule turns out to be important in practice (\S\ref{sec:dynamic-deps}).
 
-\subsection{Post-use dependencies: \lst'needed'\label{sec:needed}}
+\subsection{Post-use Dependencies: \lst'needed'\label{sec:needed}}
 
 Looking at our first example, the object gets recompiled if the C source file
 changes (via the call to \lst'need [src]', line 11).
@@ -207,7 +207,7 @@ of building, and thus the result is consistent. In the common case of the header
 files being source files, the associated rule will be the default file rule,
 which does not modify the file, and the assertion will not trigger.
 
-\subsection{Order-only dependencies: \lst'orderOnly'}
+\subsection{Order-only Dependencies: \lst'orderOnly'}
 
 We have seen how \lst'needed' can be safely used for source files, but what
 about generated files? Imagine we have a rule to build \lst'config.h' from a
@@ -240,7 +240,7 @@ need xs === (orderOnly xs >> needed xs)
 \noindent Although in practice both \lst'orderOnly' and \lst'needed' can be
 implemented on top of the \lst'need' primitive.
 
-\subsection{Polymorphic dependencies\label{sec:polymorphic}}
+\subsection{Polymorphic Dependencies\label{sec:polymorphic}}
 
 While build-systems are typically focused around files, the core of Shake is
 fully polymorphic, operating on objects that are uniquely labelled by a
@@ -364,7 +364,7 @@ algebraic data types or associative maps.
 file. GHC's build system uses 6,677 \mbox{non-file~rule~values}.
 \end{itemize}
 
-\subsection{Concurrency reduction\label{sec:concurrency-reduction}}
+\subsection{Concurrency Reduction\label{sec:concurrency-reduction}}
 
 Like most build systems, Shake can run independent rules concurrently.
 However, running too many rules in parallel can cause a computer to become overloaded,
@@ -412,7 +412,7 @@ are other rules that could be run. We use this approach to deal with the GHC
 package database, which only permits one writer at a time,
 see~\S\ref{sec:ghc-pkg-db}.
 
-\subsection{Tracking file contents\label{sec:file-contents}}
+\subsection{Tracking File Contents\label{sec:file-contents}}
 
 Build systems run actions on files, skipping the actions if the files have not
 changed. An important part of that process is determining if a file has

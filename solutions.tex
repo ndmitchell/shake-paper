@@ -1,4 +1,4 @@
-\section{Quick wins: from Make to Shake\label{sec:solutions}}
+\section{Quick Wins: From Make to Shake\label{sec:solutions}}
 
 The GHC build system stretches Make beyond its limits.
 In this section we illustrate, from our experience with GHC's build system,
@@ -114,7 +114,7 @@ An alert reader may have noticed that \lst'$1_$2_$3_HC_OPTS' refers to
 macro argument \lst'$3' specifies \emph{how} the file must be built.
 The next subsection discusses this pattern and associated challenges.
 
-\subsection{Computing command lines\label{sec:command-lines}}
+\subsection{Computing Command Lines\label{sec:command-lines}}
 
 In any large-scale build system, there are rules that say how to build targets,
 and then there is a long list of special cases, listing targets that need
@@ -198,7 +198,7 @@ DSL for succinct and type-safe computation of build command lines.
 % pieces be required in the escape hatch, they can be abstracted in the
 % traditional ways - perhaps even combining two DSLs in one build system.
 
-\subsection{Rules with multiple outputs\label{sec:multiple-outputs}}
+\subsection{Rules with Multiple Outputs\label{sec:multiple-outputs}}
 
 Given a Haskell source file \lst'Foo.hs', GHC compilation produces both an
 interface file \lst'Foo.hi' and an object file \lst'Foo.o'. The typical way of
@@ -231,7 +231,7 @@ which defines a build rule with multiple outputs:
     cmd "ghc" hc_opts hs
 \end{lstlisting}
 
-\subsection{Reducing concurrency\label{sec:ghc-pkg-db}}
+\subsection{Reducing Concurrency\label{sec:ghc-pkg-db}}
 
 As discussed in~\S\ref{sec:concurrency-reduction}, it is sometimes necessary to
 reduce concurrency in a build system. As an example, GHC packages need to
@@ -265,7 +265,7 @@ availability of functions, we can abstract a function that both executes
 % Note that build systems already schedule tasks to satisfy the implicit thread
 % resource, so having user defined resources is an obvious generalisation.
 
-\subsection{Dynamic dependencies\label{sec:dynamic-deps}}
+\subsection{Dynamic Dependencies\label{sec:dynamic-deps}}
 
 Make, in common with many other build systems, works by
 constructing a dependency graph and then executing it. This approach
@@ -437,7 +437,7 @@ limitation in practice, whereas the lack of dynamic dependencies really
 % unchanging rules we automatically get rebuild avoidance if the value does not
 % change.
 
-\subsection{Avoiding external tools\label{sec:real_code}}
+\subsection{Avoiding External Tools\label{sec:real_code}}
 
 Build systems typically spend most of their time calling out to external
 tools, e.g. compilers. But sometimes it is useful to replace external tools

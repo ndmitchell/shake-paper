@@ -14,7 +14,7 @@ the remainder of this section we focus on features found in other
 build systems which are useful at scale.
 
 \vspace{-0.5mm}
-\subsection{Embedded language}
+\subsection{Embedded Language}
 \vspace{-0.5mm}
 
 A build system can either be specified using structured metadata, e.g. Bazel
@@ -32,7 +32,7 @@ $\times$ 2, Hake, Hmk, Nemesis, OpenShake and Zoom). Of these, the two Cake
 libraries and OpenShake are based on an early presentation of the principles behind Shake.
 
 \vspace{-0.5mm}
-\subsection{Advanced dependencies}
+\subsection{Advanced Dependencies}
 \vspace{-0.5mm}
 
 We have found that while powerful dependencies might only be used in a few
@@ -45,7 +45,7 @@ that run until a fixed-point is reached and rules whose output filename is not k
 advance. These features can be encoded in Shake, but are not present natively.
 
 \vspace{-0.5mm}
-\subsection{Automatic dependency management}
+\subsection{Automatic Dependency Management}
 \vspace{-0.5mm}
 
 In both Shake and Make, all dependencies must be declared explicitly. However,
@@ -57,7 +57,7 @@ Unfortunately no cross-platform APIs are available to detect used dependencies,
 so such tools are all limited in which platforms they support.
 
 \vspace{-0.5mm}
-\subsection{Build clusters}
+\subsection{Build Clusters}
 \vspace{-0.5mm}
 
 The build systems Bazel and Buck \cite{buck} are used at Google and Facebook
